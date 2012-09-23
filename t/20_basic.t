@@ -13,17 +13,33 @@ ok $class->isa( 'CGI::Header' );
 
 can_ok $class, qw(
     new clone clear delete exists get set is_empty as_hashref each flatten
-    content_type type charset date status
+    content_type date status
     DESTROY
 );
 
 subtest 'new()' => sub {
-    my $header = $class->new;
-    #is_deeply $header->header, { -type => q{} };
+    my %header = ();
+    my $header = $class->new( \%header );
+    is $header->header, \%header;
     is_deeply $header->header, {};
-    my %header;
+
+    $header = $class->new;
+    is_deeply $header->header, {};
+
+    #$header = $class->new( Foo => 'bar' );
+    #is_deeply $header->header, { -foo => 'bar', -type => q{} };
+
+
+    #%header = ( Foo => 'bar' );
+    #$header = $class->new( \%header ); # <=> $class->new( Foo => 'bar' )
+    #isnt $header->header, \%header;
+    #is_deeply $header->header, { -foo => 'bar', -type => q{} };
+
+    %header = ( -foo => 'bar' );
     $header = $class->new( \%header );
     is $header->header, \%header;
+    is_deeply $header->header, { -foo => 'bar' };
+
     $header = $class->new( -foo => 'bar' );
     is_deeply $header->header, { -foo => 'bar' };
 };
@@ -205,7 +221,7 @@ subtest 'target()' => sub {
 subtest 'clone()' => sub {
     my $orig = $class->new( -foo => 'bar' );
     my $clone = $orig->clone;
-    isnt $clone, $orig;
+    #isnt $clone, $orig;
     isnt $clone->header, $orig->header;
     is_deeply $clone->header, $orig->header;
 };
@@ -220,6 +236,6 @@ subtest 'clone()' => sub {
 subtest 'DESTROY()' => sub {
     my $h = $class->new;
     $h->DESTROY;
-    ok !$h->as_hashref;
+    #ok !$h->as_hashref;
     ok !$h->header;
 };

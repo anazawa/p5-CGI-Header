@@ -36,7 +36,6 @@ subtest 'set_cookie()' => sub {
 
     %header = ();
     $header->set_cookie( foo => { value => 'bar' } );
-    #$got = $header{-cookie};
     $got = $header{-cookie}[0];
     isa_ok $got, 'CGI::Cookie';
     is $got->value, 'bar';

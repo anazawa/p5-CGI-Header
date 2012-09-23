@@ -9,7 +9,7 @@ my %header_of;
 
 sub TIEHASH {
     my $class = shift;
-    my $header = ref $_[0] eq 'HASH' ? shift : { -type => q{} };
+    my $header = ref $_[0] eq 'HASH' ? shift : {};
     my $self = bless \do { my $anon_scalar }, $class;
     $header_of{ refaddr $self } = $header;
     $self;
@@ -188,8 +188,9 @@ sub field_names {
 
     push @fields, 'Content-Disposition' if delete $header{-attachment};
 
+    my $type = delete @header{ '-charset', '-type' };
+
     # not ordered
-    my $type = delete @header{qw/-charset -type/};
     while ( my ($norm, $value) = each %header ) {
         push @fields, $self->_denormalize( $norm ) if $value;
     }
@@ -223,10 +224,7 @@ sub expires {
 
     if ( @_ ) {
         my $expires = shift;
-
-        # CGI::header() automatically adds the Date header
         delete $header->{-date};
-
         $header->{-expires} = $expires;
     }
     elsif ( my $expires = $self->FETCH('Expires') ) {
@@ -268,6 +266,36 @@ sub p3p_tags {
     }
 
     return;
+}
+
+sub target {
+    my $self = shift;
+    my $this = refaddr $self;
+    my $header = $header_of{ $this };
+    $header->{-target} = shift if @_;
+    $header->{-target};
+}
+
+sub get_cookie {
+    my $self   = shift;
+    my $name   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    my @cookies = do {
+        my $cookies = $header->{-cookie};
+        return unless $cookies;
+        ref $cookies eq 'ARRAY' ? @{ $cookies } : $cookies;
+    };
+
+    my @values;
+    for my $cookie ( @cookies ) {
+        next unless ref $cookie eq 'CGI::Cookie';
+        next unless $cookie->name eq $name;
+        push @values, $cookie;
+    }
+
+    wantarray ? @values : $values[0];
 }
 
 sub _date_header_is_fixed {

@@ -1,20 +1,20 @@
 package CGI::Header;
+use 5.008_009;
 use strict;
 use warnings;
-use overload '%{}' => 'as_hashref', 'fallback' => 1;
+use overload '%{}' => 'as_hashref', q{""} => 'as_string', fallback => 1;
 use parent 'CGI::Header::Entity';
 use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
+
+our $VERSION = '0.01';
 
 my %header_of;
 
 sub new {
     my $class = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
-    my $self = $class->SUPER::new( $header );
-    tie my %header => 'CGI::Header::Entity' => $header;
-    $header_of{ refaddr $self } = \%header;
-    $self;
+    $class->SUPER::new( $header );
 }
 
 sub get {
@@ -80,38 +80,22 @@ sub each {
     return;
 }
 
-sub as_hashref { $header_of{ refaddr shift } }
-
-sub charset {
+sub as_hashref {
     my $self = shift;
+    my $this = refaddr $self;
 
-    require HTTP::Headers::Util;
-
-    my %param = do {
-        my $type = $self->FETCH( 'Content-Type' );
-        my ( $params ) = HTTP::Headers::Util::split_header_words( $type );
-        return unless $params;
-        splice @{ $params }, 0, 2;
-        @{ $params };
-    };
-
-    if ( my $charset = $param{charset} ) {
-        $charset =~ s/^\s+//;
-        $charset =~ s/\s+$//;
-        return uc $charset;
+    unless ( exists $header_of{$this} ) {
+        tie my %header => 'CGI::Header::Entity' => $self->header;
+        $header_of{ $this } = \%header;
     }
 
-    return;
+    $header_of{ $this };
 }
 
 sub content_type {
     my $self = shift;
 
-    if ( @_ ) {
-        my $content_type = shift;
-        $self->STORE( 'Content-Type' => $content_type );
-        return;
-    }
+    return $self->STORE( 'Content-Type' => shift ) if @_;
 
     my ( $media_type, $rest ) = do {
         my $content_type = $self->FETCH( 'Content-Type' );
@@ -125,19 +109,15 @@ sub content_type {
     wantarray ? ($media_type, $rest) : $media_type;
 }
 
-BEGIN { *type = \&content_type }
-
-sub date { shift->_date_header( 'Date', @_ ) }
-
-sub _date_header {
-    my ( $self, $field, $time ) = @_;
+sub date {
+    my ( $self, $time ) = @_;
 
     require HTTP::Date;
 
     if ( defined $time ) {
-        $self->STORE( $field => HTTP::Date::time2str($time) );
+        $self->STORE( Date => HTTP::Date::time2str($time) );
     }
-    elsif ( my $date = $self->FETCH($field) ) {
+    elsif ( my $date = $self->FETCH('Date') ) {
         return HTTP::Date::str2time( $date );
     }
 
@@ -149,49 +129,33 @@ sub set_cookie {
 
     require CGI::Cookie;
 
-    my $cookies = $self->FETCH( 'Set-Cookie' );
-
-    unless ( ref $cookies eq 'ARRAY' ) {
-        $cookies = $cookies ? [ $cookies ] : [];
-        $self->STORE( 'Set-Cookie' => $cookies );
-    }
-
     my $new_cookie = CGI::Cookie->new(do {
         my %args = ref $value eq 'HASH' ? %{ $value } : ( value => $value );
         $args{name} = $name;
         \%args;
     });
 
+    my $cookies = $self->FETCH( 'Set-Cookie' );
+
+    if ( !$cookies ) {
+        return $self->STORE( 'Set-Cookie' => [ $new_cookie ] );
+    }
+    elsif ( ref $cookies ne 'ARRAY' ) {
+        $self->STORE( 'Set-Cookie' => $cookies = [ $cookies ] );
+    }
+
+    my $set;
     for my $cookie ( @{$cookies} ) {
-        next unless ref $cookie eq 'CGI::Cookie';
+        next unless ref $cookie   eq 'CGI::Cookie';
         next unless $cookie->name eq $name;
         $cookie = $new_cookie;
-        undef $new_cookie;
+        $set++;
         last;
     }
 
-    push @{ $cookies }, $new_cookie if $new_cookie;
+    push @{ $cookies }, $new_cookie unless $set;
 
     return;
-}
-
-sub get_cookie {
-    my ( $self, $name ) = @_;
-
-    my @cookies = do {
-        my $cookies = $self->FETCH( 'Set-Cookie' );
-        return unless $cookies;
-        ref $cookies eq 'ARRAY' ? @{ $cookies } : $cookies;
-    };
-
-    my @values;
-    for my $cookie ( @cookies ) {
-        next unless ref $cookie eq 'CGI::Cookie';
-        next unless $cookie->name eq $name;
-        push @values, $cookie;
-    }
-
-    wantarray ? @values : $values[0];
 }
 
 sub status {
@@ -215,17 +179,36 @@ sub status {
     return;
 }
 
-sub target {
+sub as_string {
     my $self = shift;
-    return $self->STORE( 'Window-Target' => shift ) if @_;
-    $self->FETCH( 'Window-Target' );
-}
+    my $eol  = defined $_[0] ? shift : "\n";
 
-sub STORABLE_thaw {
-    my $self = shift->SUPER::STORABLE_thaw( @_ );
-    tie my %header => 'CGI::Header::Entity' => $self->header;
-    $header_of{ refaddr $self } = \%header;
-    $self;
+    my @lines;
+
+    if ( $self->nph ) {
+        my $protocol = $ENV{SERVER_PROTOCOL}  || 'HTTP/1.0';
+        my $software = $ENV{SERVER_SOFTWARE}  || 'cmdline';
+        my $status   = $self->FETCH('Status') || '200 OK';
+        push @lines, "$protocol $status";
+        push @lines, "Server: $software";
+    }
+
+    $self->each(sub {
+        my ( $field, $value ) = @_;
+        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
+        push @lines, "$field: $_" for @values;
+    });
+
+    # CR escaping for values, per RFC 822
+    for my $line ( @lines ) {
+        $line =~ s/$eol(\s)/$1/g;
+        next unless $line =~ m/$eol|\015|\012/;
+        $line = substr $line, 0, 72 if length $line > 72;
+        croak "Invalid header value contains a new line ",
+              "not followed by whitespace: $line";
+    }
+
+    join $eol, @lines, q{};
 }
 
 sub DESTROY {
@@ -235,3 +218,76 @@ sub DESTROY {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+CGI::Header - Emulates CGI::header()
+
+=head1 SYNOPSIS
+
+  use CGI::Header;
+  use CGI::Cookie;
+
+  my $cookie = CGI::Cookie->new(
+      -name  => 'ID',
+      -value => 123456,
+  );
+
+  my $header = CGI::Header->new(
+      -attachment => 'genome.jpg',
+      -charset    => 'utf-8',
+      -cookie     => $cookie,
+      -expires    => '+3M',
+      -nph        => 1,
+      -p3p        => [qw/CAO DSP LAW CURa/],
+      -target     => 'ResultsWindow',
+      -type       => 'text/plain',
+  );
+
+  print $header->as_string;
+
+=head1 DESCRIPTION
+
+Accepts the same arguments as CGI::header() does.
+Generates the same HTTP response headers as the subroutine does.
+
+=head2 METHODS
+
+=over 4
+
+=item $header = CGI::Header->new( -type => 'text/plain', ... )
+
+=item $value = $eader->get( $field )
+
+=item $header->set( $field => $value )
+
+=item $bool = $header->exists( $field )
+
+=item $deleted = $header->delete( $field )
+
+=item $header->clear
+
+=item @fields = $header->field_names
+
+=item $header->each( \&callback )
+
+=item @headers = $header->flatten
+
+=item $bool = $header->is_empty
+
+=item $clone = $header->clone
+
+=back
+
+=head1 AUTHOR
+
+Ryo Anazawa (anazawa@cpan.org)
+
+=head1 LICENSE
+
+This module is free software; you can redistibute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+=cut

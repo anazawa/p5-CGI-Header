@@ -9,14 +9,12 @@ requires 'parent'       => '0.225';
 requires 'Carp'         => '1.10';
 requires 'CGI::Cookie'  => '1.29';
 requires 'CGI::Util'    => '1.5';
-requires 'Exporter'     => '5.63';
 requires 'List::Util'   => '1.19';
 requires 'Scalar::Util' => '1.19';
 requires 'Storable'     => '2.18';
 
-requires 'HTTP::Date'          => '6.02';
-requires 'HTTP::Headers::Util' => '6.03';
-requires 'HTTP::Status'        => '6.03';
+requires 'HTTP::Date'   => '6.02';
+requires 'HTTP::Status' => '6.03';
 
 test_requires 'Test::Base'      => '0.60';
 test_requires 'Test::Exception' => '0.31';

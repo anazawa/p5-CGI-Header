@@ -13,12 +13,18 @@ can_ok $class, qw(
 );
 
 subtest 'TIEHASH()' => sub {
-    my $got = $class->TIEHASH;
-    isa_ok $got, $class;
-    is_deeply $got->header, { -type => q{} };
-    my %adaptee;
-    $got = $class->TIEHASH( \%adaptee );
-    is $got->header, \%adaptee;
+    my %header = ();
+    my $header = $class->TIEHASH( \%header );
+    is $header->header, \%header;
+    is_deeply $header->header, {};
+
+    %header = ( -foo => 'bar' );
+    $header = $class->TIEHASH( \%header );
+    is $header->header, \%header;
+    is_deeply $header->header, { -foo => 'bar' };
+
+    $header = $class->TIEHASH;
+    is_deeply $header->header, {};
 };
 
 my %adaptee;
