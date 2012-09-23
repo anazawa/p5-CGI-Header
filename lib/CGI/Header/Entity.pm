@@ -298,6 +298,25 @@ sub get_cookie {
     wantarray ? @values : $values[0];
 }
 
+sub dump {
+    my $self    = shift;
+    my $this    = refaddr $self;
+    my $package = __PACKAGE__;
+
+    require Data::Dumper;
+
+    local $Data::Dumper::Indent = 1;
+
+    my %dump = (
+        $package => {
+            header => $header_of{ $this },
+        },
+        @_,
+    );
+
+    Data::Dumper::Dumper( \%dump );
+}
+
 sub _date_header_is_fixed {
     my $self = shift;
     my $header = $header_of{ refaddr $self };

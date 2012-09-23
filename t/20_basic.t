@@ -26,15 +26,6 @@ subtest 'new()' => sub {
     $header = $class->new;
     is_deeply $header->header, {};
 
-    #$header = $class->new( Foo => 'bar' );
-    #is_deeply $header->header, { -foo => 'bar', -type => q{} };
-
-
-    #%header = ( Foo => 'bar' );
-    #$header = $class->new( \%header ); # <=> $class->new( Foo => 'bar' )
-    #isnt $header->header, \%header;
-    #is_deeply $header->header, { -foo => 'bar', -type => q{} };
-
     %header = ( -foo => 'bar' );
     $header = $class->new( \%header );
     is $header->header, \%header;
@@ -200,7 +191,7 @@ subtest 'as_hashref()' => sub {
 
 subtest 'status()' => sub {
     %header = ();
-    is $header->status, undef;
+    is $header->status, 200;
 
     $header->status( 304 );
     is $header{-status}, '304 Not Modified';

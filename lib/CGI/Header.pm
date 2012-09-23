@@ -172,9 +172,9 @@ sub status {
     elsif ( my $status = $self->FETCH('Status') ) {
         return substr( $status, 0, 3 );
     }
-    #else {
-    #    return 200;
-    #}
+    else {
+        return 200;
+    }
 
     return;
 }
@@ -209,6 +209,18 @@ sub as_string {
     }
 
     join $eol, @lines, q{};
+}
+
+sub dump {
+    my $self    = shift;
+    my $package = __PACKAGE__;
+
+    $self->SUPER::dump(
+        $package => {
+            header => { $self->flatten },
+        },
+        @_,
+    );
 }
 
 sub DESTROY {
