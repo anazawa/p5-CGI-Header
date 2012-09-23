@@ -1,0 +1,4 @@
+Revision history for Perl extension CGI::Header.
+
+0.01 Sep 23rd, 2012
+  - Forked from Blosxom::Header
