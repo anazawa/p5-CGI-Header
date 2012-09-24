@@ -38,15 +38,9 @@ sub DESTROY {
     return;
 }
 
-sub get {
-    my $self   = shift;
-    my $norm   = $self->_normalize( shift );
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    return unless $norm;
-
-    if ( $norm eq '-content_type' ) {
+my %content_type = (
+    get => sub {
+        my $header  = shift;
         my $type    = $header->{-type};
         my $charset = $header->{-charset};
 
@@ -65,31 +59,125 @@ sub get {
             }
         }
 
-        return $charset ? "$type; charset=$charset" : $type;
-    }
-    elsif ( $norm eq '-expires' ) {
+        $charset ? "$type; charset=$charset" : $type;
+    },
+    set => sub {
+        my ( $header, $value ) = @_;
+        $header->{-type} = $value;
+        $header->{-charset} = q{};
+    },
+    exists => sub {
+        my $header = shift;
+        !defined $header->{-type} || $header->{-type} ne q{};
+    },
+    delete => sub {
+        my $header = shift;
+        delete $header->{-charset};
+        $header->{-type} = q{};
+    },
+);
+
+my %expires = (
+    get => sub {
+        my $header = shift;
         my $expires = $header->{-expires};
-        return $expires && CGI::Util::expires( $expires );
-    }
-    elsif ( $norm eq '-p3p' ) {
+        $expires && CGI::Util::expires( $expires );
+    },
+    set => sub {
+        carp "Can't assign to '-expires' directly, use accessors instead";
+    },
+);
+
+my %p3p = (
+    get => sub {
+        my $header = shift;
         my $p3p = $header->{-p3p};
         my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{ $p3p } : $p3p;
-        return $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
-    }
+        $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
+    },
+    set => sub {
+        carp "Can't assign to '-p3p' directly, use accessors instead";
+    },
+);
 
-    if ( $norm eq '-content_disposition' ) {
-        if ( my $filename = $header->{-attachment} ) {
-            return qq{attachment; filename="$filename"};
-        }
-    }
-    elsif ( $norm eq '-date' ) {
-        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
-            return HTTP::Date::time2str( time );
-        }
+my %content_disposition = (
+    get => sub {
+        my $header = shift;
+        my $filename = $header->{-attachment};
+        return qq{attachment; filename="$filename"} if $filename;
+        $header->{-content_disposition};
+    },
+    set => sub {
+        my ( $header, $value ) = @_;
+        delete $header->{-attachment};
+        $header->{-content_disposition} = $value;
+    },
+    exists => sub {
+        my $header = shift;
+        $header->{-attachment} || $header->{-content_disposition};
+    },
+    delete => sub {
+        my $header = shift;
+        delete $header->{-attachment};
+    },
+);
+
+my %date = (
+    get => sub {
+        my $header = shift;
+        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
+        return HTTP::Date::time2str( time ) if $is_fixed;
+        $header->{-date};
+    },
+    set => sub {
+        my ( $header, $value ) = @_;
+        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
+        return carp 'The Date header is fixed' if $is_fixed;
+        $header->{-date} = $value;
+    },
+    exists => sub {
+        my $header = shift;
+        $header->{-date} || first { $header->{$_} } qw(-nph -expires -cookie);
+    },
+    delete => sub {
+        my $header = shift;
+        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
+        return carp 'The Date header is fixed' if $is_fixed;
+    },
+);
+
+my %cookie = (
+    set => sub {
+        my ( $header, $value ) = @_;
+        delete $header->{-date};
+        $header->{-cookie} = $value;
+    },
+);
+
+my %handler = (
+    -content_disposition => \%content_disposition,
+    -content_type        => \%content_type,
+    -cookie              => \%cookie,
+    -date                => \%date,
+    -expires             => \%expires,
+    -p3p                 => \%p3p,
+);
+
+sub get {
+    my $self   = shift;
+    my $norm   = $self->_normalize( shift );
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    return unless $norm;
+
+    if ( my $get = $handler{$norm}{get} ) {
+        return $get->( $header );
     }
 
     $header->{ $norm };
 }
+
 
 sub set {
     my $self   = shift;
@@ -100,26 +188,9 @@ sub set {
 
     return unless $norm;
 
-    if ( $norm eq '-content_type' ) {
-        $header->{-type} = $value;
-        $header->{-charset} = q{};
+    if ( my $set = $handler{$norm}{set} ) {
+        $set->( $header, $value );
         return;
-    }
-    elsif ( $norm eq '-p3p' or $norm eq '-expires' ) {
-        carp "Can't assign to '$norm' directly, use accessors instead";
-        return;
-    }
-
-    if ( $norm eq '-date' ) {
-        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
-            return carp 'The Date header is fixed';
-        }
-    }
-    elsif ( $norm eq '-content_disposition' ) {
-        delete $header->{-attachment};
-    }
-    elsif ( $norm eq '-cookie' ) {
-        delete $header->{-date};
     }
 
     $header->{ $norm } = $value;
@@ -137,29 +208,13 @@ sub delete {
 
     return unless $norm;
 
-    if ( $norm eq '-date' ) {
-        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
-            return carp 'The Date header is fixed';
-        }
-    }
-    elsif ( $norm eq '-content_type' ) {
-        delete $header->{-charset};
-        $header->{-type} = q{};
-    }
-    elsif ( $norm eq '-content_disposition' ) {
-        delete $header->{-attachment};
+    if ( my $delete = $handler{$norm}{delete} ) {
+        $delete->( $header );
     }
 
     delete $header->{ $norm };
 
     $value;
-}
-
-sub clear {
-    my $self = shift;
-    my $this = refaddr $self;
-    %{ $header_of{$this} } = ( -type => q{} );
-    return;
 }
 
 sub exists {
@@ -170,18 +225,18 @@ sub exists {
 
     return unless $norm;
 
-    if ( $norm eq '-content_type' ) {
-        return !defined $header->{-type} || $header->{-type} ne q{};
-    }
-    
-    if ( $norm eq '-content_disposition' ) {
-        return 1 if $header->{-attachment};
-    }
-    elsif ( $norm eq '-date' ) {
-        return 1 if first { $header->{$_} } qw(-nph -expires -cookie);
+    if ( my $exists = $handler{$norm}{exists} ) {
+        return $exists->( $header );
     }
 
     $header->{ $norm };
+}
+
+sub clear {
+    my $self = shift;
+    my $this = refaddr $self;
+    %{ $header_of{$this} } = ( -type => q{} );
+    return;
 }
 
 BEGIN {
