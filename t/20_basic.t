@@ -9,8 +9,6 @@ use Test::Exception;
 
 my $class = 'CGI::Header';
 
-ok $class->isa( 'CGI::Header' );
-
 can_ok $class, qw(
     new clone clear delete exists get set is_empty each flatten
     date status
@@ -45,61 +43,32 @@ ok $header->exists('Foo'), 'should return true';
 ok !$header->exists('Bar'), 'should return false';
 
 # get()
-%header = ( -foo => 'bar', -bar => 'baz' );
+%header = ( -foo => 'bar' );
 is $header->get('Foo'), 'bar';
-is $header->get('Baz'), undef;
-#is $header->get('Foo', 'Bar'), 'baz';
-#is_deeply [ $header->get('Foo', 'Bar') ], [ 'bar', 'baz' ];
+is $header->get('Bar'), undef;
 
 # clear()
 %header = ( -foo => 'bar' );
 $header->clear;
 is_deeply \%header, { -type => q{} }, 'should be empty';
 
-subtest 'set()' => sub {
-    #my $expected = qr{^Odd number of elements passed to set\(\)};
-    #throws_ok { $header->set('Foo') } $expected;
+# set()
+%header = ();
+$header->set( Foo => 'bar' );
+is_deeply \%header, { -foo => 'bar' };
 
-    %header = ();
-
-    $header->set(
-        Foo => 'bar',
-        #Bar => 'baz',
-        #Baz => 'qux',
-    );
-
-    my %expected = (
-        -foo => 'bar',
-        #-bar => 'baz',
-        #-baz => 'qux',
-    );
-
-    is_deeply \%header, \%expected, 'set() multiple elements';
-};
+# is_empty()
+%header = ();
+ok !$header->is_empty;
+%header = ( -type => q{} );
+ok $header->is_empty;
 
 subtest 'delete()' => sub {
     %header = ();
     is $header->delete('Foo'), undef;
-
     %header = ( -foo => 'bar' );
     is $header->delete('Foo'), 'bar';
     is_deeply \%header, {};
-
-#%header = (
-#        -foo => 'bar',
-#        -bar => 'baz',
-#    );
-
-#    is_deeply [ $header->delete('Foo', 'Bar') ], [ 'bar', 'baz' ];
-#    is_deeply \%header, {};
-
-#    %header = (
-#        -foo => 'bar',
-#        -bar => 'baz',
-#    );
-
-#    ok $header->delete('Foo', 'Bar') eq 'baz';
-#    is_deeply \%header, {};
 };
 
 subtest 'each()' => sub {
@@ -124,13 +93,6 @@ subtest 'each()' => sub {
     );
 
     is_deeply \@got, \@expected;
-};
-
-subtest 'is_empty()' => sub {
-    %header = ();
-    ok !$header->is_empty;
-    %header = ( -type => q{} );
-    ok $header->is_empty;
 };
 
 subtest 'flatten()' => sub {
@@ -163,32 +125,6 @@ subtest 'flatten()' => sub {
     is_deeply \@got, \@expected;
 };
 
-#subtest 'as_hashref()' => sub {
-#    my $got = $header->as_hashref;
-#    ok ref $got eq 'HASH';
-    #ok tied %{ $got } eq $header;
-
-#    %header = ();
-#    $header->{Foo} = 'bar';
-#    is_deeply \%header, { -foo => 'bar' }, 'store';
-
-#    %header = ( -foo => 'bar' );
-#    is $header->{Foo}, 'bar', 'fetch';
-#    is $header->{Bar}, undef;
-
-#    %header = ( -foo => 'bar' );
-#    ok exists $header->{Foo}, 'exists';
-#    ok !exists $header->{Bar};
-
-#    %header = ( -foo => 'bar' );
-#    is delete $header->{Foo}, 'bar';
-#    is_deeply \%header, {}, 'delete';
-
-#    %header = ( -foo => 'bar' );
-#    %{ $header } = ();
-#    is_deeply \%header, { -type => q{} }, 'clear';
-#};
-
 subtest 'status()' => sub {
     %header = ();
     is $header->status, 200;
@@ -212,21 +148,12 @@ subtest 'target()' => sub {
 subtest 'clone()' => sub {
     my $orig = $class->new( -foo => 'bar' );
     my $clone = $orig->clone;
-    #isnt $clone, $orig;
     isnt $clone->header, $orig->header;
     is_deeply $clone->header, $orig->header;
 };
 
-#subtest 'UNTIE()' => sub {
-#    my $h = $class->new;
-#    $h->UNTIE;
-#    ok !$h->as_hashref;
-#    ok $h->header;
-#};
-
 subtest 'DESTROY()' => sub {
     my $h = $class->new;
     $h->DESTROY;
-    #ok !$h->as_hashref;
     ok !$h->header;
 };

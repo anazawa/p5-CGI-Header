@@ -4,8 +4,11 @@ use strict;
 use warnings;
 use overload q{""} => 'as_string', fallback => 1;
 use Carp qw/carp croak/;
-use Scalar::Util qw/refaddr/;
+use CGI::Util qw//;
+use HTTP::Date qw//;
 use List::Util qw/first/;
+use Scalar::Util qw/refaddr/;
+use Storable qw//;
 
 our $VERSION = '0.01';
 
@@ -22,11 +25,26 @@ sub new {
     $self;
 }
 
+sub header {
+    my $self = shift;
+    my $this = refaddr $self;
+    $header_of{ $this };
+}
+
+sub DESTROY {
+    my $self = shift;
+    my $this = refaddr $self;
+    delete $header_of{ $this };
+    return;
+}
+
 sub get {
     my $self   = shift;
     my $norm   = $self->_normalize( shift );
     my $this   = refaddr $self;
     my $header = $header_of{ $this };
+
+    return unless $norm;
 
     if ( $norm eq '-content_type' ) {
         my $type    = $header->{-type};
@@ -49,27 +67,24 @@ sub get {
 
         return $charset ? "$type; charset=$charset" : $type;
     }
-    elsif ( $norm eq '-content_disposition' ) {
+    elsif ( $norm eq '-expires' ) {
+        my $expires = $header->{-expires};
+        return $expires && CGI::Util::expires( $expires );
+    }
+    elsif ( $norm eq '-p3p' ) {
+        my $p3p = $header->{-p3p};
+        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{ $p3p } : $p3p;
+        return $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
+    }
+
+    if ( $norm eq '-content_disposition' ) {
         if ( my $filename = $header->{-attachment} ) {
             return qq{attachment; filename="$filename"};
         }
     }
     elsif ( $norm eq '-date' ) {
-        if ( $self->_date_header_is_fixed ) {
-            require HTTP::Date;
+        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
             return HTTP::Date::time2str( time );
-        }
-    }
-    elsif ( $norm eq '-expires' ) {
-        if ( my $expires = $header->{-expires} ) {
-            require CGI::Util;
-            return CGI::Util::expires( $expires );
-        }
-    }
-    elsif ( $norm eq '-p3p' ) {
-        if ( my $p3p = $header->{-p3p} ) {
-            my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{ $p3p } : $p3p;
-            return qq{policyref="/w3c/p3p.xml", CP="$tags"};
         }
     }
 
@@ -83,26 +98,28 @@ sub set {
     my $this   = refaddr $self;
     my $header = $header_of{ $this };
 
-    if ( $norm eq '-date' ) {
-        if ( $self->_date_header_is_fixed ) {
-            return carp 'The Date header is fixed';
-        }
-    }
-    elsif ( $norm eq '-content_type' ) {
+    return unless $norm;
+
+    if ( $norm eq '-content_type' ) {
         $header->{-type} = $value;
         $header->{-charset} = q{};
-        delete $header->{ $norm };
         return;
+    }
+    elsif ( $norm eq '-p3p' or $norm eq '-expires' ) {
+        carp "Can't assign to '$norm' directly, use accessors instead";
+        return;
+    }
+
+    if ( $norm eq '-date' ) {
+        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
+            return carp 'The Date header is fixed';
+        }
     }
     elsif ( $norm eq '-content_disposition' ) {
         delete $header->{-attachment};
     }
     elsif ( $norm eq '-cookie' ) {
         delete $header->{-date};
-    }
-    elsif ( $norm eq '-p3p' or $norm eq '-expires' ) {
-        carp "Can't assign to '$norm' directly, use accessors instead";
-        return;
     }
 
     $header->{ $norm } = $value;
@@ -118,8 +135,10 @@ sub delete {
     my $this   = refaddr $self;
     my $header = $header_of{ $this };
 
+    return unless $norm;
+
     if ( $norm eq '-date' ) {
-        if ( $self->_date_header_is_fixed ) {
+        if ( first { $header->{$_} } qw(-nph -expires -cookie) ) {
             return carp 'The Date header is fixed';
         }
     }
@@ -149,10 +168,13 @@ sub exists {
     my $this   = refaddr $self;
     my $header = $header_of{ $this };
 
+    return unless $norm;
+
     if ( $norm eq '-content_type' ) {
         return !defined $header->{-type} || $header->{-type} ne q{};
     }
-    elsif ( $norm eq '-content_disposition' ) {
+    
+    if ( $norm eq '-content_disposition' ) {
         return 1 if $header->{-attachment};
     }
     elsif ( $norm eq '-date' ) {
@@ -162,26 +184,9 @@ sub exists {
     $header->{ $norm };
 }
 
-sub DESTROY {
-    my $self = shift;
-    my $this = refaddr $self;
-    delete $header_of{ $this };
-    return;
-}
-
-sub header {
-    my $self = shift;
-    my $this = refaddr $self;
-    $header_of{ $this };
-}
-
 BEGIN {
-    *TIEHASH = \&new;
-    *STORE   = \&set;
-    *FETCH   = \&get;
-    *CLEAR   = \&clear;
-    *EXISTS  = \&exists;
-    *DELETE  = \&delete;
+    *TIEHASH = \&new;   *STORE  = \&set;    *FETCH  = \&get;
+    *CLEAR   = \&clear; *EXISTS = \&exists; *DELETE = \&delete;
 }
 
 sub SCALAR {
@@ -191,12 +196,7 @@ sub SCALAR {
     !defined $header->{-type} || first { $_ } values %{ $header };
 }
 
-sub is_empty { not shift->SCALAR }
-
-BEGIN {
-    require Storable;
-    *clone = \&Storable::dclone;
-}
+sub is_empty { !shift->SCALAR }
 
 sub field_names {
     my $self   = shift;
@@ -218,9 +218,8 @@ sub field_names {
     my $type = delete @header{ '-charset', '-type' };
 
     # not ordered
-    while ( my ($norm, $value) = each %header ) {
-        next unless $value;
-        push @fields, $self->_denormalize( $norm );
+    while ( my ($norm, $value) = CORE::each %header ) {
+        push @fields, $self->_denormalize( $norm ) if $value;
     }
 
     push @fields, 'Content-Type' if !defined $type or $type ne q{};
@@ -263,21 +262,6 @@ sub attachment {
     $header->{-attachment};
 }
 
-sub expires {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        my $expires = shift;
-        delete $header->{-date}; # if $expires;
-        $header->{-expires} = $expires;
-        return;
-    }
-
-    $header->{-expires};
-}
-
 sub nph {
     my $self   = shift;
     my $this   = refaddr $self;
@@ -310,33 +294,16 @@ sub p3p_tags {
 }
 
 sub target {
-    my $self = shift;
-    my $this = refaddr $self;
-    my $header = $header_of{ $this };
-    $header->{-target} = shift if @_;
-    $header->{-target};
-}
-
-sub get_cookie {
     my $self   = shift;
-    my $name   = shift;
     my $this   = refaddr $self;
     my $header = $header_of{ $this };
 
-    my @cookies = do {
-        my $cookies = $header->{-cookie};
-        return unless $cookies;
-        ref $cookies eq 'ARRAY' ? @{ $cookies } : $cookies;
-    };
-
-    my @values;
-    for my $cookie ( @cookies ) {
-        next unless ref $cookie eq 'CGI::Cookie';
-        next unless $cookie->name eq $name;
-        push @values, $cookie;
+    if ( @_ ) {
+        $header->{-target} = shift;
+        return;
     }
 
-    wantarray ? @values : $values[0];
+    $header->{-target};
 }
 
 sub dump {
@@ -357,13 +324,6 @@ sub dump {
     Data::Dumper::Dumper( \%dump );
 }
 
-sub _date_header_is_fixed {
-    my $self = shift;
-    my $this = refaddr $self;
-    my $header = $header_of{ $this };
-    $header->{-expires} || $header->{-cookie} || $header->{-nph};
-}
-
 sub content_type {
     my $self = shift;
 
@@ -381,19 +341,64 @@ sub content_type {
     wantarray ? ($media_type, $rest) : $media_type;
 }
 
-sub date {
-    my ( $self, $time ) = @_;
+sub expires {
+    my $self   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
 
-    require HTTP::Date;
+    if ( @_ ) {
+        my $expires = shift;
+        delete $header->{-date} if $expires;
+        $header->{-expires} = $expires;
+    }
+    elsif ( my $expires = $self->get('Expires') ) {
+        return HTTP::Date::str2time( $expires );
+    }
+
+    return;
+}
+
+sub date {
+    my $self     = shift;
+    my $time     = shift;
+    my $this     = refaddr $self;
+    my $header   = $header_of{ $this };
+    my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
 
     if ( defined $time ) {
-        $self->set( Date => HTTP::Date::time2str($time) );
+        return carp 'The Date header is fixed' if $is_fixed;
+        $header->{-date} = HTTP::Date::time2str( $time );
     }
-    elsif ( my $date = $self->get('Date') ) {
+    elsif ( $is_fixed ) {
+        return time;
+    }
+    elsif ( my $date = $header->{-date} ) {
         return HTTP::Date::str2time( $date );
     }
 
     return;
+}
+
+sub get_cookie {
+    my $self   = shift;
+    my $name   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    my @cookies = do {
+        my $cookies = $header->{-cookie};
+        return unless $cookies;
+        ref $cookies eq 'ARRAY' ? @{ $cookies } : $cookies;
+    };
+
+    my @values;
+    for my $cookie ( @cookies ) {
+        next unless ref $cookie   eq 'CGI::Cookie';
+        next unless $cookie->name eq $name;
+        push @values, $cookie;
+    }
+
+    wantarray ? @values : $values[0];
 }
 
 sub set_cookie {
@@ -410,10 +415,12 @@ sub set_cookie {
     my $cookies = $self->get( 'Set-Cookie' );
 
     if ( !$cookies ) {
-        return $self->set( 'Set-Cookie' => [ $new_cookie ] );
+        $self->set( 'Set-Cookie' => [ $new_cookie ] );
+        return;
     }
     elsif ( ref $cookies ne 'ARRAY' ) {
-        $self->set( 'Set-Cookie' => $cookies = [ $cookies ] );
+        $cookies = [ $cookies ];
+        $self->set( 'Set-Cookie' => $cookies );
     }
 
     my $set;
@@ -487,14 +494,18 @@ sub as_string {
     join $eol, @lines, q{};
 }
 
+BEGIN { *clone = \&Storable::dclone }
+
 sub STORABLE_freeze {
     my ( $self, $cloning ) = @_;
-    ( q{}, $header_of{ refaddr $self } );
+    my $this = refaddr $self;
+    ( q{}, $header_of{$this} );
 }
 
 sub STORABLE_thaw {
     my ( $self, $serialized, $cloning, $header ) = @_;
-    $header_of{ refaddr $self } = $header;
+    my $this = refaddr $self;
+    $header_of{ $this } = $header;
     $self;
 }
 
@@ -547,17 +558,11 @@ CGI::Header - Emulates CGI::header()
 =head1 SYNOPSIS
 
   use CGI::Header;
-  use CGI::Cookie;
-
-  my $cookie = CGI::Cookie->new(
-      -name  => 'ID',
-      -value => 123456,
-  );
 
   my $header = CGI::Header->new(
       -attachment => 'genome.jpg',
       -charset    => 'utf-8',
-      -cookie     => $cookie,
+      -cookie     => 'ID=123456; path=/',
       -expires    => '+3M',
       -nph        => 1,
       -p3p        => [qw/CAO DSP LAW CURa/],
@@ -565,7 +570,16 @@ CGI::Header - Emulates CGI::header()
       -type       => 'text/plain',
   );
 
-  print $header->as_string;
+  $header->set( 'Content-Length' => 12345 );
+  $header->delete( 'Content-Disposition' );
+  my $value = $header->get( 'Status' );
+  my $bool = $header->exists( 'ETag' );
+
+  $header->attachment( 'genome.jpg' );
+  $header->expires( '+3M' );
+  $header->nph( 1 );
+  $header->p3p_tags(qw/CAO DSP LAW CURa/);
+  $header->target( 'ResultsWindow' );
 
 =head1 DESCRIPTION
 
@@ -578,25 +592,93 @@ Generates the same HTTP response headers as the subroutine does.
 
 =item $header = CGI::Header->new( -type => 'text/plain', ... )
 
+Construct a new CGI::Header object.
+You might pass some initial attribute-value pairs as parameters to
+the constructor:
+
+  my $header = CGI::Header->new(
+      -attachment => 'genome.jpg',
+      -charset    => 'utf-8',
+      -cookie     => 'ID=123456; path=/',
+      -expires    => '+3M',
+      -nph        => 1,
+      -p3p        => [qw/CAO DSP LAW CURa/],
+      -target     => 'ResultsWindow',
+      -type       => 'text/plain',
+  );
+
 =item $value = $eader->get( $field )
 
 =item $header->set( $field => $value )
 
 =item $bool = $header->exists( $field )
 
-=item $deleted = $header->delete( $field )
+Returns a Boolean value telling whether the specified field exists.
 
-=item $header->clear
+  if ( $header->exists('ETag') ) {
+      ...
+  }
+
+=item $value = $header->delete( $field )
+
+Deletes the specified field.
+
+  $header->delete( 'Content-Disposition' );
+  my $value = $header->delete( 'Content-Disposition' ); # inline
 
 =item @fields = $header->field_names
 
+Returns the list of field names present in the header.
+
+  my @fields = $header->field_names;
+  # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
+
 =item $header->each( \&callback )
+
+Apply a subroutine to each header field in turn.
+The callback routine is called with two parameters;
+the name of the field and a value.
+Any return values of the callback routine are ignored.
+
+  my @lines;
+
+  $self->each(sub {
+      my ( $field, $value ) = @_;
+      push @lines, "$field: $value";
+  });
 
 =item @headers = $header->flatten
 
+Returns pairs of fields and values.
+
+  my @headers = $header->flatten;
+  # => ( 'Status', '304 Nod Modified', 'Content-Type', 'text/plain' )
+
+=item $header->clear
+
+This will remove all header fields.
+
 =item $bool = $header->is_empty
 
+Returns true if the header contains no key-value pairs.
+
+  $header->clear;
+
+  if ( $header->is_empty ) { # true
+      ...
+  }
+
 =item $clone = $header->clone
+
+Returns a copy of this CGI::Header object.
+
+=item $header->as_string
+
+=item $header->as_string( $eol )
+
+Returns the header fields as a formatted MIME header.
+The optional C<$eol> parameter specifies the line ending sequence to use.
+The default is C<\n>.
 
 =back
 

@@ -9,7 +9,7 @@ can_ok $class, qw(
     TIEHASH FETCH STORE DELETE EXISTS CLEAR SCALAR DESTROY
     header field_names
     p3p_tags expires nph attachment
-    _normalize _denormalize _date_header_is_fixed
+    _normalize _denormalize
 );
 
 subtest 'TIEHASH()' => sub {
