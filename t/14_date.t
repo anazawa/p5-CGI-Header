@@ -1,12 +1,12 @@
 use strict;
 use warnings;
-use CGI::Header::Entity;
+use CGI::Header;
 use HTTP::Date;
 use Test::More tests => 11;
 use Test::Warn;
 
 my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header::Entity', \%adaptee;
+my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
 
 %adaptee = ( -nph => 1 );
 is $adapter{Date}, time2str( time );

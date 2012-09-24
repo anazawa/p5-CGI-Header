@@ -1,10 +1,10 @@
 use strict;
 use warnings;
-use CGI::Header::Entity;
+use CGI::Header;
 use Test::More tests => 28;
 
 my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header::Entity', \%adaptee;
+my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
 
 %adaptee = ( -type => q{} );
 is $adapter{Content_Type}, undef;

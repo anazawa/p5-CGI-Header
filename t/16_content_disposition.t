@@ -1,9 +1,9 @@
 use strict;
-use CGI::Header::Entity;
+use CGI::Header;
 use Test::More tests => 18;
 
 my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header::Entity', \%adaptee;
+my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
 
 %adaptee = ( -attachment => 'genome.jpg' );
 is $adapter{Content_Disposition}, 'attachment; filename="genome.jpg"';

@@ -1,11 +1,11 @@
 use strict;
 use warnings;
-use CGI::Header::Entity;
+use CGI::Header;
 use Test::More tests => 11;
 use Test::Warn;
 
 my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header::Entity', \%adaptee;
+my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
 
 %adaptee = ( -p3p => [qw/CAO DSP LAW CURa/] );
 is $adapter{P3P}, 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"';

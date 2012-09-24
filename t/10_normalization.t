@@ -1,11 +1,11 @@
 use strict;
 use warnings;
-use CGI::Header::Entity;
+use CGI::Header;
 use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $header = 'CGI::Header::Entity';
+my $header = 'CGI::Header';
 
 run {
     my $block = shift;

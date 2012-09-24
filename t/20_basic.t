@@ -3,7 +3,7 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util 'expires';
-use Test::More tests => 20;
+use Test::More tests => 17;
 use Test::Warn;
 use Test::Exception;
 
@@ -12,8 +12,8 @@ my $class = 'CGI::Header';
 ok $class->isa( 'CGI::Header' );
 
 can_ok $class, qw(
-    new clone clear delete exists get set is_empty as_hashref each flatten
-    content_type date status
+    new clone clear delete exists get set is_empty each flatten
+    date status
     DESTROY
 );
 
@@ -48,8 +48,8 @@ ok !$header->exists('Bar'), 'should return false';
 %header = ( -foo => 'bar', -bar => 'baz' );
 is $header->get('Foo'), 'bar';
 is $header->get('Baz'), undef;
-is $header->get('Foo', 'Bar'), 'baz';
-is_deeply [ $header->get('Foo', 'Bar') ], [ 'bar', 'baz' ];
+#is $header->get('Foo', 'Bar'), 'baz';
+#is_deeply [ $header->get('Foo', 'Bar') ], [ 'bar', 'baz' ];
 
 # clear()
 %header = ( -foo => 'bar' );
@@ -57,21 +57,21 @@ $header->clear;
 is_deeply \%header, { -type => q{} }, 'should be empty';
 
 subtest 'set()' => sub {
-    my $expected = qr{^Odd number of elements passed to set\(\)};
-    throws_ok { $header->set('Foo') } $expected;
+    #my $expected = qr{^Odd number of elements passed to set\(\)};
+    #throws_ok { $header->set('Foo') } $expected;
 
     %header = ();
 
     $header->set(
         Foo => 'bar',
-        Bar => 'baz',
-        Baz => 'qux',
+        #Bar => 'baz',
+        #Baz => 'qux',
     );
 
     my %expected = (
         -foo => 'bar',
-        -bar => 'baz',
-        -baz => 'qux',
+        #-bar => 'baz',
+        #-baz => 'qux',
     );
 
     is_deeply \%header, \%expected, 'set() multiple elements';
@@ -85,21 +85,21 @@ subtest 'delete()' => sub {
     is $header->delete('Foo'), 'bar';
     is_deeply \%header, {};
 
-    %header = (
-        -foo => 'bar',
-        -bar => 'baz',
-    );
+#%header = (
+#        -foo => 'bar',
+#        -bar => 'baz',
+#    );
 
-    is_deeply [ $header->delete('Foo', 'Bar') ], [ 'bar', 'baz' ];
-    is_deeply \%header, {};
+#    is_deeply [ $header->delete('Foo', 'Bar') ], [ 'bar', 'baz' ];
+#    is_deeply \%header, {};
 
-    %header = (
-        -foo => 'bar',
-        -bar => 'baz',
-    );
+#    %header = (
+#        -foo => 'bar',
+#        -bar => 'baz',
+#    );
 
-    ok $header->delete('Foo', 'Bar') eq 'baz';
-    is_deeply \%header, {};
+#    ok $header->delete('Foo', 'Bar') eq 'baz';
+#    is_deeply \%header, {};
 };
 
 subtest 'each()' => sub {
@@ -163,31 +163,31 @@ subtest 'flatten()' => sub {
     is_deeply \@got, \@expected;
 };
 
-subtest 'as_hashref()' => sub {
-    my $got = $header->as_hashref;
-    ok ref $got eq 'HASH';
+#subtest 'as_hashref()' => sub {
+#    my $got = $header->as_hashref;
+#    ok ref $got eq 'HASH';
     #ok tied %{ $got } eq $header;
 
-    %header = ();
-    $header->{Foo} = 'bar';
-    is_deeply \%header, { -foo => 'bar' }, 'store';
+#    %header = ();
+#    $header->{Foo} = 'bar';
+#    is_deeply \%header, { -foo => 'bar' }, 'store';
 
-    %header = ( -foo => 'bar' );
-    is $header->{Foo}, 'bar', 'fetch';
-    is $header->{Bar}, undef;
+#    %header = ( -foo => 'bar' );
+#    is $header->{Foo}, 'bar', 'fetch';
+#    is $header->{Bar}, undef;
 
-    %header = ( -foo => 'bar' );
-    ok exists $header->{Foo}, 'exists';
-    ok !exists $header->{Bar};
+#    %header = ( -foo => 'bar' );
+#    ok exists $header->{Foo}, 'exists';
+#    ok !exists $header->{Bar};
 
-    %header = ( -foo => 'bar' );
-    is delete $header->{Foo}, 'bar';
-    is_deeply \%header, {}, 'delete';
+#    %header = ( -foo => 'bar' );
+#    is delete $header->{Foo}, 'bar';
+#    is_deeply \%header, {}, 'delete';
 
-    %header = ( -foo => 'bar' );
-    %{ $header } = ();
-    is_deeply \%header, { -type => q{} }, 'clear';
-};
+#    %header = ( -foo => 'bar' );
+#    %{ $header } = ();
+#    is_deeply \%header, { -type => q{} }, 'clear';
+#};
 
 subtest 'status()' => sub {
     %header = ();

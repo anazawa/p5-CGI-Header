@@ -1,9 +1,9 @@
 use strict;
 use warnings;
-use CGI::Header::Entity;
+use CGI::Header;
 use Test::More tests => 16;
 
-my $class = 'CGI::Header::Entity';
+my $class = 'CGI::Header';
 
 can_ok $class, qw(
     TIEHASH FETCH STORE DELETE EXISTS CLEAR SCALAR DESTROY
