@@ -3,16 +3,16 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util 'expires';
-use Test::More tests => 17;
+use Test::More tests => 19;
 use Test::Warn;
 use Test::Exception;
 
 my $class = 'CGI::Header';
 
 can_ok $class, qw(
-    new clone clear delete exists get set is_empty each flatten
-    date status
-    DESTROY
+    new clone clear delete exists get set is_empty
+    header field_names each flatten DESTROY
+    p3p_tags expires nph attachment date status
 );
 
 subtest 'new()' => sub {
@@ -72,13 +72,13 @@ subtest 'delete()' => sub {
 };
 
 subtest 'each()' => sub {
-    my $expected = qr{^Must provide a code reference to each\(\)};
-    throws_ok { $header->each } $expected;
-
-    %header = (
+    my $header = CGI::Header->new(
         -status         => '304 Not Modified',
         -content_length => 12345,
     );
+
+    my $expected = qr{^Must provide a code reference to each\(\)};
+    throws_ok { $header->each } $expected;
 
     my @got;
     $header->each(sub {
@@ -150,6 +150,56 @@ subtest 'clone()' => sub {
     my $clone = $orig->clone;
     isnt $clone->header, $orig->header;
     is_deeply $clone->header, $orig->header;
+};
+
+subtest 'nph()' => sub {
+    %header = ();
+
+    $header->nph( 1 );
+    ok $header->nph;
+    ok $header{-nph} == 1;
+
+    $header->nph( 0 );
+    ok !$header->nph;
+    ok $header{-nph} == 0;
+
+    %header = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
+    $header->nph( 1 );
+    is_deeply \%header, { -nph => 1 }, '-date should be deleted';
+};
+
+subtest 'field_names()' => sub {
+    %header = ( -type => q{} );
+    is_deeply [ $header->field_names ], [], 'should return null array';
+
+    %header = (
+        -nph        => 1,
+        -status     => 1,
+        -target     => 1,
+        -p3p        => 1,
+        -cookie     => 1,
+        -expires    => 1,
+        -attachment => 1,
+        -foo_bar    => 1,
+        -foo        => q{},
+        -bar        => undef,
+    );
+
+    my @got = $header->field_names;
+
+    my @expected = qw(
+        Status
+        Window-Target
+        P3P
+        Set-Cookie
+        Expires
+        Date
+        Content-Disposition
+        Foo-bar
+        Content-Type
+    );
+
+    is_deeply \@got, \@expected;
 };
 
 subtest 'DESTROY()' => sub {

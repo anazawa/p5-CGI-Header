@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 28;
+use Test::More tests => 27;
 
 my %adaptee;
 my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
@@ -69,25 +69,6 @@ is_deeply \%adaptee, {
     -charset => q{},
 };
 
-SKIP: {
-    skip 'obsolete', 2;
-
-    %adaptee = ();
-    $adapter{Content_Type} = 'text/html; charSet=utf-8';
-    is_deeply \%adaptee, {
-        -type    => 'text/html',
-        -charset => 'utf-8',
-    };
-
-    %adaptee = ();
-    $adapter{Content_Type} = 'text/html; charSet="CHARSET"; Foo="CHARSET"';
-    is_deeply \%adaptee, {
-        -type    => 'text/html; foo=CHARSET',
-        -charset => 'CHARSET',
-    };
-}
-
-
 %adaptee = ( -type => undef );
 is $adapter{Content_Type}, 'text/html; charset=ISO-8859-1';
 ok exists $adapter{Content_Type};
@@ -103,3 +84,30 @@ is_deeply \%adaptee, { -type => q{} };
 # feature
 %adaptee = ( -type => 'text/plain; charSet=utf-8' );
 is $adapter{Content_Type}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
+
+subtest 'content_type()' => sub {
+    %adaptee = ();
+    is $adapter->content_type, 'text/html';
+    my @got = $adapter->content_type;
+    my @expected = ( 'text/html', 'charset=ISO-8859-1' );
+    is_deeply \@got, \@expected;
+
+    %adaptee = ( -type => 'text/plain; charset=EUC-JP; Foo=1' );
+    is $adapter->content_type, 'text/plain';
+    @got = $adapter->content_type;
+    @expected = ( 'text/plain', 'charset=EUC-JP; Foo=1' );
+    is_deeply \@got, \@expected;
+
+    %adaptee = ();
+    $adapter->content_type( 'text/plain; charset=EUC-JP' );
+    is_deeply \%adaptee, {
+        -type    => 'text/plain; charset=EUC-JP',
+        -charset => q{},
+    };
+
+    %adaptee = ( -type => q{} );
+    is $adapter->content_type, q{};
+
+    %adaptee = ( -type => '   TEXT  / HTML   ' );
+    is $adapter->content_type, 'text/html';
+};

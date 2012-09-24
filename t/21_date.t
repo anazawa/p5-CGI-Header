@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use CGI::Header;
 use HTTP::Date;
-use Test::More tests => 3;
+use Test::More tests => 5;
 use Test::Warn;
 
 my %adaptee;
@@ -38,4 +38,31 @@ subtest 'Expires' => sub {
 
     warning_is { $adapter{Expires} = '+3M' }
         "Can't assign to '-expires' directly, use accessors instead";
+};
+
+subtest 'date()' => sub {
+    %adaptee = ();
+    is $adapter->date, undef;
+    my $now = 1341637509;
+    $adapter->date( $now );
+    is $adapter->date, $now;
+    is $adaptee{-date}, 'Sat, 07 Jul 2012 05:05:09 GMT';
+};
+
+subtest 'expires()' => sub {
+    %adaptee = ();
+    is $adapter->expires, undef;
+
+    %adaptee = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
+    $adapter->expires( '+3M' );
+    is_deeply \%adaptee, { -expires => '+3M' };
+
+    my $now = 1341637509;
+    $adapter->expires( $now );
+    is $adapter->expires, $now, 'get expires()';
+    is $adaptee{-expires}, $now;
+
+    $now++;
+    $adapter->expires( 'Sat, 07 Jul 2012 05:05:10 GMT' );
+    is $adapter->expires, $now, 'get expires()';
 };

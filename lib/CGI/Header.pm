@@ -201,7 +201,7 @@ sub is_empty { !shift->SCALAR }
 sub field_names {
     my $self   = shift;
     my $this   = refaddr $self;
-    my %header = %{ $header_of{$this} }; # copy
+    my %header = %{ $header_of{$this} }; # shallow copy
 
     my @fields;
 
