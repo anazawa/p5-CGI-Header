@@ -1,13 +1,13 @@
-package CGI::Header::Handler;
+package CGI::Header::Dispatcher;
 use strict;
 use warnings;
 use Exporter 'import';
 use List::Util qw/first/;
 use CGI::Util qw/expires/;
 use HTTP::Date qw/time2str str2time/;
-use Carp qw/carp/;
+use Carp qw/carp croak/;
 
-our @EXPORT_OK = qw( get_handler );
+our @EXPORT = qw( dispatch );
 
 my %Content_Type = (
     get => sub {
@@ -43,8 +43,8 @@ my %Content_Type = (
     },
     delete => sub {
         my $header = shift;
-        delete $header->{-charset};
         $header->{-type} = q{};
+        delete $header->{-charset};
     },
 );
 
@@ -62,8 +62,8 @@ my %Expires = (
 my %P3P = (
     get => sub {
         my $header = shift;
-        my $p3p = $header->{-p3p};
-        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{ $p3p } : $p3p;
+        my $tags = $header->{-p3p};
+        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
     set => sub {
@@ -93,53 +93,101 @@ my %Content_Disposition = (
     },
 );
 
+my $is_fixed = sub {
+    my $header = shift;
+    $header->{-nph} || $header->{-expires} || $header->{-cookie};
+};
+
 my %Date = (
     get => sub {
         my $header = shift;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return time2str( time ) if $is_fixed;
+        return time2str( time ) if $is_fixed->( $header );
         $header->{-date};
     },
     set => sub {
         my ( $header, $value ) = @_;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return carp 'The Date header is fixed' if $is_fixed;
+        return carp 'The Date header is fixed' if $is_fixed->( $header );
         $header->{-date} = $value;
     },
     exists => sub {
         my $header = shift;
-        $header->{-date} || first { $header->{$_} } qw(-nph -expires -cookie);
+        $header->{-date} || $is_fixed->( $header );
     },
     delete => sub {
         my $header = shift;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return carp 'The Date header is fixed' if $is_fixed;
+        carp 'The Date header is fixed' if $is_fixed->( $header );
     },
 );
 
 my %Set_Cookie = (
-    get => sub { shift->{-cookie} },
     set => sub {
         my ( $header, $value ) = @_;
         delete $header->{-date};
         $header->{-cookie} = $value;
     },
-    exists => sub { shift->{-cookie} },
-    delete => sub { delete shift->{-cookie} },
 );
 
 my %Handler = (
     -content_disposition => \%Content_Disposition,
     -content_type        => \%Content_Type,
-    -set_cookie          => \%Set_Cookie,
+    -cookie              => \%Set_Cookie,
     -date                => \%Date,
     -expires             => \%Expires,
     -p3p                 => \%P3P,
 );
 
-sub get_handler {
-    my ( $norm, $operator ) = @_;
-    exists $Handler{ $norm } && $Handler{ $norm }{ $operator };
+sub dispatch {
+    my $self     = shift;
+    my $operator = shift;
+    my $field    = shift;
+    my $norm     = _normalize( $field );
+    my $header   = $self->header;
+
+    return if !$operator or !$norm;
+
+    my $handler = exists $Handler{ $norm } && $Handler{ $norm }{ $operator };
+
+    if ( $operator eq 'get' ) {
+        return $handler ? $handler->( $header ) : $header->{ $norm };
+    }
+    elsif ( $operator eq 'set' ) {
+        my $value = shift;
+        $handler->( $header, $value ) if $handler;
+        $header->{ $norm } = $value unless $handler;
+    }
+    elsif ( $operator eq 'exists' ) {
+        return $handler ? $handler->( $header ) : $header->{ $norm };
+    }
+    elsif ( $operator eq 'delete' ) {
+        my $value = defined wantarray && $self->get( $field );
+        $handler->( $header ) if $handler;
+        delete $header->{ $norm };
+        return $value;
+    }
+    else {
+        croak "Unknown operator '$operator' passed to dispatch()";
+    }
+
+    return;
+}
+
+my %norm_of = (
+    -attachment    => q{},        -charset => q{},
+    -cookie        => q{},        -nph     => q{},
+    -target        => q{},        -type    => q{},
+    -window_target => q{-target}, -set_cookie => q{-cookie},
+);
+
+sub _normalize {
+    my $field = lc shift;
+
+    # transliterate dashes into underscores
+    $field =~ tr{-}{_};
+
+    # add an initial dash
+    $field = "-$field";
+
+    exists $norm_of{$field} ? $norm_of{ $field } : $field;
 }
 
 1;

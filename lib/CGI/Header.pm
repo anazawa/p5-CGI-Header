@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use overload q{""} => 'as_string', fallback => 1;
 use Carp qw/carp croak/;
-use CGI::Header::Handler qw/get_handler/;
+use CGI::Header::Dispatcher;
 use HTTP::Date qw//;
 use List::Util qw/first/;
 use Scalar::Util qw/refaddr/;
@@ -38,74 +38,10 @@ sub DESTROY {
     return;
 }
 
-sub get {
-    my $self   = shift;
-    my $norm   = $self->_normalize( shift );
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    return unless $norm;
-
-    if ( my $get = get_handler($norm, 'get') ) {
-        return $get->( $header );
-    }
-
-    $header->{ $norm };
-}
-
-
-sub set {
-    my $self   = shift;
-    my $norm   = $self->_normalize( shift );
-    my $value  = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    return unless $norm;
-
-    if ( my $set = get_handler($norm, 'set') ) {
-        $set->( $header, $value );
-        return;
-    }
-
-    $header->{ $norm } = $value;
-
-    return;
-}
-
-sub delete {
-    my $self   = shift;
-    my $field  = shift;
-    my $norm   = $self->_normalize( $field );
-    my $value  = defined wantarray && $self->get( $field );
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    return unless $norm;
-
-    if ( my $delete = get_handler($norm, 'delete') ) {
-        $delete->( $header );
-    }
-
-    delete $header->{ $norm };
-
-    $value;
-}
-
-sub exists {
-    my $self   = shift;
-    my $norm   = $self->_normalize( shift );
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    return unless $norm;
-
-    if ( my $exists = get_handler($norm, 'exists') ) {
-        return $exists->( $header );
-    }
-
-    $header->{ $norm };
-}
+sub get    { shift->dispatch( 'get',    @_ ) }
+sub set    { shift->dispatch( 'set',    @_ ) }
+sub delete { shift->dispatch( 'delete', @_ ) }
+sub exists { shift->dispatch( 'exists', @_ ) }
 
 sub clear {
     my $self = shift;
@@ -224,35 +160,13 @@ sub p3p_tags {
 }
 
 sub target {
-    my $self   = shift;
-    my $this   = refaddr $self;
+    my $self = shift;
+    my $this = refaddr $self;
     my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        $header->{-target} = shift;
-        return;
-    }
-
+    $header->{-target} = shift if @_;
     $header->{-target};
 }
 
-sub dump {
-    my $self = shift;
-    my $this = refaddr $self;
-
-    require Data::Dumper;
-
-    local $Data::Dumper::Indent = 1;
-
-    my %dump = (
-        __PACKAGE__, {
-            header => $header_of{ $this },
-        },
-        @_,
-    );
-
-    Data::Dumper::Dumper( \%dump );
-}
 
 sub content_type {
     my $self = shift;
@@ -424,6 +338,24 @@ sub as_string {
     join $eol, @lines, q{};
 }
 
+sub dump {
+    my $self = shift;
+    my $this = refaddr $self;
+
+    require Data::Dumper;
+
+    local $Data::Dumper::Indent = 1;
+
+    my %dump = (
+        __PACKAGE__, {
+            header => $header_of{ $this },
+        },
+        @_,
+    );
+
+    Data::Dumper::Dumper( \%dump );
+}
+
 BEGIN { *clone = \&Storable::dclone }
 
 sub STORABLE_freeze {
@@ -437,27 +369,6 @@ sub STORABLE_thaw {
     my $this = refaddr $self;
     $header_of{ $this } = $header;
     $self;
-}
-
-my %norm_of = (
-    -attachment => q{},        -charset       => q{},
-    -cookie     => q{},        -nph           => q{},
-    #-set_cookie => q{-cookie}, -target        => q{},
-    -target        => q{},
-    -type       => q{},        -window_target => q{-target},
-);
-
-sub _normalize {
-    my $class = shift;
-    my $field = lc shift;
-
-    # transliterate dashes into underscores
-    $field =~ tr{-}{_};
-
-    # add an initial dash
-    $field = "-$field";
-
-    exists $norm_of{$field} ? $norm_of{ $field } : $field;
 }
 
 my %field_name_of = (
