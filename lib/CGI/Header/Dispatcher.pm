@@ -128,12 +128,33 @@ my %Set_Cookie = (
 );
 
 my %Handler = (
-    -content_disposition => \%Content_Disposition,
-    -content_type        => \%Content_Type,
-    -cookie              => \%Set_Cookie,
-    -date                => \%Date,
-    -expires             => \%Expires,
-    -p3p                 => \%P3P,
+    -cookie  => \%Set_Cookie, -content_disposition => \%Content_Disposition,
+    -date    => \%Date,       -content_type        => \%Content_Type,
+    -expires => \%Expires,    -p3p                 => \%P3P,
+);
+
+my %Dispatcher = (
+    get => sub {
+        my ( $self, $field, $norm, $handler ) = @_;
+        $handler ? $handler->( $self->header ) : $self->header->{ $norm };
+    },
+    set => sub {
+        my ( $self, $field, $norm, $handler, $value ) = @_;
+        $handler->( $self->header, $value ) if $handler;
+        $self->header->{ $norm } = $value unless $handler;
+        return;
+    },
+    exists => sub {
+        my ( $self, $field, $norm, $handler ) = @_;
+        $handler ? $handler->( $self->header ) : $self->header->{ $norm };
+    },
+    delete => sub {
+        my ( $self, $field, $norm, $handler ) = @_;
+        my $value = defined wantarray && $self->get( $field );
+        $handler->( $self->header ) if $handler;
+        delete $self->header->{ $norm };
+        $value;
+    },
 );
 
 sub dispatch {
@@ -141,34 +162,15 @@ sub dispatch {
     my $operator = shift;
     my $field    = shift;
     my $norm     = _normalize( $field );
-    my $header   = $self->header;
 
     return if !$operator or !$norm;
 
-    my $handler = exists $Handler{ $norm } && $Handler{ $norm }{ $operator };
-
-    if ( $operator eq 'get' ) {
-        return $handler ? $handler->( $header ) : $header->{ $norm };
-    }
-    elsif ( $operator eq 'set' ) {
-        my $value = shift;
-        $handler->( $header, $value ) if $handler;
-        $header->{ $norm } = $value unless $handler;
-    }
-    elsif ( $operator eq 'exists' ) {
-        return $handler ? $handler->( $header ) : $header->{ $norm };
-    }
-    elsif ( $operator eq 'delete' ) {
-        my $value = defined wantarray && $self->get( $field );
-        $handler->( $header ) if $handler;
-        delete $header->{ $norm };
-        return $value;
-    }
-    else {
-        croak "Unknown operator '$operator' passed to dispatch()";
+    if ( my $dispatch = $Dispatcher{$operator} ) {
+        my $handler = exists $Handler{$norm} && $Handler{$norm}{$operator};
+        return $self->$dispatch( $field, $norm, $handler, @_ );
     }
 
-    return;
+    croak "Unknown operator '$operator' passed to dispatch()";
 }
 
 my %norm_of = (
