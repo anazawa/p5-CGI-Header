@@ -37,7 +37,8 @@ __DATA__
 ===
 --- input:    Foo_Bar
 --- expected: -foo_bar
-===
+=== 
+--- SKIP
 --- input:    Set-Cookie
 --- expected: -cookie
 ===

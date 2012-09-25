@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use overload q{""} => 'as_string', fallback => 1;
 use Carp qw/carp croak/;
-use CGI::Util qw//;
+use CGI::Header::Handler qw/get_handler/;
 use HTTP::Date qw//;
 use List::Util qw/first/;
 use Scalar::Util qw/refaddr/;
@@ -38,131 +38,6 @@ sub DESTROY {
     return;
 }
 
-my %content_type = (
-    get => sub {
-        my $header  = shift;
-        my $type    = $header->{-type};
-        my $charset = $header->{-charset};
-
-        if ( defined $type and $type eq q{} ) {
-            undef $charset;
-            undef $type;
-        }
-        else {
-            $type ||= 'text/html';
-
-            if ( $type =~ /\bcharset\b/ ) {
-                undef $charset;
-            }
-            elsif ( !defined $charset ) {
-                $charset = 'ISO-8859-1';
-            }
-        }
-
-        $charset ? "$type; charset=$charset" : $type;
-    },
-    set => sub {
-        my ( $header, $value ) = @_;
-        $header->{-type} = $value;
-        $header->{-charset} = q{};
-    },
-    exists => sub {
-        my $header = shift;
-        !defined $header->{-type} || $header->{-type} ne q{};
-    },
-    delete => sub {
-        my $header = shift;
-        delete $header->{-charset};
-        $header->{-type} = q{};
-    },
-);
-
-my %expires = (
-    get => sub {
-        my $header = shift;
-        my $expires = $header->{-expires};
-        $expires && CGI::Util::expires( $expires );
-    },
-    set => sub {
-        carp "Can't assign to '-expires' directly, use accessors instead";
-    },
-);
-
-my %p3p = (
-    get => sub {
-        my $header = shift;
-        my $p3p = $header->{-p3p};
-        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{ $p3p } : $p3p;
-        $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
-    },
-    set => sub {
-        carp "Can't assign to '-p3p' directly, use accessors instead";
-    },
-);
-
-my %content_disposition = (
-    get => sub {
-        my $header = shift;
-        my $filename = $header->{-attachment};
-        return qq{attachment; filename="$filename"} if $filename;
-        $header->{-content_disposition};
-    },
-    set => sub {
-        my ( $header, $value ) = @_;
-        delete $header->{-attachment};
-        $header->{-content_disposition} = $value;
-    },
-    exists => sub {
-        my $header = shift;
-        $header->{-attachment} || $header->{-content_disposition};
-    },
-    delete => sub {
-        my $header = shift;
-        delete $header->{-attachment};
-    },
-);
-
-my %date = (
-    get => sub {
-        my $header = shift;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return HTTP::Date::time2str( time ) if $is_fixed;
-        $header->{-date};
-    },
-    set => sub {
-        my ( $header, $value ) = @_;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return carp 'The Date header is fixed' if $is_fixed;
-        $header->{-date} = $value;
-    },
-    exists => sub {
-        my $header = shift;
-        $header->{-date} || first { $header->{$_} } qw(-nph -expires -cookie);
-    },
-    delete => sub {
-        my $header = shift;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        return carp 'The Date header is fixed' if $is_fixed;
-    },
-);
-
-my %cookie = (
-    set => sub {
-        my ( $header, $value ) = @_;
-        delete $header->{-date};
-        $header->{-cookie} = $value;
-    },
-);
-
-my %handler = (
-    -content_disposition => \%content_disposition,
-    -content_type        => \%content_type,
-    -cookie              => \%cookie,
-    -date                => \%date,
-    -expires             => \%expires,
-    -p3p                 => \%p3p,
-);
-
 sub get {
     my $self   = shift;
     my $norm   = $self->_normalize( shift );
@@ -171,7 +46,7 @@ sub get {
 
     return unless $norm;
 
-    if ( my $get = $handler{$norm}{get} ) {
+    if ( my $get = get_handler($norm, 'get') ) {
         return $get->( $header );
     }
 
@@ -188,7 +63,7 @@ sub set {
 
     return unless $norm;
 
-    if ( my $set = $handler{$norm}{set} ) {
+    if ( my $set = get_handler($norm, 'set') ) {
         $set->( $header, $value );
         return;
     }
@@ -208,7 +83,7 @@ sub delete {
 
     return unless $norm;
 
-    if ( my $delete = $handler{$norm}{delete} ) {
+    if ( my $delete = get_handler($norm, 'delete') ) {
         $delete->( $header );
     }
 
@@ -225,7 +100,7 @@ sub exists {
 
     return unless $norm;
 
-    if ( my $exists = $handler{$norm}{exists} ) {
+    if ( my $exists = get_handler($norm, 'exists') ) {
         return $exists->( $header );
     }
 
@@ -567,7 +442,8 @@ sub STORABLE_thaw {
 my %norm_of = (
     -attachment => q{},        -charset       => q{},
     -cookie     => q{},        -nph           => q{},
-    -set_cookie => q{-cookie}, -target        => q{},
+    #-set_cookie => q{-cookie}, -target        => q{},
+    -target        => q{},
     -type       => q{},        -window_target => q{-target},
 );
 
