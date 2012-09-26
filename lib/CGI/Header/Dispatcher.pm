@@ -2,14 +2,12 @@ package CGI::Header::Dispatcher;
 use strict;
 use warnings;
 use Exporter 'import';
-use List::Util qw/first/;
 use CGI::Util qw/expires/;
-use HTTP::Date qw/time2str str2time/;
 use Carp qw/carp croak/;
 
 our @EXPORT = qw( dispatch );
 
-my %Content_Type = (
+my %content_type = (
     get => sub {
         my $header  = shift;
         my $type    = $header->{-type};
@@ -33,9 +31,10 @@ my %Content_Type = (
         $charset ? "$type; charset=$charset" : $type;
     },
     set => sub {
-        my ( $header, $value ) = @_;
-        $header->{-type} = $value;
+        my $header = shift;
+        $header->{-type} = shift;
         $header->{-charset} = q{};
+        return;
     },
     exists => sub {
         my $header = shift;
@@ -48,18 +47,18 @@ my %Content_Type = (
     },
 );
 
-my %Expires = (
+my %expires = (
     get => sub {
         my $header = shift;
         my $expires = $header->{-expires};
         $expires && expires( $expires );
     },
     set => sub {
-        carp "Can't assign to '-expires' directly, use accessors instead";
+        carp "Can't assign to '-expires' directly, use expires() instead";
     },
 );
 
-my %P3P = (
+my %p3p = (
     get => sub {
         my $header = shift;
         my $tags = $header->{-p3p};
@@ -67,11 +66,11 @@ my %P3P = (
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
     set => sub {
-        carp "Can't assign to '-p3p' directly, use accessors instead";
+        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
 );
 
-my %Content_Disposition = (
+my %content_disposition = (
     get => sub {
         my $header = shift;
         my $filename = $header->{-attachment};
@@ -80,8 +79,9 @@ my %Content_Disposition = (
     },
     set => sub {
         my ( $header, $value ) = @_;
-        delete $header->{-attachment};
         $header->{-content_disposition} = $value;
+        delete $header->{-attachment} if $value;
+        return;
     },
     exists => sub {
         my $header = shift;
@@ -98,16 +98,17 @@ my $is_fixed = sub {
     $header->{-nph} || $header->{-expires} || $header->{-cookie};
 };
 
-my %Date = (
+my %date = (
     get => sub {
         my $header = shift;
-        return time2str( time ) if $is_fixed->( $header );
+        return expires() if $is_fixed->( $header );
         $header->{-date};
     },
     set => sub {
         my ( $header, $value ) = @_;
         return carp 'The Date header is fixed' if $is_fixed->( $header );
         $header->{-date} = $value;
+        return;
     },
     exists => sub {
         my $header = shift;
@@ -119,18 +120,19 @@ my %Date = (
     },
 );
 
-my %Set_Cookie = (
+my %cookie = (
     set => sub {
         my ( $header, $value ) = @_;
-        delete $header->{-date};
+        delete $header->{-date} if $value;
         $header->{-cookie} = $value;
+        return;
     },
 );
 
 my %Handler = (
-    -cookie  => \%Set_Cookie, -content_disposition => \%Content_Disposition,
-    -date    => \%Date,       -content_type        => \%Content_Type,
-    -expires => \%Expires,    -p3p                 => \%P3P,
+    -cookie  => \%cookie,  -content_disposition => \%content_disposition,
+    -date    => \%date,    -content_type        => \%content_type,
+    -expires => \%expires, -p3p                 => \%p3p,
 );
 
 my %Dispatcher = (
@@ -140,8 +142,8 @@ my %Dispatcher = (
     },
     set => sub {
         my ( $self, $field, $norm, $handler, $value ) = @_;
-        $handler->( $self->header, $value ) if $handler;
-        $self->header->{ $norm } = $value unless $handler;
+        return $handler->( $self->header, $value ) if $handler;
+        $self->header->{ $norm } = $value;
         return;
     },
     exists => sub {

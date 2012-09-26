@@ -12,7 +12,7 @@ my $class = 'CGI::Header';
 can_ok $class, qw(
     new clone clear delete exists get set is_empty
     header field_names each flatten DESTROY
-    p3p_tags expires nph attachment date status
+    p3p_tags expires nph attachment
 );
 
 subtest 'new()' => sub {
@@ -126,6 +126,8 @@ subtest 'flatten()' => sub {
 };
 
 subtest 'status()' => sub {
+    plan skip_all => 'obsolete';
+
     %header = ();
     is $header->status, 200;
 
@@ -138,6 +140,7 @@ subtest 'status()' => sub {
 };
 
 subtest 'target()' => sub {
+    plan skip_all => 'obsolete';
     %header = ();
     is $header->target, undef;
     $header->target( 'ResultsWindow' );

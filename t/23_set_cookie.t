@@ -1,7 +1,8 @@
 use strict;
 use CGI::Header;
 use CGI::Cookie;
-use Test::More tests => 2;
+#use Test::More tests => 2;
+use Test::More skip_all => 'obsolete';
 
 my %header;
 my $header = CGI::Header->new( \%header );

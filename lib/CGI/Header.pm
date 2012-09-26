@@ -5,7 +5,6 @@ use warnings;
 use overload q{""} => 'as_string', fallback => 1;
 use Carp qw/carp croak/;
 use CGI::Header::Dispatcher;
-use HTTP::Date qw//;
 use List::Util qw/first/;
 use Scalar::Util qw/refaddr/;
 use Storable qw//;
@@ -64,6 +63,67 @@ sub SCALAR {
 
 sub is_empty { !shift->SCALAR }
 
+sub attachment {
+    my $self   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    if ( @_ ) {
+        my $filename = shift;
+        delete $header->{-content_disposition} if $filename;
+        $header->{-attachment} = $filename;
+        return;
+    }
+
+    $header->{-attachment};
+}
+
+sub nph {
+    my $self   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+    
+    if ( @_ ) {
+        my $nph = shift;
+        delete $header->{-date} if $nph;
+        $header->{-nph} = $nph;
+        return;
+    }
+
+    $header->{-nph};
+}
+
+sub p3p_tags {
+    my $self   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    if ( @_ ) {
+        $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
+    }
+    elsif ( my $tags = $header->{-p3p} ) {
+        my @tags = ref $tags eq 'ARRAY' ? @{ $tags } : split ' ', $tags;
+        return wantarray ? @tags : $tags[0];
+    }
+
+    return;
+}
+
+sub expires {
+    my $self   = shift;
+    my $this   = refaddr $self;
+    my $header = $header_of{ $this };
+
+    if ( @_ ) {
+        my $expires = shift;
+        delete $header->{-date} if $expires;
+        $header->{-expires} = $expires;
+        return;
+    }
+
+    $header->{-expires};
+}
+
 sub field_names {
     my $self   = shift;
     my $this   = refaddr $self;
@@ -113,209 +173,16 @@ sub each {
     return;
 }
 
-sub attachment {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        my $filename = shift;
-        delete $header->{-content_disposition};
-        $header->{-attachment} = $filename;
-        return;
-    }
-
-    $header->{-attachment};
-}
-
-sub nph {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-    
-    if ( @_ ) {
-        my $nph = shift;
-        delete $header->{-date} if $nph;
-        $header->{-nph} = $nph;
-        return;
-    }
-
-    $header->{-nph};
-}
-
-sub p3p_tags {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
-    }
-    elsif ( my $tags = $header->{-p3p} ) {
-        my @tags = ref $tags eq 'ARRAY' ? @{ $tags } : split ' ', $tags;
-        return wantarray ? @tags : $tags[0];
-    }
-
-    return;
-}
-
-sub target {
-    my $self = shift;
-    my $this = refaddr $self;
-    my $header = $header_of{ $this };
-    $header->{-target} = shift if @_;
-    $header->{-target};
-}
-
-
-sub content_type {
-    my $self = shift;
-
-    return $self->set( 'Content-Type' => shift ) if @_;
-
-    my ( $media_type, $rest ) = do {
-        my $content_type = $self->get( 'Content-Type' );
-        return q{} unless defined $content_type;
-        split /;\s*/, $content_type, 2;
-    };
-
-    $media_type =~ s/\s+//g;
-    $media_type = lc $media_type;
-
-    wantarray ? ($media_type, $rest) : $media_type;
-}
-
-sub expires {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        my $expires = shift;
-        delete $header->{-date} if $expires;
-        $header->{-expires} = $expires;
-    }
-    elsif ( my $expires = $self->get('Expires') ) {
-        return HTTP::Date::str2time( $expires );
-    }
-
-    return;
-}
-
-sub date {
-    my $self     = shift;
-    my $time     = shift;
-    my $this     = refaddr $self;
-    my $header   = $header_of{ $this };
-    my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-
-    if ( defined $time ) {
-        return carp 'The Date header is fixed' if $is_fixed;
-        $header->{-date} = HTTP::Date::time2str( $time );
-    }
-    elsif ( $is_fixed ) {
-        return time;
-    }
-    elsif ( my $date = $header->{-date} ) {
-        return HTTP::Date::str2time( $date );
-    }
-
-    return;
-}
-
-sub get_cookie {
-    my $self   = shift;
-    my $name   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    my @cookies = do {
-        my $cookies = $header->{-cookie};
-        return unless $cookies;
-        ref $cookies eq 'ARRAY' ? @{ $cookies } : $cookies;
-    };
-
-    my @values;
-    for my $cookie ( @cookies ) {
-        next unless ref $cookie   eq 'CGI::Cookie';
-        next unless $cookie->name eq $name;
-        push @values, $cookie;
-    }
-
-    wantarray ? @values : $values[0];
-}
-
-sub set_cookie {
-    my ( $self, $name, $value ) = @_;
-
-    require CGI::Cookie;
-
-    my $new_cookie = CGI::Cookie->new(do {
-        my %args = ref $value eq 'HASH' ? %{ $value } : ( value => $value );
-        $args{name} = $name;
-        \%args;
-    });
-
-    my $cookies = $self->get( 'Set-Cookie' );
-
-    if ( !$cookies ) {
-        $self->set( 'Set-Cookie' => [ $new_cookie ] );
-        return;
-    }
-    elsif ( ref $cookies ne 'ARRAY' ) {
-        $cookies = [ $cookies ];
-        $self->set( 'Set-Cookie' => $cookies );
-    }
-
-    my $set;
-    for my $cookie ( @{$cookies} ) {
-        next unless ref $cookie   eq 'CGI::Cookie';
-        next unless $cookie->name eq $name;
-        $cookie = $new_cookie;
-        $set++;
-        last;
-    }
-
-    push @{ $cookies }, $new_cookie unless $set;
-
-    return;
-}
-
-sub status {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    require HTTP::Status;
-
-    if ( @_ ) {
-        my $code = shift;
-        my $message = HTTP::Status::status_message( $code );
-        return $header->{-status} = "$code $message" if $message;
-        carp "Unknown status code '$code' passed to status()";
-    }
-    elsif ( my $status = $header->{-status} ) {
-        return substr( $status, 0, 3 );
-    }
-    else {
-        return '200';
-    }
-
-    return;
-}
-
 sub as_string {
     my $self   = shift;
     my $eol    = defined $_[0] ? shift : "\n";
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
 
     my @lines;
 
-    if ( $header->{-nph} ) {
+    if ( $self->nph ) {
         my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
         my $software = $ENV{SERVER_SOFTWARE} || 'cmdline';
-        my $status   = $header->{-status}    || '200 OK';
+        my $status   = $self->get('Status')  || '200 OK';
         push @lines, "$protocol $status";
         push @lines, "Server: $software";
     }

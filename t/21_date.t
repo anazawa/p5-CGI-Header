@@ -37,10 +37,12 @@ subtest 'Expires' => sub {
     #ok !$adapter->_date_header_is_fixed;
 
     warning_is { $adapter{Expires} = '+3M' }
-        "Can't assign to '-expires' directly, use accessors instead";
+        "Can't assign to '-expires' directly, use expires() instead";
 };
 
 subtest 'date()' => sub {
+    plan skip_all => 'obsolete';
+    
     %adaptee = ();
     is $adapter->date, undef;
     my $now = 1341637509;
@@ -64,5 +66,6 @@ subtest 'expires()' => sub {
 
     $now++;
     $adapter->expires( 'Sat, 07 Jul 2012 05:05:10 GMT' );
-    is $adapter->expires, $now, 'get expires()';
+    #is $adapter->expires, $now, 'get expires()';
+    is $adapter->expires, 'Sat, 07 Jul 2012 05:05:10 GMT';
 };

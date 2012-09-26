@@ -86,6 +86,8 @@ is_deeply \%adaptee, { -type => q{} };
 is $adapter{Content_Type}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
 
 subtest 'content_type()' => sub {
+    plan skip_all => 'obsolete';
+
     %adaptee = ();
     is $adapter->content_type, 'text/html';
     my @got = $adapter->content_type;

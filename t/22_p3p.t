@@ -31,4 +31,4 @@ is $adapter->p3p_tags, 'CAO';
 is_deeply [ $adapter->p3p_tags ], [qw/CAO DSP LAW CURa/];
 
 warning_is { $adapter{P3P} = 'CAO DSP LAW CURa' }
-    "Can't assign to '-p3p' directly, use accessors instead";
+    "Can't assign to '-p3p' directly, use p3p_tags() instead";
