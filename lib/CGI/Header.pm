@@ -6,6 +6,7 @@ use overload q{""} => 'as_string', fallback => 1;
 use parent 'CGI::Header::Dispatcher';
 use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
+use List::Util qw/first/;
 
 our $VERSION = '0.01';
 
@@ -15,45 +16,145 @@ sub new {
     my $class = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
     my $self = bless \do { my $anon_scalar }, $class;
-    my $this = refaddr $self;
-    $header_of{ $this } = $header;
+    $header_of{ refaddr $self } = $header;
     $self;
 }
 
-sub header {
-    my $self = shift;
-    my $this = refaddr $self;
-    $header_of{ $this };
-}
+sub header { $header_of{ refaddr shift } }
 
 sub DESTROY {
     my $self = shift;
-    my $this = refaddr $self;
-    delete $header_of{ $this };
+    delete $header_of{ refaddr $self };
     return;
 }
 
-sub get    { shift->dispatch( 'fetch',  @_ ) }
-sub set    { shift->dispatch( 'store',  @_ ) }
-sub delete { shift->dispatch( 'delete', @_ ) }
-sub exists { shift->dispatch( 'exists', @_ ) }
+sub clone {
+    my $self = shift;
+    my $class = ref $self or croak "Can't clone non-object: $self";
+    my $header = $header_of{ refaddr $self };
+    $class->new( %{ $header } );
+}
 
-sub is_empty { !shift->dispatch('scalar') }
+sub is_empty { !shift->SCALAR }
 
-sub clear       { shift->dispatch( 'clear' ) }
-sub field_names { shift->dispatch( 'keys'  ) }
+sub SCALAR {
+    my $self = shift;
+    my $header = $header_of{ refaddr $self };
+    !defined $header->{-type} || first { $_ } values %{ $header };
+}
 
+sub clear {
+    my $self = shift;
+    my $header = $header_of{ refaddr $self };
+    %{ $header } = ( -type => q{} );
+    return;
+}
+
+sub attachment {
+    my $self   = shift;
+    my $header = $header_of{ refaddr $self };
+
+    if ( @_ ) {
+        my $filename = shift;
+        delete $header->{-content_disposition} if $filename;
+        $header->{-attachment} = $filename;
+        return;
+    }
+
+    $header->{-attachment};
+}
+
+sub field_names {
+    my $self   = shift;
+    my $header = $header_of{ refaddr $self };
+    my %header = %{ $header }; # copy
+
+    my @fields;
+
+    push @fields, 'Status'        if delete $header{-status};
+    push @fields, 'Window-Target' if delete $header{-target};
+    push @fields, 'P3P'           if delete $header{-p3p};
+
+    push @fields, 'Set-Cookie' if my $cookie  = delete $header{-cookie};
+    push @fields, 'Expires'    if my $expires = delete $header{-expires};
+    push @fields, 'Date' if delete $header{-nph} or $cookie or $expires;
+
+    push @fields, 'Content-Disposition' if delete $header{-attachment};
+
+    my $type = delete @header{ '-charset', '-type' };
+
+    # not ordered
+    while ( my ($norm, $value) = each %header ) {
+        push @fields, $self->_denormalize( $norm ) if $value;
+    }
+
+    push @fields, 'Content-Type' if !defined $type or $type ne q{};
+
+    @fields;
+}
+
+sub nph {
+    my $self   = shift;
+    my $header = $header_of{ refaddr $self };
+    
+    if ( @_ ) {
+        my $nph = shift;
+        delete $header->{-date} if $nph;
+        $header->{-nph} = $nph;
+        return;
+    }
+
+    $header->{-nph};
+}
+
+sub p3p_tags {
+    my $self   = shift;
+    my $header = $header_of{ refaddr $self };
+
+    if ( @_ ) {
+        $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
+    }
+    elsif ( my $tags = $header->{-p3p} ) {
+        my @tags = ref $tags eq 'ARRAY' ? @{ $tags } : split ' ', $tags;
+        return wantarray ? @tags : $tags[0];
+    }
+
+    return;
+}
+
+sub expires {
+    my $self   = shift;
+    my $header = $header_of{ refaddr $self };
+
+    if ( @_ ) {
+        my $expires = shift;
+        delete $header->{-date} if $expires;
+        $header->{-expires} = $expires;
+        return;
+    }
+
+    $header->{-expires};
+}
 sub flatten {
     my $self = shift;
-    map { $_, $self->dispatch('fetch', $_) } $self->dispatch('keys');
+
+    my @headers;
+    for my $field ( $self->field_names ) {
+        my $value = $self->get( $field );
+        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
+        push @headers, map { $field => $_ } @values;
+    }
+
+    @headers;
 }
 
 sub each {
     my ( $self, $callback ) = @_;
 
     if ( ref $callback eq 'CODE' ) {
-        for my $field ( $self->dispatch('keys') ) {
-            $callback->( $field, $self->dispatch('fetch', $field) );
+        my @headers = $self->flatten;
+        while ( my ($field, $value) = splice @headers, 0, 2 ) {
+            $callback->( $field, $value );
         }
     }
     else {
@@ -65,35 +166,34 @@ sub each {
 
 sub as_string {
     my $self = shift;
-    my $crlf = defined $_[0] ? shift : "\r\n";
+    my $eol  = defined $_[0] ? shift : "\015\012";
 
     my @lines;
 
     if ( $self->nph ) {
-        my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
         my $software = $ENV{SERVER_SOFTWARE} || 'cmdline';
-        my $status   = $self->get('Status')  || '200 OK';
+        my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
+        my $status = $self->get( 'Status' ) || '200 OK';
         push @lines, "$protocol $status";
         push @lines, "Server: $software";
     }
 
     $self->each(sub {
         my ( $field, $value ) = @_;
-        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
-        push @lines, "$field: $_" for @values;
+        $value =~ s/$eol(\s)/$1/g;
+        $value =~ s/$eol|\015|\012//g;
+        push @lines, "$field: $value";
     });
 
-    # CR escaping for values, per RFC 822
-    for my $line ( @lines ) {
-        $line =~ s/$crlf(\s)/$1/g;
-        next unless $line =~ m/$crlf|\015|\012/;
-        $line = substr $line, 0, 72 if length $line > 72;
-        croak "Invalid header value contains a new line ",
-              "not followed by whitespace: $line";
-    }
-
-    join $crlf, @lines, q{};
+    join $eol, @lines, q{};
 }
+
+#sub as_hashref {
+#    my $self = shift;
+#    my $this = refaddr $self;
+#    tie my %header, ref $self, $header_of{ $this };
+#    \%header;
+#}
 
 sub dump {
     my $self = shift;
@@ -114,15 +214,8 @@ sub dump {
 }
 
 BEGIN {
-    *TIEHASH = \&new;   *STORE  = \&set;    *FETCH  = \&get;
-    *CLEAR   = \&clear; *EXISTS = \&exists; *DELETE = \&delete;
-}
-
-sub SCALAR { shift->dispatch('scalar') }
-
-BEGIN {
-    require Storable;
-    *clone = \&Storable::dclone;
+    *TIEHASH = \&new;
+    *CLEAR   = \&clear;    
 }
 
 sub STORABLE_freeze {

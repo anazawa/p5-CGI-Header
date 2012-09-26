@@ -116,7 +116,8 @@ subtest 'flatten()' => sub {
 
     my @expected = (
         'Status',         '304 Not Modified',
-        'Set-Cookie',      [ $cookie1, $cookie2 ],
+        'Set-Cookie',      $cookie1,
+        'Set-Cookie',      $cookie2,
         'Date',           expires(0, 'http'),
         'Content-length', '12345',
         'Content-Type',   'text/html; charset=ISO-8859-1',

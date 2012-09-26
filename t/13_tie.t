@@ -7,11 +7,10 @@ my $class = 'CGI::Header';
 
 my %alias = (
     TIEHASH => 'new',
-    FETCH   => 'get',
-    STORE   => 'set',
-    DELETE  => 'delete',
-    EXISTS  => 'exists',
-    CLEAR   => 'clear',
+    #FETCH   => 'get',
+    #STORE   => 'set',
+    #DELETE  => 'delete',
+    #EXISTS  => 'exists',
 );
 
 can_ok $class, ( keys %alias, 'SCALAR' );
