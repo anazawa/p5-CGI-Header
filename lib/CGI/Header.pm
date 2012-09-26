@@ -5,7 +5,6 @@ use warnings;
 use overload q{""} => 'as_string', fallback => 1;
 use Carp qw/carp croak/;
 use CGI::Header::Dispatcher;
-use List::Util qw/first/;
 use Scalar::Util qw/refaddr/;
 use Storable qw//;
 
@@ -42,128 +41,29 @@ sub set    { shift->dispatch( 'set',    @_ ) }
 sub delete { shift->dispatch( 'delete', @_ ) }
 sub exists { shift->dispatch( 'exists', @_ ) }
 
-sub clear {
-    my $self = shift;
-    my $this = refaddr $self;
-    %{ $header_of{$this} } = ( -type => q{} );
-    return;
-}
+sub clear    { shift->dispatch('clear')   }
+sub is_empty { !shift->dispatch('scalar') }
 
 BEGIN {
     *TIEHASH = \&new;   *STORE  = \&set;    *FETCH  = \&get;
     *CLEAR   = \&clear; *EXISTS = \&exists; *DELETE = \&delete;
 }
 
-sub SCALAR {
-    my $self = shift;
-    my $this = refaddr $self;
-    my $header = $header_of{ $this };
-    !defined $header->{-type} || first { $_ } values %{ $header };
-}
+sub SCALAR { shift->dispatch('scalar') }
 
-sub is_empty { !shift->SCALAR }
-
-sub attachment {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        my $filename = shift;
-        delete $header->{-content_disposition} if $filename;
-        $header->{-attachment} = $filename;
-        return;
-    }
-
-    $header->{-attachment};
-}
-
-sub nph {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-    
-    if ( @_ ) {
-        my $nph = shift;
-        delete $header->{-date} if $nph;
-        $header->{-nph} = $nph;
-        return;
-    }
-
-    $header->{-nph};
-}
-
-sub p3p_tags {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
-    }
-    elsif ( my $tags = $header->{-p3p} ) {
-        my @tags = ref $tags eq 'ARRAY' ? @{ $tags } : split ' ', $tags;
-        return wantarray ? @tags : $tags[0];
-    }
-
-    return;
-}
-
-sub expires {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my $header = $header_of{ $this };
-
-    if ( @_ ) {
-        my $expires = shift;
-        delete $header->{-date} if $expires;
-        $header->{-expires} = $expires;
-        return;
-    }
-
-    $header->{-expires};
-}
-
-sub field_names {
-    my $self   = shift;
-    my $this   = refaddr $self;
-    my %header = %{ $header_of{$this} }; # shallow copy
-
-    my @fields;
-
-    push @fields, 'Status'        if delete $header{-status};
-    push @fields, 'Window-Target' if delete $header{-target};
-    push @fields, 'P3P'           if delete $header{-p3p};
-
-    push @fields, 'Set-Cookie' if my $cookie  = delete $header{-cookie};
-    push @fields, 'Expires'    if my $expires = delete $header{-expires};
-    push @fields, 'Date' if delete $header{-nph} or $cookie or $expires;
-
-    push @fields, 'Content-Disposition' if delete $header{-attachment};
-
-    my $type = delete @header{ '-charset', '-type' };
-
-    # not ordered
-    while ( my ($norm, $value) = CORE::each %header ) {
-        push @fields, $self->_denormalize( $norm ) if $value;
-    }
-
-    push @fields, 'Content-Type' if !defined $type or $type ne q{};
-
-    @fields;
-}
+sub field_names { shift->dispatch('keys') }
 
 sub flatten {
     my $self = shift;
-    map { $_, $self->get($_) } $self->field_names;
+    map { $_, $self->dispatch('get', $_) } $self->dispatch('keys');
 }
 
 sub each {
     my ( $self, $callback ) = @_;
 
     if ( ref $callback eq 'CODE' ) {
-        for my $field ( $self->field_names ) {
-            $callback->( $field, $self->get($field) );
+        for my $field ( $self->dispatch('keys') ) {
+            $callback->( $field, $self->dispatch('get', $field) );
         }
     }
     else {
@@ -174,8 +74,8 @@ sub each {
 }
 
 sub as_string {
-    my $self   = shift;
-    my $eol    = defined $_[0] ? shift : "\n";
+    my $self = shift;
+    my $eol  = defined $_[0] ? shift : "\n";
 
     my @lines;
 
@@ -236,24 +136,6 @@ sub STORABLE_thaw {
     my $this = refaddr $self;
     $header_of{ $this } = $header;
     $self;
-}
-
-my %field_name_of = (
-    -attachment => 'Content-Disposition', -cookie => 'Set-Cookie',
-    -p3p        => 'P3P',                 -target => 'Window-Target',
-    -type       => 'Content-Type',
-);
-
-sub _denormalize {
-    my ( $class, $norm ) = @_;
-
-    unless ( exists $field_name_of{$norm} ) {
-        ( my $field = $norm ) =~ s/^-//;
-        $field =~ tr/_/-/;
-        $field_name_of{ $norm } = ucfirst $field;
-    }
-
-    $field_name_of{ $norm };
 }
 
 1;
