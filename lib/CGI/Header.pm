@@ -3,23 +3,20 @@ use 5.008_009;
 use strict;
 use warnings;
 use overload q{""} => 'as_string', fallback => 1;
+use parent 'CGI::Header::Dispatcher';
 use Carp qw/carp croak/;
-use CGI::Header::Dispatcher;
 use Scalar::Util qw/refaddr/;
-use Storable qw//;
 
 our $VERSION = '0.01';
 
 my %header_of;
 
 sub new {
-    my $class  = shift;
+    my $class = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
-    my $self   = bless \do { my $anon_scalar }, $class;
-    my $this   = refaddr $self;
-
+    my $self = bless \do { my $anon_scalar }, $class;
+    my $this = refaddr $self;
     $header_of{ $this } = $header;
-
     $self;
 }
 
@@ -36,26 +33,19 @@ sub DESTROY {
     return;
 }
 
-sub get    { shift->dispatch( 'get',    @_ ) }
-sub set    { shift->dispatch( 'set',    @_ ) }
+sub get    { shift->dispatch( 'fetch',  @_ ) }
+sub set    { shift->dispatch( 'store',  @_ ) }
 sub delete { shift->dispatch( 'delete', @_ ) }
 sub exists { shift->dispatch( 'exists', @_ ) }
 
-sub clear    { shift->dispatch('clear')   }
 sub is_empty { !shift->dispatch('scalar') }
 
-BEGIN {
-    *TIEHASH = \&new;   *STORE  = \&set;    *FETCH  = \&get;
-    *CLEAR   = \&clear; *EXISTS = \&exists; *DELETE = \&delete;
-}
-
-sub SCALAR { shift->dispatch('scalar') }
-
-sub field_names { shift->dispatch('keys') }
+sub clear       { shift->dispatch( 'clear' ) }
+sub field_names { shift->dispatch( 'keys'  ) }
 
 sub flatten {
     my $self = shift;
-    map { $_, $self->dispatch('get', $_) } $self->dispatch('keys');
+    map { $_, $self->dispatch('fetch', $_) } $self->dispatch('keys');
 }
 
 sub each {
@@ -63,7 +53,7 @@ sub each {
 
     if ( ref $callback eq 'CODE' ) {
         for my $field ( $self->dispatch('keys') ) {
-            $callback->( $field, $self->dispatch('get', $field) );
+            $callback->( $field, $self->dispatch('fetch', $field) );
         }
     }
     else {
@@ -75,7 +65,7 @@ sub each {
 
 sub as_string {
     my $self = shift;
-    my $eol  = defined $_[0] ? shift : "\n";
+    my $crlf = defined $_[0] ? shift : "\r\n";
 
     my @lines;
 
@@ -95,14 +85,14 @@ sub as_string {
 
     # CR escaping for values, per RFC 822
     for my $line ( @lines ) {
-        $line =~ s/$eol(\s)/$1/g;
-        next unless $line =~ m/$eol|\015|\012/;
+        $line =~ s/$crlf(\s)/$1/g;
+        next unless $line =~ m/$crlf|\015|\012/;
         $line = substr $line, 0, 72 if length $line > 72;
         croak "Invalid header value contains a new line ",
               "not followed by whitespace: $line";
     }
 
-    join $eol, @lines, q{};
+    join $crlf, @lines, q{};
 }
 
 sub dump {
@@ -123,7 +113,17 @@ sub dump {
     Data::Dumper::Dumper( \%dump );
 }
 
-BEGIN { *clone = \&Storable::dclone }
+BEGIN {
+    *TIEHASH = \&new;   *STORE  = \&set;    *FETCH  = \&get;
+    *CLEAR   = \&clear; *EXISTS = \&exists; *DELETE = \&delete;
+}
+
+sub SCALAR { shift->dispatch('scalar') }
+
+BEGIN {
+    require Storable;
+    *clone = \&Storable::dclone;
+}
 
 sub STORABLE_freeze {
     my ( $self, $cloning ) = @_;

@@ -1,15 +1,12 @@
 package CGI::Header::Dispatcher;
 use strict;
 use warnings;
-use Exporter 'import';
 use CGI::Util qw//;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 
-our @EXPORT = qw( dispatch attachment nph p3p_tags expires );
-
-my %content_type = (
-    get => sub {
+my %Content_Type = (
+    fetch => sub {
         my $self    = shift;
         my $header  = shift;
         my $type    = $header->{-type};
@@ -32,7 +29,7 @@ my %content_type = (
 
         $charset ? "$type; charset=$charset" : $type;
     },
-    set => sub {
+    store => sub {
         my ( $self, $header, $value ) = @_;
         @{ $header }{qw/-type -charset/} = ( $value, q{} );
         return;
@@ -48,39 +45,39 @@ my %content_type = (
     },
 );
 
-my %expires = (
-    get => sub {
+my %Expires = (
+    fetch => sub {
         my ( $self, $header ) = @_;
         my $expires = $header->{-expires};
         $expires && CGI::Util::expires( $expires );
     },
-    set => sub {
+    store => sub {
         my $self = shift;
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
 );
 
-my %p3p = (
-    get => sub {
+my %P3P = (
+    fetch => sub {
         my ( $self, $header ) = @_;
         my $tags = $header->{-p3p};
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
-    set => sub {
+    store => sub {
         my $self = shift;
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
 );
 
-my %content_disposition = (
-    get => sub {
+my %Content_Disposition = (
+    fetch => sub {
         my ( $self, $header ) = @_;
         my $filename = $header->{-attachment};
         return qq{attachment; filename="$filename"} if $filename;
         $header->{-content_disposition};
     },
-    set => sub {
+    store => sub {
         my ( $self, $header, $value ) = @_; 
         $header->{-content_disposition} = $value;
         delete $header->{-attachment} if $value;
@@ -101,13 +98,13 @@ my $is_fixed = sub {
     $header->{-nph} || $header->{-expires} || $header->{-cookie};
 };
 
-my %date = (
-    get => sub {
+my %Date = (
+    fetch => sub {
         my ( $self, $header ) = @_;
         return CGI::Util::expires() if $self->$is_fixed( $header );
         $header->{-date};
     },
-    set => sub {
+    store => sub {
         my ( $self, $header, $value ) = @_;
         return carp 'The Date header is fixed' if $self->$is_fixed( $header );
         $header->{-date} = $value;
@@ -123,8 +120,8 @@ my %date = (
     },
 );
 
-my %cookie = (
-    set => sub {
+my %Set_Cookie = (
+    store => sub {
         my ( $self, $header, $value ) = @_;
         delete $header->{-date} if $value;
         $header->{-cookie} = $value;
@@ -133,17 +130,17 @@ my %cookie = (
 );
 
 my %Handler = (
-    -cookie  => \%cookie,  -content_disposition => \%content_disposition,
-    -date    => \%date,    -content_type        => \%content_type,
-    -expires => \%expires, -p3p                 => \%p3p,
+    -cookie  => \%Set_Cookie,  -content_disposition => \%Content_Disposition,
+    -date    => \%Date,        -content_type        => \%Content_Type,
+    -expires => \%Expires,     -p3p                 => \%P3P,
 );
 
 my %Dispatcher = (
-    get => sub {
+    fetch => sub {
         my ( $self, $header, $field, $norm, $handle ) = @_;
         $handle ? $self->$handle( $header ) : $norm && $header->{ $norm };
     },
-    set => sub {
+    store => sub {
         my ( $self, $header, $field, $norm, $handle, $value ) = @_;
         return $self->$handle( $header, $value ) if $handle;
         $header->{ $norm } = $value if $norm;
@@ -155,7 +152,7 @@ my %Dispatcher = (
     },
     delete => sub {
         my ( $self, $header, $field, $norm, $handle ) = @_;
-        my $value = defined wantarray && dispatch( $self, 'get', $field );
+        my $value = defined wantarray && dispatch( $self, 'fetch', $field );
         $self->$handle( $header ) if $handle;
         delete $header->{ $norm } if $norm;
         $value;
@@ -190,7 +187,7 @@ my %Dispatcher = (
 
         # not ordered
         while ( my ($norm, $value) = each %header ) {
-            push @fields, _denormalize( $norm ) if $value;
+            push @fields, $self->_denormalize( $norm ) if $value;
         }
 
         push @fields, 'Content-Type' if !defined $type or $type ne q{};
@@ -203,7 +200,7 @@ sub dispatch {
     my $self     = shift;
     my $operator = shift;
     my $field    = shift;
-    my $norm     = $field && _normalize( $field );
+    my $norm     = $field && $self->_normalize( $field );
     my $header   = $self->header;
 
     return unless $operator;
@@ -281,6 +278,7 @@ my %norm_of = (
 );
 
 sub _normalize {
+    my $class = shift;
     my $field = lc shift;
 
     # transliterate dashes into underscores
@@ -299,7 +297,7 @@ my %field_name_of = (
 );
 
 sub _denormalize {
-    my $norm = shift;
+    my ( $class, $norm ) = @_;
 
     unless ( exists $field_name_of{$norm} ) {
         ( my $field = $norm ) =~ s/^-//;

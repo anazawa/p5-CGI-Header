@@ -4,11 +4,11 @@ use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $denormalize = CGI::Header::Dispatcher->can( '_denormalize' );
+my $dispatcher = 'CGI::Header::Dispatcher';
 
 run {
     my $block = shift;
-    is $denormalize->( $block->input ), $block->expected;
+    is $dispatcher->_denormalize( $block->input ), $block->expected;
 };
 
 __DATA__

@@ -5,13 +5,11 @@ use Test::Base;
 
 plan tests => 1 * blocks();
 
-#my $header = 'CGI::Header';
-my $normalize = CGI::Header::Dispatcher->can( '_normalize' );
+my $dispatcher = 'CGI::Header::Dispatcher';
 
 run {
     my $block = shift;
-    #is $header->_normalize( $block->input ), $block->expected;
-    is $normalize->( $block->input ), $block->expected;
+    is $dispatcher->_normalize( $block->input ), $block->expected;
 };
 
 __DATA__
