@@ -1,6 +1,6 @@
 use strict;
 use CGI::Header;
-use Test::Base;
+use Test::Base skip_all => 'obsolete';
 
 plan tests => 1 * blocks();
 
