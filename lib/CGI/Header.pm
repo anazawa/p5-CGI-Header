@@ -3,7 +3,8 @@ use 5.008_009;
 use strict;
 use warnings;
 use overload q{""} => 'as_string', fallback => 1;
-use parent 'CGI::Header::Dispatcher';
+#use CGI::Header::Dispatcher;
+use CGI::Util qw//;
 use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
@@ -26,6 +27,166 @@ sub DESTROY {
     my $self = shift;
     delete $header_of{ refaddr $self };
     return;
+}
+
+my %get = (
+    -content_type => sub {
+        my $header  = shift;
+        my $type    = $header->{-type};
+        my $charset = $header->{-charset};
+
+        if ( defined $type and $type eq q{} ) {
+            undef $charset;
+            undef $type;
+        }
+        else {
+            $type ||= 'text/html';
+
+            if ( $type =~ /\bcharset\b/ ) {
+                undef $charset;
+            }
+            elsif ( !defined $charset ) {
+                $charset = 'ISO-8859-1';
+            }
+        }
+
+        $charset ? "$type; charset=$charset" : $type;
+    },
+    -expires => sub {
+        my $header = shift;
+        my $expires = $header->{-expires};
+        $expires && CGI::Util::expires( $expires );
+    },
+    -p3p => sub {
+        my $header = shift;
+        my $tags = $header->{-p3p};
+        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
+        $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
+    },
+    -content_disposition => sub {
+        my $header = shift;
+        my $filename = $header->{-attachment};
+        return qq{attachment; filename="$filename"} if $filename;
+        $header->{-content_disposition};
+    },
+    -date => sub {
+        my $header = shift;
+        _is_fixed( $header ) ? CGI::Util::expires() : $header->{-date};
+    },
+);
+
+sub get {
+    my $self   = shift;
+    my $norm   = _normalize( shift );
+    my $header = $header_of{ refaddr $self };
+
+    if ( my $handler = $get{$norm} ) {
+        return $handler->( $header );
+    }
+
+    $header->{ $norm };
+}
+
+my %set = (
+    -content_type => sub {
+        my $header = shift;
+        $header->{-type} = shift;
+        $header->{-charset} = q{};
+    },
+    -expires => sub {
+        carp "Can't assign to '-expires' directly, use expires() instead";
+    },
+    -p3p => sub {
+        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
+    },
+    -content_disposition => sub {
+        my ( $header, $value ) = @_; 
+        delete $header->{-attachment} if $value;
+        $header->{-content_disposition} = $value;
+    },
+    -cookie => sub {
+        my ( $header, $value ) = @_;
+        delete $header->{-date} if $value;
+        $header->{-cookie} = $value;
+    },
+);
+
+sub set {
+    my $self   = shift;
+    my $norm   = _normalize( shift );
+    my $value  = shift;
+    my $header = $header_of{ refaddr $self };
+
+    if ( my $handler = $set{$norm} ) {
+        $handler->( $header, $value );
+    }
+    else {
+        $header->{ $norm } = $value;
+    }
+
+    return;
+}
+
+sub exists {
+    my $self   = shift;
+    my $norm   = _normalize( shift );
+    my $header = $header_of{ refaddr $self };
+
+    if ( $norm eq '-content_type' ) {
+        return 1 if !defined $header->{-type} || $header->{-type} ne q{};
+    }
+    elsif ( $norm eq '-content_disposition' ) {
+        return 1 if $header->{-attachment};
+    }
+    elsif ( $norm eq '-date' ) {
+        return 1 if _is_fixed( $header );
+    }
+
+    $header->{ $norm };
+}
+
+sub delete {
+    my $self   = shift;
+    my $field  = shift;
+    my $norm   = _normalize( $field );
+    my $value  = defined wantarray && $self->get( $field );
+    my $header = $header_of{ refaddr $self };
+
+    if ( $norm eq '-content_type' ) {
+        delete $header->{-charset};
+        $header->{-type} = q{};
+    }
+    elsif ( $norm eq '-content_disposition' ) {
+        delete $header->{-attachment};
+    }
+
+    delete $header->{ $norm };
+
+    $value;
+}
+
+sub _is_fixed {
+    my $header = shift;
+    $header->{-nph} || $header->{-expires} || $header->{-cookie};
+}
+
+my %norm_of = (
+    -attachment    => q{},        -charset => q{},
+    -cookie        => q{},        -nph     => q{},
+    -target        => q{},        -type    => q{},
+    -window_target => q{-target}, -set_cookie => q{-cookie},
+);
+
+sub _normalize {
+    my $field = lc shift;
+
+    # transliterate dashes into underscores
+    $field =~ tr{-}{_};
+
+    # add an initial dash
+    $field = "-$field";
+
+    exists $norm_of{$field} ? $norm_of{ $field } : $field;
 }
 
 sub clone {
@@ -85,12 +246,30 @@ sub field_names {
 
     # not ordered
     while ( my ($norm, $value) = each %header ) {
-        push @fields, $self->_denormalize( $norm ) if $value;
+        push @fields, _denormalize( $norm ) if $value;
     }
 
     push @fields, 'Content-Type' if !defined $type or $type ne q{};
 
     @fields;
+}
+
+my %field_name_of = (
+    -attachment => 'Content-Disposition', -cookie => 'Set-Cookie',
+    -p3p        => 'P3P',                 -target => 'Window-Target',
+    -type       => 'Content-Type',
+);
+
+sub _denormalize {
+    my $norm = shift;
+
+    unless ( exists $field_name_of{$norm} ) {
+        ( my $field = $norm ) =~ s/^-//;
+        $field =~ tr/_/-/;
+        $field_name_of{ $norm } = ucfirst $field;
+    }
+
+    $field_name_of{ $norm };
 }
 
 sub nph {
@@ -135,6 +314,7 @@ sub expires {
 
     $header->{-expires};
 }
+
 sub flatten {
     my $self = shift;
 
@@ -214,8 +394,8 @@ sub dump {
 }
 
 BEGIN {
-    *TIEHASH = \&new;
-    *CLEAR   = \&clear;    
+    *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
+    *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
 }
 
 sub STORABLE_freeze {

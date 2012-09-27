@@ -1,14 +1,14 @@
 use strict;
-use CGI::Header::Dispatcher;
+use CGI::Header;
 use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $dispatcher = 'CGI::Header::Dispatcher';
+my $denormalize = CGI::Header->can( '_denormalize' );
 
 run {
     my $block = shift;
-    is $dispatcher->_denormalize( $block->input ), $block->expected;
+    is $denormalize->( $block->input ), $block->expected;
 };
 
 __DATA__

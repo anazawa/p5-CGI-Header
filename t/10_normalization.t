@@ -1,15 +1,15 @@
 use strict;
 use warnings;
-use CGI::Header::Dispatcher;
+use CGI::Header;
 use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $dispatcher = 'CGI::Header::Dispatcher';
+my $normalize = CGI::Header->can( '_normalize' );
 
 run {
     my $block = shift;
-    is $dispatcher->_normalize( $block->input ), $block->expected;
+    is $normalize->( $block->input ), $block->expected;
 };
 
 __DATA__

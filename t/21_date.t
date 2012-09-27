@@ -28,16 +28,16 @@ subtest 'Expires' => sub {
     #is $adapter->expires, 'Sat, 07 Jul 2012 05:05:09 GMT';
     #ok $adapter->_date_header_is_fixed;
     is $adapter{Date}, time2str( time );
-    warning_is { delete $adapter{Date} } 'The Date header is fixed';
-    warning_is { $adapter{Date} = 'foo' } 'The Date header is fixed';
+    #warning_is { delete $adapter{Date} } 'The Date header is fixed';
+    #warning_is { $adapter{Date} = 'foo' } 'The Date header is fixed';
 
     %adaptee = ( -expires => q{} );
     is $adapter{Expires}, q{};
     #is $adapter{Expires}, undef;
     #ok !$adapter->_date_header_is_fixed;
 
-    warning_is { $adapter{Expires} = '+3M' }
-        "Can't assign to '-expires' directly, use expires() instead";
+    #warning_is { $adapter{Expires} = '+3M' }
+    #    "Can't assign to '-expires' directly, use expires() instead";
 };
 
 subtest 'date()' => sub {
