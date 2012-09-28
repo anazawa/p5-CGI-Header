@@ -38,12 +38,11 @@ __DATA__
 --- input:    Foo_Bar
 --- expected: -foo_bar
 === 
---- SKIP
 --- input:    Set-Cookie
---- expected: -cookie
+--- expected: -set_cookie
 ===
 --- input:    Window-Target
---- expected: -target
+--- expected: -window_target
 ===
 --- input:    P3P
 --- expected: -p3p
