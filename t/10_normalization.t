@@ -1,5 +1,3 @@
-use strict;
-use warnings;
 use CGI::Header;
 use Test::Base;
 
@@ -47,20 +45,16 @@ __DATA__
 --- input:    P3P
 --- expected: -p3p
 ===
---- input:    cookie
---- expected:
+--- input: Cookie
 ===
---- input:    target
---- expected:
+--- input: Cookies
 ===
---- input:    attachment
---- expected: 
+--- input: Target
 ===
---- input:    charset
---- expected: 
+--- input: Attachment
 ===
---- input:    nph
---- expected: 
+--- input: Charset
 ===
---- input:    type
---- expected: 
+--- input: NPH
+===
+--- input: Type

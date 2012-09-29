@@ -13,11 +13,11 @@ is_deeply \%adaptee, {};
 
 %adaptee = ( -attachment => q{} );
 is $adapter{Content_Disposition}, undef;
-ok !exists $adapter{Content_Disposition};
+ok exists $adapter{Content_Disposition};
 
 %adaptee = ( -attachment => undef );
 is $adapter{Content_Disposition}, undef;
-ok !exists $adapter{Content_Disposition};
+ok exists $adapter{Content_Disposition};
 
 %adaptee = ();
 is $adapter{Content_Disposition}, undef;

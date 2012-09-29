@@ -39,7 +39,7 @@ is_deeply \%adaptee, { -type => q{} };
 # EXISTS
 %adaptee = ( -foo => 'bar', -bar => q{} );
 ok exists $adapter{Foo};
-ok !exists $adapter{Bar};
+ok exists $adapter{Bar};
 ok !exists $adapter{Baz};
 
 # DELETE

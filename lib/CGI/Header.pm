@@ -28,177 +28,161 @@ sub DESTROY {
     return;
 }
 
-{
-    my $get = sub { $_[0]->{$_[1]} };
+my %get = (
+    -content_disposition => sub {
+        my ( $header, $norm ) = @_;
+        my $filename = $header->{-attachment};
+        $filename ? qq{attachment; filename="$filename"} : $header->{ $norm };
+    },
+    -content_type => sub {
+        my $header  = shift;
+        my $type    = $header->{-type};
+        my $charset = $header->{-charset};
 
-    my %get = (
-        -content_type => sub {
-            my $header  = shift;
-            my $type    = $header->{-type};
-            my $charset = $header->{-charset};
+        if ( defined $type and $type eq q{} ) {
+            undef $charset;
+            undef $type;
+        }
+        else {
+            $type ||= 'text/html';
 
-            if ( defined $type and $type eq q{} ) {
+            if ( $type =~ /\bcharset\b/ ) {
                 undef $charset;
-                undef $type;
             }
-            else {
-                $type ||= 'text/html';
-
-                if ( $type =~ /\bcharset\b/ ) {
-                    undef $charset;
-                }
-                elsif ( !defined $charset ) {
-                    $charset = 'ISO-8859-1';
-                }
+            elsif ( !defined $charset ) {
+                $charset = 'ISO-8859-1';
             }
+        }
 
-            $charset ? "$type; charset=$charset" : $type;
-        },
-        -expires => sub {
-            my $expires = $get->( @_ );
-            $expires && CGI::Util::expires( $expires );
-        },
-        -p3p => sub {
-            my $tags = $get->( @_ );
-            $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
-            $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
-        },
-        -content_disposition => sub {
-            my ( $header ) = @_;
-            my $filename = $header->{-attachment};
-            $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
-        },
-        -date => sub {
-            my ( $header ) = @_;
-            my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-            $is_fixed ? CGI::Util::expires() : $get->( @_ );
-        },
-        -window_target => sub { shift->{-target} },
-        -set_cookie    => sub { shift->{-cookie} },
-    );
+        $charset ? "$type; charset=$charset" : $type;
+    },
+    -date => sub {
+        my ( $header, $norm ) = @_;
+        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
+        $is_fixed ? CGI::Util::expires() : $header->{ $norm };
+    },
+    -expires => sub {
+        my $expires = shift->{-expires};
+        $expires && CGI::Util::expires( $expires )
+    },
+    -p3p => sub {
+        my $tags = shift->{-p3p};
+        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
+        $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
+    },
+    -set_cookie    => sub { shift->{-cookie} },
+    -window_target => sub { shift->{-target} },
+);
 
-    sub get {
-        my $self = shift;
-        my $norm = _normalize( shift );
-        my $header = $header_of{ refaddr $self };
-        $norm && do { $get{$norm} || $get }->( $header, $norm );
-    }
+sub get {
+    my $self = shift;
+    my $norm = _normalize( shift ) || return;
+    my $header = $header_of{ refaddr $self };
+    exists $get{$norm} ? $get{$norm}->( $header, $norm ) : $header->{ $norm };
 }
 
-{
-    my $set = sub { $_[0]->{$_[1]} = $_[2] };
+my %set = (
+    -content_disposition => sub {
+        my ( $header, $norm, $value ) = @_;
+        delete $header->{-attachment} if $value;
+        $header->{ $norm } = $value;
+    },
+    -content_type => sub {
+        my ( $header, $norm, $value ) = @_;
+        @{ $header }{qw/-type -charset/} = ( $value, q{} );
+    },
+    -date => sub {
+        my ( $header, $norm, $value ) = @_;
+        return if first { $header->{$_} } qw(-nph -expires -cookie);
+        $header->{ $norm } = $value;
+    },
+    -expires => sub {
+        carp "Can't assign to '-expires' directly, use expires() instead";
+    },
+    -p3p => sub {
+        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
+    },
+    -set_cookie => sub {
+        my ( $header, $norm, $value ) = @_;
+        delete $header->{-date} if $value;
+        $header->{-cookie} = $value;
+    },
+    -window_target => sub {
+        my ( $header, $norm, $value ) = @_;
+        $header->{-target} = $value;
+    },
+);
 
-    my %set = (
-        -content_type => sub {
-            my ( $header, $norm, $value ) = @_;
-            $header->{-type} = $value;
-            $header->{-charset} = q{};
-        },
-        -expires => sub {
-            carp "Can't assign to '-expires' directly, use expires() instead";
-        },
-        -p3p => sub {
-            carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
-        },
-        -content_disposition => sub {
-            my ( $header, $norm, $value ) = @_;
-            delete $header->{-attachment} if $value;
-            $set->( @_ );
-        },
-        -set_cookie => sub {
-            my ( $header, $norm, $value ) = @_;
-            delete $header->{-date} if $value;
-            $header->{-cookie} = $value;
-        },
-        -date => sub {
-            my ( $header, $norm ) = @_;
-            return if first { $header->{$_} } qw(-nph -expires -cookie);
-            $set->( @_ );
-        },
-        -window_target => sub {
-            my ( $header, $norm, $value ) = @_;
-            $header->{-target} = $value;
-        },
-    );
+sub set {
+    my $self   = shift;
+    my $norm   = _normalize( shift ) || return;
+    my $value  = shift;
+    my $header = $header_of{ refaddr $self };
 
-    sub set {
-        my $self = shift;
-        my $norm = _normalize( shift );
-        my $header = $header_of{ refaddr $self };
-        do { $set{$norm} || $set }->( $header, $norm, @_ ) if $norm;
-        return;
+    if ( my $set = $set{$norm} ) {
+        $set->( $header, $norm, $value );
     }
+    else {
+        $header->{ $norm } = $value;
+    }
+
+    return;
 }
 
-{
-    my $exists = sub { $_[0]->{$_[1]} && 1 };
+my %exists = (
+    -content_type => sub {
+        my $header = shift;
+        !defined $header->{-type} || $header->{-type} ne q{};
+    },
+    -content_disposition => sub {
+        my ( $header, $exists ) = @_;
+        $exists || exists $header->{-attachment};
+    },
+    -date => sub {
+        my ( $header, $exists ) = @_;
+        first { $header->{$_} } qw(-date -nph -expires -cookie );
+    },
+    -set_cookie    => sub { exists shift->{-cookie} },
+    -window_target => sub { exists shift->{-target} },
+);
 
-    my %exists = (
-        -content_type => sub {
-            my $header = shift;
-            !defined $header->{-type} || $header->{-type} ne q{};
-        },
-        -content_disposition => sub {
-            my ( $header ) = @_;
-            return 1 if $header->{-attachment};
-            $exists->( @_ );
-        },
-        -date => sub {
-            my ( $header ) = @_;
-            return 1 if first { $header->{$_} } qw(-nph -expires -cookie );
-            $exists->( @_ );
-        },
-        -window_target => sub { shift->{-target} && 1 },
-        -set_cookie    => sub { shift->{-cookie} && 1 },
-    );
-
-    sub exists {
-        my $self = shift;
-        my $norm = _normalize( shift );
-        my $header = $header_of{ refaddr $self };
-        $norm && do { $exists{$norm} || $exists }->( $header, $norm );
-    }
+# FIXME: this method doesn't return a reliable value :(
+sub exists {
+    my $self = shift;
+    my $norm = _normalize( shift ) || return;
+    my $header = $header_of{ refaddr $self };
+    my $exists = exists $header->{ $norm };
+    do { $exists{$norm} || sub { $_[1] } }->( $header, $exists );
 }
 
-{
-    my $delete = sub { delete $_[0]->{$_[1]} };
+my %delete = (
+    -content_disposition => sub { delete $_[0]->{-attachment} },
+    -content_type => sub {
+        my $header = shift;
+        delete $header->{-charset};
+        $header->{-type} = q{};
+    },
+    -set_cookie    => sub { delete @{ $_[0] }{qw/-cookie -cookies/} },
+    -window_target => sub { delete $_[0]->{-target} },
+);
 
-    my %delete = (
-        -content_type => sub {
-            my ( $header ) = @_;
-            delete $header->{-charset};
-            $header->{-type} = q{};
-            $delete->( @_ );
-        },
-        -content_disposition => sub {
-            my ( $header ) = @_;
-            delete $header->{-attachment};
-            $delete->( @_ );
-        },
-        -window_target => sub { delete shift->{-target} },
-        -set_cookie    => sub { delete shift->{-cookie} },
-    );
-
-    sub delete {
-        my ( $self, $field ) = @_;
-        my $norm = _normalize( $field );
-        my $value = defined wantarray && $self->get( $field );
-        my $header = $header_of{ refaddr $self };
-        do { $delete{$norm} || $delete }->( $header, $norm ) if $norm;
-        $value;
-    }
+sub delete {
+    my ( $self, $field ) = @_;
+    my $norm = _normalize( $field ) || return;
+    my $value = defined wantarray && $self->get( $field );
+    my $header = $header_of{ refaddr $self };
+    do { $delete{$norm} || sub {} }->( $header );
+    delete $header->{ $norm };
+    $value;
 }
 
-{
-    my %is_excluded = map { $_ => 1 }
-        qw( -attachment -charset -cookie -nph -target -type );
+my %is_ignored = map { $_ => 1 }
+    qw( attachment charset cookie cookies nph target type );
 
-    sub _normalize {
-        my $norm = lc shift;
-        $norm =~ tr/-/_/;
-        $norm = "-$norm";
-        $is_excluded{ $norm } ? q{} : $norm;
-    }
+sub _normalize {
+    my $norm = lc shift;
+    $norm =~ tr/-/_/;
+    $is_ignored{ $norm } ? undef : "-$norm";
 }
 
 sub clone {
@@ -217,11 +201,16 @@ sub clear {
     return;
 }
 
-BEGIN { # make accessors
-    my $get_code = sub {
-        my ( $norm, $conflict_with ) = @_;
+BEGIN {
+    my %conflict_with = (
+        attachment => '-content_disposition',
+        nph        => '-date',
+        expires    => '-date',
+    );
 
-        return sub {
+    while ( my ($method, $conflict_with) = each %conflict_with ) {
+        my $norm = "-$method";
+        my $code = sub {
             my $self   = shift;
             my $header = $header_of{ refaddr $self };
     
@@ -233,11 +222,10 @@ BEGIN { # make accessors
 
             $header->{ $norm };
         };
-    };
 
-    *attachment = $get_code->( '-attachment', '-content_disposition' );
-    *nph        = $get_code->( '-nph',     '-date' );
-    *expires    = $get_code->( '-expires', '-date' );
+        no strict 'refs';
+        *{ $method } = $code;
+    }
 }
 
 sub p3p_tags {
@@ -298,7 +286,7 @@ sub flatten {
     for my $field ( $self->field_names ) {
         my $value = $self->get( $field );
         my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
-        push @headers, map { $field => "$_" } @values; # force stringify
+        push @headers, map { $field => "$_" } @values; # force stringification
     }
 
     @headers;
@@ -404,26 +392,25 @@ CGI::Header - Emulates CGI::header()
   use CGI::Header;
 
   my $header = CGI::Header->new(
-      -attachment => 'genome.jpg',
-      -charset    => 'utf-8',
-      -cookie     => 'ID=123456; path=/',
-      -expires    => '+3M',
+      -attachment => 'foo.gif',
+      -charset    => 'utf-7',
+      -cookie     => $cookie, # CGI::Cookie object
+      -expires    => '+3d',
       -nph        => 1,
       -p3p        => [qw/CAO DSP LAW CURa/],
       -target     => 'ResultsWindow',
-      -type       => 'text/plain',
+      -type       => 'image/gif',
   );
 
-  $header->set( 'Content-Length' => 12345 );
-  $header->delete( 'Content-Disposition' );
+  $header->set( 'Content-Length' => 3002 );
   my $value = $header->get( 'Status' );
   my $bool = $header->exists( 'ETag' );
+  $header->delete( 'Content-Disposition' );
 
   $header->attachment( 'genome.jpg' );
   $header->expires( '+3M' );
   $header->nph( 1 );
   $header->p3p_tags(qw/CAO DSP LAW CURa/);
-  $header->target( 'ResultsWindow' );
 
 =head1 DESCRIPTION
 
@@ -523,6 +510,26 @@ Returns a copy of this CGI::Header object.
 Returns the header fields as a formatted MIME header.
 The optional C<$eol> parameter specifies the line ending sequence to use.
 The default is C<\n>.
+
+=item $header->attachment( $filename )
+
+A shortcut for
+
+  $header->set(
+      'Content-Disposition' => qq{attachment; filename="$filename"}
+  );
+
+=item $header->p3p_tags( $tags )
+
+A shortcut for
+
+  $header->set(
+      'P3P' => qq{policyref="/w3c/p3p.xml", CP="$tags"}
+  ); 
+
+=item $header->expires
+
+=item $header->header
 
 =back
 
