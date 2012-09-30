@@ -1,66 +1,39 @@
 use strict;
-use CGI::Header;
 use CGI::Cookie;
-#use Test::More tests => 2;
-use Test::More skip_all => 'obsolete';
+use CGI::Header;
+use Test::More tests => 13;
 
-my %header;
-my $header = CGI::Header->new( \%header );
+my $cookie1 = CGI::Cookie->new(
+    -name  => 'foo',
+    -value => 'bar',
+);
 
-subtest 'get_cookie()' => sub {
-    my $cookie1 = CGI::Cookie->new(
-        -name  => 'foo',
-        -value => 'bar',
-    );
+my $cookie2 = CGI::Cookie->new(
+    -name  => 'bar',
+    -value => 'baz',
+);
 
-    my $cookie2 = CGI::Cookie->new(
-        -name  => 'bar',
-        -value => 'baz',
-    );
+my %adaptee;
+my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
 
-    %header = ( -cookie => $cookie1 );
-    is $header->get_cookie('foo'), $cookie1;
-    is $header->get_cookie('bar'), undef;
+%adaptee = ();
+is $adapter{Set_Cookie}, undef;
+ok !exists $adapter{Set_Cookie};
+is delete $adapter{Set_Cookie}, undef;
+is_deeply \%adaptee, {};
 
-    %header = ( -cookie => [$cookie1, $cookie2] );
-    is $header->get_cookie('foo'), $cookie1;
-    is $header->get_cookie('bar'), $cookie2;
-    is $header->get_cookie('baz'), undef;
-};
+%adaptee = ( -cookie => $cookie1 );
+is $adapter{Set_Cookie}, 'foo=bar; path=/';
+ok exists $adapter{Set_Cookie};
+is delete $adapter{Set_Cookie}, 'foo=bar; path=/';
+is_deeply \%adaptee, {};
 
-subtest 'set_cookie()' => sub {
-    %header = ();
-    $header->set_cookie( foo => 'bar' );
-    my $got = $header{-cookie}[0];
-    isa_ok $got, 'CGI::Cookie';
-    is $got->value, 'bar';
+%adaptee = ( -cookie => [$cookie1, $cookie2] );
+is_deeply $adapter{Set_Cookie}, [ $cookie1, $cookie2 ];
+ok exists $adapter{Set_Cookie};
+is_deeply delete $adapter{Set_Cookie}, [ $cookie1, $cookie2 ];
+is_deeply \%adaptee, {};
 
-    %header = ();
-    $header->set_cookie( foo => { value => 'bar' } );
-    $got = $header{-cookie}[0];
-    isa_ok $got, 'CGI::Cookie';
-    is $got->value, 'bar';
-
-    my $cookie = CGI::Cookie->new(
-        -name  => 'foo',
-        -value => 'bar',
-    );
-
-    %header = ( -cookie => $cookie );
-    $header->set_cookie( foo => 'baz' );
-    $got = $header{-cookie}[0];
-    isa_ok $got, 'CGI::Cookie';
-    is $got->value, 'baz';
-
-    $cookie = CGI::Cookie->new(
-        -name  => 'foo',
-        -value => 'bar',
-    );
-
-    %header = ( -cookie => $cookie );
-    $header->set_cookie( foo => { value => 'baz' } );
-    $got = $header{-cookie}[0];
-    isa_ok $got, 'CGI::Cookie';
-    is $got->value, 'baz';
-};
-
+%adaptee = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
+$adapter{Set_Cookie} = $cookie1;
+is_deeply \%adaptee, { -cookie => $cookie1 };

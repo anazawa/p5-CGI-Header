@@ -10,21 +10,21 @@ use List::Util qw/first/;
 
 our $VERSION = '0.01';
 
-my %header_of;
+my %header;
 
 sub new {
     my $class = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
     my $self = bless \do { my $anon_scalar }, $class;
-    $header_of{ refaddr $self } = $header;
+    $header{ refaddr $self } = $header;
     $self;
 }
 
-sub header { $header_of{ refaddr shift } }
+sub header { $header{ refaddr shift } }
 
 sub DESTROY {
     my $self = shift;
-    delete $header_of{ refaddr $self };
+    delete $header{ refaddr $self };
     return;
 }
 
@@ -77,14 +77,15 @@ my %get = (
 sub get {
     my $self = shift;
     my $norm = _normalize( shift ) || return;
-    my $header = $header_of{ refaddr $self };
-    exists $get{$norm} ? $get{$norm}->( $header, $norm ) : $header->{ $norm };
+    my $header = $header{ refaddr $self };
+    my $get = $get{ $norm };
+    $get ? $get->( $header, $norm ) : $header->{ $norm };
 }
 
 my %set = (
     -content_disposition => sub {
         my ( $header, $norm, $value ) = @_;
-        delete $header->{-attachment} if $value;
+        delete $header->{-attachment};
         $header->{ $norm } = $value;
     },
     -content_type => sub {
@@ -117,7 +118,7 @@ sub set {
     my $self   = shift;
     my $norm   = _normalize( shift ) || return;
     my $value  = shift;
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
 
     if ( my $set = $set{$norm} ) {
         $set->( $header, $norm, $value );
@@ -135,60 +136,63 @@ my %exists = (
         !defined $header->{-type} || $header->{-type} ne q{};
     },
     -content_disposition => sub {
-        my ( $header, $exists ) = @_;
-        $exists || exists $header->{-attachment};
+        my ( $header, $norm ) = @_;
+        exists $header->{ $norm } || $header->{-attachment};
     },
     -date => sub {
-        my ( $header, $exists ) = @_;
-        first { $header->{$_} } qw(-date -nph -expires -cookie );
+        my ( $header, $norm ) = @_;
+        exists $header->{ $norm }
+            || first { $header->{$_} } qw(-nph -expires -cookie );
     },
     -set_cookie    => sub { exists shift->{-cookie} },
     -window_target => sub { exists shift->{-target} },
 );
 
-# FIXME: this method doesn't return a reliable value :(
 sub exists {
     my $self = shift;
     my $norm = _normalize( shift ) || return;
-    my $header = $header_of{ refaddr $self };
-    my $exists = exists $header->{ $norm };
-    do { $exists{$norm} || sub { $_[1] } }->( $header, $exists );
+    my $header = $header{ refaddr $self };
+    #my $exists = $exists{ $norm };
+    #$exists ? $exists->( $header, $norm ) : exists $header->{ $norm };
+    return $exists{$norm}->( $header, $norm ) if exists $exists{$norm};
+    exists $header->{ $norm };
 }
 
 my %delete = (
-    -content_disposition => sub { delete $_[0]->{-attachment} },
+    -content_disposition => sub { delete shift->{-attachment} },
     -content_type => sub {
         my $header = shift;
         delete $header->{-charset};
         $header->{-type} = q{};
     },
-    -set_cookie    => sub { delete @{ $_[0] }{qw/-cookie -cookies/} },
-    -window_target => sub { delete $_[0]->{-target} },
+    -set_cookie    => sub { delete shift->{-cookie} },
+    -window_target => sub { delete shift->{-target} },
 );
 
 sub delete {
     my ( $self, $field ) = @_;
     my $norm = _normalize( $field ) || return;
+    my $header = $header{ refaddr $self };
     my $value = defined wantarray && $self->get( $field );
-    my $header = $header_of{ refaddr $self };
     do { $delete{$norm} || sub {} }->( $header );
     delete $header->{ $norm };
     $value;
 }
 
 my %is_ignored = map { $_ => 1 }
-    qw( attachment charset cookie cookies nph target type );
+    qw( -attachment -charset -cookie -cookies -nph -target -type );
 
 sub _normalize {
     my $norm = lc shift;
     $norm =~ tr/-/_/;
-    $is_ignored{ $norm } ? undef : "-$norm";
+    $norm = "-$norm";
+    $is_ignored{ $norm } ? undef : $norm;
 }
 
 sub clone {
     my $self = shift;
     my $class = ref $self or croak "Can't clone non-object: $self";
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
     $class->new( %{ $header } );
 }
 
@@ -196,7 +200,7 @@ sub is_empty { !shift->SCALAR }
 
 sub clear {
     my $self = shift;
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
     %{ $header } = ( -type => q{} );
     return;
 }
@@ -208,11 +212,11 @@ BEGIN {
         expires    => '-date',
     );
 
-    while ( my ($method, $conflict_with) = each %conflict_with ) {
+    while ( my ($method, $conflict_with) = CORE::each %conflict_with ) {
         my $norm = "-$method";
         my $code = sub {
             my $self   = shift;
-            my $header = $header_of{ refaddr $self };
+            my $header = $header{ refaddr $self };
     
             if ( @_ ) {
                 my $value = shift;
@@ -230,7 +234,7 @@ BEGIN {
 
 sub p3p_tags {
     my $self   = shift;
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
 
     if ( @_ ) {
         $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
@@ -245,7 +249,7 @@ sub p3p_tags {
 
 sub field_names {
     my $self   = shift;
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
     my %header = %{ $header }; # copy
 
     my @fields;
@@ -260,7 +264,7 @@ sub field_names {
 
     push @fields, 'Content-Disposition' if delete $header{-attachment};
 
-    my $type = delete @header{ '-charset', '-type' };
+    my $type = delete @header{qw/-charset -type/};
 
     # not ordered
     while ( my ($norm, $value) = CORE::each %header ) {
@@ -311,7 +315,7 @@ sub each {
 sub as_string {
     my $self   = shift;
     my $eol    = defined $_[0] ? shift : "\015\012";
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
 
     my @lines;
 
@@ -333,12 +337,6 @@ sub as_string {
     join $eol, @lines, q{};
 }
 
-sub as_hashref {
-    my $self = shift;
-    tie my %header, ref $self, $header_of{ refaddr $self };
-    \%header;
-}
-
 sub dump {
     my $self = shift;
     my $this = refaddr $self;
@@ -349,7 +347,7 @@ sub dump {
 
     my %dump = (
         __PACKAGE__, {
-            header => $header_of{ $this },
+            header => $header{ $this },
         },
         @_,
     );
@@ -364,18 +362,18 @@ BEGIN {
 
 sub SCALAR {
     my $self = shift;
-    my $header = $header_of{ refaddr $self };
+    my $header = $header{ refaddr $self };
     !defined $header->{-type} || first { $_ } values %{ $header };
 }
 
 sub STORABLE_freeze {
     my ( $self, $cloning ) = @_;
-    ( q{}, $header_of{ refaddr $self } );
+    ( q{}, $header{ refaddr $self } );
 }
 
 sub STORABLE_thaw {
     my ( $self, $serialized, $cloning, $header ) = @_;
-    $header_of{ refaddr $self } = $header;
+    $header{ refaddr $self } = $header;
     $self;
 }
 

@@ -1,9 +1,17 @@
 use strict;
 use warnings;
+
+use Test::MockTime qw/set_fixed_time/;
+
 use CGI;
-use Test::More tests => 1;
-use CGI::Header;
 use CGI::Cookie;
+use CGI::Header;
+use Test::More tests => 2;
+
+my $now = 1349043453;
+set_fixed_time( $now );
+
+my $CRLF = $CGI::CRLF;
 
 my $cookie1 = CGI::Cookie->new(
     -name  => 'foo',
@@ -15,32 +23,33 @@ my $cookie2 = CGI::Cookie->new(
     -value => 'baz',
 );
 
+{
+    my $header = CGI::Header->new(
+        -attachment => 'genome.jpg',
+        -charset    => 'utf-8',
+        -cookie     => [ $cookie1, $cookie2 ],
+        -expires    => '+3d',
+        -nph        => 1,
+        -p3p        => [qw/CAP DSP LAW CURa/],
+        -target     => 'ResultsWindow',
+        -type       => 'text/plain',
+    );
 
-my $CRLF   = $CGI::CRLF;
-my $header = CGI::Header->new( -nph => 1 );
+    $header->set( Ingredients => join "$CRLF ", qw(ham eggs bacon) );
 
-$header->set(
-    'Content-Type'  => 'text/plain; charset=utf-8',
-    #'Window-Target' => 'ResultsWindow',
-);
+    my $got      = $header->as_string( $CRLF ) . $CRLF;
+    my $expected = CGI->new->header( $header->header );
 
-$header->set( 'Set-Cookie' => [$cookie1,$cookie2] );
+    is $got, $expected;
+}
 
-$header->attachment( 'genome.jpg' );
-#$header->status( 304 );
-$header->expires( '+3M' );
-$header->p3p_tags( qw/CAO DSP LAW CURa/ );
+{
+    local $ENV{SERVER_SOFTWARE} = 'Apache/1.3.27 (Unix)';
+    local $ENV{SERVER_PROTOCOL} = 'HTTP/1.1';
 
-#$header->set_cookie( foo => 'bar' );
-#$header->set_cookie( bar => 'baz' );
+    my $header   = CGI::Header->new( -nph => 1 );
+    my $got      = $header->as_string( $CRLF ) . $CRLF;
+    my $expected = CGI->new->header( $header->header );
 
-$header->set( Ingredients => join "$CRLF ", qw(ham eggs bacon) );
-
-#warn $header->dump;
-
-my $got      = $header->as_string( $CRLF ) . $CRLF;
-my $expected = CGI::header( $header->header );
-
-is $got, $expected;
-
-#warn $header->dump;
+    is $got, $expected;
+}
