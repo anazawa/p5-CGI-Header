@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use CGI::Header;
 use Test::More tests => 26;
+use Test::Warn;
 
 my %adaptee;
 my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
@@ -82,5 +83,6 @@ is_deeply \%adaptee, {
 };
 
 %adaptee = ();
-$adapter{Content_Type} = q{};
-is_deeply \%adaptee, { -type => q{}, -charset => q{} };
+warning_is { $adapter{Content_Type} = q{} }
+    "Can't set '-content_type' to neither undef nor an empty string";
+is_deeply \%adaptee, {};

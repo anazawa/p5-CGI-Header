@@ -75,11 +75,19 @@ my %get = (
 );
 
 sub get {
-    my $self = shift;
-    my $norm = _normalize( shift ) || return;
+    my $self   = shift;
+    my $norm   = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
-    my $get = $get{ $norm };
-    $get ? $get->( $header, $norm ) : $header->{ $norm };
+
+    my $value;
+    if ( my $get = $get{$norm} ) {
+        $value = $get->( $header, $norm );
+    }
+    else {
+        $value = $header->{ $norm };
+    }
+
+    $value;
 }
 
 my %set = (
@@ -90,7 +98,12 @@ my %set = (
     },
     -content_type => sub {
         my ( $header, $norm, $value ) = @_;
-        @{ $header }{qw/-type -charset/} = ( $value, q{} );
+        if ( $value ) {
+            @{ $header }{qw/-type -charset/} = ( $value, q{} );
+        }
+        else {
+            carp "Can't set '$norm' to neither undef nor an empty string";
+        }
     },
     -date => sub {
         my ( $header, $norm, $value ) = @_;
@@ -149,13 +162,19 @@ my %exists = (
 );
 
 sub exists {
-    my $self = shift;
-    my $norm = _normalize( shift ) || return;
+    my $self   = shift;
+    my $norm   = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
-    #my $exists = $exists{ $norm };
-    #$exists ? $exists->( $header, $norm ) : exists $header->{ $norm };
-    return $exists{$norm}->( $header, $norm ) if exists $exists{$norm};
-    exists $header->{ $norm };
+
+    my $bool;
+    if ( my $exists = $exists{$norm} ) {
+        $bool = $exists->( $header, $norm );
+    }
+    else {
+        $bool = exists $header->{ $norm };
+    }
+
+    $bool;
 }
 
 my %delete = (
@@ -170,12 +189,18 @@ my %delete = (
 );
 
 sub delete {
-    my ( $self, $field ) = @_;
-    my $norm = _normalize( $field ) || return;
+    my $self   = shift;
+    my $field  = shift;
+    my $norm   = _normalize( $field ) || return;
+    my $value  = defined wantarray && $self->get( $field );
     my $header = $header{ refaddr $self };
-    my $value = defined wantarray && $self->get( $field );
-    do { $delete{$norm} || sub {} }->( $header );
+
+    if ( my $delete = $delete{$norm} ) {
+        $delete->( $header, $norm );
+    }
+
     delete $header->{ $norm };
+
     $value;
 }
 
