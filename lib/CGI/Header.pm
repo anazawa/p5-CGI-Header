@@ -98,7 +98,7 @@ my %set = (
     },
     -content_type => sub {
         my ( $header, $norm, $value ) = @_;
-        if ( $value ) {
+        if ( defined $value and $value ne q{} ) {
             @{ $header }{qw/-type -charset/} = ( $value, q{} );
         }
         else {
@@ -293,7 +293,7 @@ sub field_names {
 
     # not ordered
     while ( my ($norm, $value) = CORE::each %header ) {
-        next unless $value;
+        next unless defined $value;
 
         push @fields, do {
             my $field = $norm;
@@ -408,62 +408,86 @@ __END__
 
 =head1 NAME
 
-CGI::Header - Emulates CGI::header()
+CGI::Header - Adapter for CGI::header()
 
 =head1 SYNOPSIS
 
   use CGI::Header;
 
-  my $header = CGI::Header->new(
+  my $header = {
       -attachment => 'foo.gif',
       -charset    => 'utf-7',
-      -cookie     => $cookie, # CGI::Cookie object
+      -cookie     => [ $cookie1, $cookie2 ], # CGI::Cookie objects
       -expires    => '+3d',
       -nph        => 1,
       -p3p        => [qw/CAO DSP LAW CURa/],
       -target     => 'ResultsWindow',
       -type       => 'image/gif',
-  );
+  };
 
-  $header->set( 'Content-Length' => 3002 );
-  my $value = $header->get( 'Status' );
-  my $bool = $header->exists( 'ETag' );
-  $header->delete( 'Content-Disposition' );
+  my $h = CGI::Header->new( $header );
 
-  $header->attachment( 'genome.jpg' );
-  $header->expires( '+3M' );
-  $header->nph( 1 );
-  $header->p3p_tags(qw/CAO DSP LAW CURa/);
+  # update $header
+  $h->set( Content-Length' => 3002 );
+  $h->delete( 'Content-Disposition' );
+  $h->clear;
+
+  my @headers = $h->flatten;
+  # => ( 'Content-length', '3002', 'Content-Type', 'text/plain' )
+
+  print $h->as_string;
+  # Content-length: 3002
+  # Content-Type: text/plain
+
+  $h->header; # same reference as $header
 
 =head1 DESCRIPTION
 
-Accepts the same arguments as CGI::header() does.
-Generates the same HTTP response headers as the subroutine does.
+Utility class to manipulate a hash reference which C<CGI::header()>
+function receives.
+
+L<CGI> module provides C<header()> method which generates CGI response headers.
+The method immediately returns the result with given arguments.
+In this context, C<header()> should be considered as just a function
+rather than an instance method.
+
+In some cases, C<header()> is expected to return a list consisting of
+pairs of fields and values, instead of a single string.
+This class implements C<flatten()> method.
 
 =head2 METHODS
 
 =over 4
 
-=item $header = CGI::Header->new( -type => 'text/plain', ... )
+=item $header = CGI::Header->new({ -type => 'text/plain', ... })
 
-Construct a new CGI::Header object.
-You might pass some initial attribute-value pairs as parameters to
-the constructor:
+Given a header hash reference, returns a CGI::Header object
+which holds a reference to the original given argument.
+The object updates the reference when called write methods like C<set()>,
+C<delete()> or C<clear()>. It also has C<header()> method that
+would return the same reference.
 
-  my $header = CGI::Header->new(
-      -attachment => 'genome.jpg',
-      -charset    => 'utf-8',
-      -cookie     => 'ID=123456; path=/',
-      -expires    => '+3M',
-      -nph        => 1,
-      -p3p        => [qw/CAO DSP LAW CURa/],
-      -target     => 'ResultsWindow',
-      -type       => 'text/plain',
-  );
+  my $header = { -type => 'text/plain' };
+  my $h = CGI::Header->new( $header );
+  $h->header; # same reference as $header
 
-=item $value = $eader->get( $field )
+=item $value = $header->get( $field )
 
 =item $header->set( $field => $value )
+
+Get or set the value of the header field.
+The header field name (C<$field>) is not case sensitive.
+You can use underscores as a replacement for dashes in header names.
+
+  # field names are case-insensitive
+  $header->get( 'Content-Length' );
+  $header->get( 'content_length' );
+
+The C<$value> argument may be a plain string or
+a reference to an array of L<CGI::Cookie> objects for the Set-Cookie header.
+
+  $header->set( 'Content-Length' => 3002 );
+  $header->set( 'Set-Cookie' => [$cookie1, $cookie2] );
 
 =item $bool = $header->exists( $field )
 
@@ -475,7 +499,8 @@ Returns a Boolean value telling whether the specified field exists.
 
 =item $value = $header->delete( $field )
 
-Deletes the specified field.
+Deletes the specified field form CGI response headers.
+Returns the value of the deleted field.
 
   $header->delete( 'Content-Disposition' );
   my $value = $header->delete( 'Content-Disposition' ); # inline
@@ -512,6 +537,10 @@ Returns pairs of fields and values.
 
 This will remove all header fields.
 
+Internally, this method is a shortcut for:
+
+  %{ $header->header } = ( -type => q{} );
+
 =item $bool = $header->is_empty
 
 Returns true if the header contains no key-value pairs.
@@ -525,6 +554,10 @@ Returns true if the header contains no key-value pairs.
 =item $clone = $header->clone
 
 Returns a copy of this CGI::Header object.
+It's identical to:
+
+  my %copy = %{ $header->header };
+  my $clone = CGI::Header->new( \%copy );
 
 =item $header->as_string
 
@@ -532,7 +565,17 @@ Returns a copy of this CGI::Header object.
 
 Returns the header fields as a formatted MIME header.
 The optional C<$eol> parameter specifies the line ending sequence to use.
-The default is C<\n>.
+The default is C<\015\012>.
+
+The following:
+
+  use CGI;
+  print CGI::header( $header->header );
+
+is identical to:
+
+  my $CRLF = $CGI::CRLF;
+  print $header->as_string( $CRLF ) . $CRLF;
 
 =item $header->attachment( $filename )
 
@@ -552,9 +595,33 @@ A shortcut for
 
 =item $header->expires
 
-=item $header->header
+The Expires header gives the date and time after which the entity
+should be considered stale. You can specify an absolute or relative
+expiration interval. The following forms are all valid for this field:
+
+  $header->expires( '+30s' ); # 30 seconds from now
+  $header->expires( '+10m' ); # ten minutes from now
+  $header->expires( '+1h'  ); # one hour from now
+  $header->expires( 'now'  ); # immediately
+  $header->expires( '+3M'  ); # in three months
+  $header->expires( '+10y' ); # in ten years time
+
+  # at the indicated time & date
+  $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
 
 =back
+
+=head1 HISTORY
+
+This module was forked from L<Blosxom::Header>.
+
+=head1 SEE ALSO
+
+L<Plack::Util>
+
+=head1 BUGS AND LIMITATIONS
+
+This module is beta state. API may change without notice.
 
 =head1 AUTHOR
 
