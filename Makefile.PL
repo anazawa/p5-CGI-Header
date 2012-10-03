@@ -9,14 +9,15 @@ requires 'Carp'         => '1.10';
 requires 'CGI::Util'    => '1.5';
 requires 'List::Util'   => '1.19';
 requires 'Scalar::Util' => '1.19';
-requires 'Storable'     => '2.18';
 
 test_requires 'Test::Base'      => '0.60';
 test_requires 'Test::Exception' => '0.31';
 test_requires 'Test::More'      => '0.98';
 test_requires 'Test::Pod'       => '1.45';
 test_requires 'Test::Warn'      => '0.24';
-test_requires 'CGI'             => '3.49';
+test_requires 'Test::MockTime';
+test_requires 'CGI' => '3.49';
+test_requires 'CGI::Cookie';
 
 tests 't/*.t xt/*.t';
 

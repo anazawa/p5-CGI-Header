@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 26;
+use Test::More tests => 27;
 use Test::Warn;
 
 my %adaptee;

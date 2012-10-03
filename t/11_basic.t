@@ -185,7 +185,6 @@ subtest 'field_names()' => sub {
         -expires    => 1,
         -attachment => 1,
         -foo_bar    => 1,
-        -foo        => q{},
         -bar        => undef,
     );
 

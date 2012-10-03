@@ -443,17 +443,8 @@ CGI::Header - Adapter for CGI::header()
 
 =head1 DESCRIPTION
 
-Utility class to manipulate a hash reference which C<CGI::header()>
+Utility class to manipulate a hash reference which L<CGI>'s C<header()>
 function receives.
-
-L<CGI> module provides C<header()> method which generates CGI response headers.
-The method immediately returns the result with given arguments.
-In this context, C<header()> should be considered as just a function
-rather than an instance method.
-
-In some cases, C<header()> is expected to return a list consisting of
-pairs of fields and values, instead of a single string.
-This class implements C<flatten()> method.
 
 =head2 METHODS
 
@@ -611,13 +602,9 @@ expiration interval. The following forms are all valid for this field:
 
 =back
 
-=head1 HISTORY
-
-This module was forked from L<Blosxom::Header>.
-
 =head1 SEE ALSO
 
-L<Plack::Util>
+L<CGI>, L<Plack::Util>
 
 =head1 BUGS AND LIMITATIONS
 
