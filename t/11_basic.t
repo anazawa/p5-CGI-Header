@@ -116,37 +116,14 @@ subtest 'flatten()' => sub {
 
     my @expected = (
         'Status',         '304 Not Modified',
-        'Set-Cookie',      $cookie1,
-        'Set-Cookie',      $cookie2,
+        'Set-Cookie',      "$cookie1",
+        'Set-Cookie',      "$cookie2",
         'Date',           expires(0, 'http'),
         'Content-length', '12345',
         'Content-Type',   'text/html; charset=ISO-8859-1',
     );
 
     is_deeply \@got, \@expected;
-};
-
-subtest 'status()' => sub {
-    plan skip_all => 'obsolete';
-
-    %header = ();
-    is $header->status, 200;
-
-    $header->status( 304 );
-    is $header{-status}, '304 Not Modified';
-    is $header->status, '304';
-
-    my $expected = q{Unknown status code '999' passed to status()};
-    warning_is { $header->status( 999 ) } $expected;
-};
-
-subtest 'target()' => sub {
-    plan skip_all => 'obsolete';
-    %header = ();
-    is $header->target, undef;
-    $header->target( 'ResultsWindow' );
-    is $header->target, 'ResultsWindow';
-    is_deeply \%header, { -target => 'ResultsWindow' };
 };
 
 subtest 'clone()' => sub {

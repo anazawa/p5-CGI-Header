@@ -428,7 +428,7 @@ CGI::Header - Adapter for CGI::header()
   my $h = CGI::Header->new( $header );
 
   # update $header
-  $h->set( Content-Length' => 3002 );
+  $h->set( 'Content-Length' => 3002 );
   $h->delete( 'Content-Disposition' );
   $h->clear;
 
@@ -493,8 +493,7 @@ Returns a Boolean value telling whether the specified field exists.
 Deletes the specified field form CGI response headers.
 Returns the value of the deleted field.
 
-  $header->delete( 'Content-Disposition' );
-  my $value = $header->delete( 'Content-Disposition' ); # inline
+  my $value = $header->delete( 'Content-Disposition' ); # => 'inline'
 
 =item @fields = $header->field_names
 
@@ -512,7 +511,7 @@ Any return values of the callback routine are ignored.
 
   my @lines;
 
-  $self->each(sub {
+  $header->each(sub {
       my ( $field, $value ) = @_;
       push @lines, "$field: $value";
   });
@@ -566,7 +565,7 @@ The following:
 is identical to:
 
   my $CRLF = $CGI::CRLF;
-  print $header->as_string( $CRLF ) . $CRLF;
+  print $header->as_string( $CRLF ), $CRLF;
 
 =item $header->attachment( $filename )
 
