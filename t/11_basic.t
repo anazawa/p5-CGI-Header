@@ -3,7 +3,7 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util 'expires';
-use Test::More tests => 19;
+use Test::More tests => 17;
 use Test::Warn;
 use Test::Exception;
 

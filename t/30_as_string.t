@@ -35,7 +35,7 @@ my $cookie2 = CGI::Cookie->new(
         -type       => 'text/plain',
     );
 
-    $header->set( Ingredients => join "$CRLF ", qw(ham eggs bacon) );
+    $header->set( Ingredients => join "$CRLF ", qw/ham eggs bacon/ );
 
     my $got      = $header->as_string( $CRLF ) . $CRLF;
     my $expected = CGI->new->header( $header->header );

@@ -408,7 +408,7 @@ __END__
 
 =head1 NAME
 
-CGI::Header - Adapter for CGI::header()
+CGI::Header - Adapter for CGI::header() function
 
 =head1 SYNOPSIS
 

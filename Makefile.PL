@@ -16,8 +16,9 @@ test_requires 'Test::More'      => '0.98';
 test_requires 'Test::Pod'       => '1.45';
 test_requires 'Test::Warn'      => '0.24';
 test_requires 'Test::MockTime';
-test_requires 'CGI' => '3.49';
+test_requires 'CGI' => '3.60';
 test_requires 'CGI::Cookie';
+test_requires 'HTTP::Date';
 
 tests 't/*.t xt/*.t';
 
