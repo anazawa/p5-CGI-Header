@@ -8,7 +8,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my %header;
 

@@ -1,4 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+0.02 Oct 4th, 2012
+  - tests require CGI.pm 3.60 and HTTP::Date
+  - fix typo
+
 0.01 Sep 23rd, 2012
   - Forked from Blosxom::Header
