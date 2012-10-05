@@ -79,15 +79,11 @@ sub get {
     my $norm   = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
 
-    my $value;
     if ( my $get = $get{$norm} ) {
-        $value = $get->( $header, $norm );
+        return $get->( $header, $norm );
     }
-    else {
-        $value = $header->{ $norm };
-    }
-
-    $value;
+    
+    $header->{ $norm };
 }
 
 my %set = (
@@ -130,14 +126,13 @@ my %set = (
 sub set {
     my $self   = shift;
     my $norm   = _normalize( shift ) || return;
-    my $value  = shift;
     my $header = $header{ refaddr $self };
 
     if ( my $set = $set{$norm} ) {
-        $set->( $header, $norm, $value );
+        $set->( $header, $norm, @_ );
     }
     else {
-        $header->{ $norm } = $value;
+        $header->{ $norm } = shift;
     }
 
     return;
@@ -166,15 +161,11 @@ sub exists {
     my $norm   = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
 
-    my $bool;
     if ( my $exists = $exists{$norm} ) {
-        $bool = $exists->( $header, $norm );
-    }
-    else {
-        $bool = exists $header->{ $norm };
+        return $exists->( $header, $norm );
     }
 
-    $bool;
+    exists $header->{ $norm };
 }
 
 my %delete = (
@@ -184,6 +175,9 @@ my %delete = (
         delete $header->{-charset};
         $header->{-type} = q{};
     },
+    -date    => sub {},
+    -expires => sub {},
+    -p3p     => sub {},
     -set_cookie    => sub { delete shift->{-cookie} },
     -window_target => sub { delete shift->{-target} },
 );
@@ -192,16 +186,16 @@ sub delete {
     my $self   = shift;
     my $field  = shift;
     my $norm   = _normalize( $field ) || return;
-    my $value  = defined wantarray && $self->get( $field );
     my $header = $header{ refaddr $self };
 
     if ( my $delete = $delete{$norm} ) {
+        my $value  = defined wantarray && $self->get( $field );
         $delete->( $header, $norm );
+        delete $header->{ $norm };
+        return $value;
     }
 
     delete $header->{ $norm };
-
-    $value;
 }
 
 my %is_ignored = map { $_ => 1 }
@@ -292,8 +286,8 @@ sub field_names {
     my $type = delete @header{qw/-charset -type/};
 
     # not ordered
-    while ( my ($norm, $value) = CORE::each %header ) {
-        next unless defined $value;
+    for my $norm ( keys %header ) {
+        next unless defined $header{ $norm };
 
         push @fields, do {
             my $field = $norm;
@@ -443,8 +437,8 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 DESCRIPTION
 
-Utility class to manipulate a hash reference which L<CGI>'s C<header()>
-function receives.
+This module is a utility class to manipulate a hash reference
+which L<CGI>'s C<header()> function receives.
 
 =head2 METHODS
 
@@ -497,7 +491,8 @@ Returns the value of the deleted field.
 
 =item @fields = $header->field_names
 
-Returns the list of field names present in the header.
+Returns the list of distinct field names present in the header.
+The field names have case as returned by C<CGI::header()>.
 
   my @fields = $header->field_names;
   # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
@@ -507,6 +502,8 @@ Returns the list of field names present in the header.
 Apply a subroutine to each header field in turn.
 The callback routine is called with two parameters;
 the name of the field and a value.
+If the Set-Cookie header is multi-valued, then the routine is called
+once for each value.
 Any return values of the callback routine are ignored.
 
   my @lines;
@@ -518,10 +515,14 @@ Any return values of the callback routine are ignored.
 
 =item @headers = $header->flatten
 
-Returns pairs of fields and values.
+Returns pairs of fields and values. It's identical to:
 
-  my @headers = $header->flatten;
-  # => ( 'Status', '304 Nod Modified', 'Content-Type', 'text/plain' )
+  my @headers;
+
+  $header->each(sub {
+      my ( $field, $value ) = @_;
+      push @headers, $field, $value;
+  });
 
 =item $header->clear
 
@@ -567,23 +568,42 @@ is identical to:
   my $CRLF = $CGI::CRLF;
   print $header->as_string( $CRLF ), $CRLF;
 
+When valid multi-line headers are included, this method will always output
+them back as a single line, according to the folding rules of RFC 2616:
+the newlines will be removed, while the white space remains.
+
+Unlike CGI.pm, when invalid newlines are included,
+this module removes them instead of throwing exceptions.
+
+=item $filename = $header->attachment
+
 =item $header->attachment( $filename )
 
-A shortcut for
+Can be used to turn tha page into an attachment.
+Represents suggested name for the saved file.
 
-  $header->set(
-      'Content-Disposition' => qq{attachment; filename="$filename"}
-  );
+  $header->attachment( 'genome.jpg' );
 
-=item $header->p3p_tags( $tags )
+In this case, the outgoing will be formatted as:
 
-A shortcut for
+  Content-Disposition: attachment; filename="genome.jpg"
 
-  $header->set(
-      'P3P' => qq{policyref="/w3c/p3p.xml", CP="$tags"}
-  ); 
+=item @tags = $header->p3p_tags
 
-=item $header->expires
+=item $header->p3p_tags( @tags )
+
+Represents P3P tags. The parameter can be an array or a space-delimited
+string. Returns a list of P3P tags.
+
+  $header->p3p_tags(qw/CAO DSP LAW CURa/);
+
+In this case, the outgoing header will be formatted as:
+
+  P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
+
+=item $format = $header->expires
+
+=item $header->expires( $format )
 
 The Expires header gives the date and time after which the entity
 should be considered stale. You can specify an absolute or relative
@@ -598,6 +618,13 @@ expiration interval. The following forms are all valid for this field:
 
   # at the indicated time & date
   $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
+
+=item $header->nph
+
+If set to a true value, will issue the correct headers to work
+with a NPH (no-parse-header) script.
+
+  $header->nph( 1 );
 
 =back
 
