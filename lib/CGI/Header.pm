@@ -70,6 +70,10 @@ my %get = (
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
+    -server => sub {
+        my $header = shift;
+        $header->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : undef;
+    },
     -set_cookie    => sub { shift->{-cookie} },
     -window_target => sub { shift->{-target} },
 );
@@ -112,6 +116,7 @@ my %set = (
     -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
+    -server => sub {},
     -set_cookie => sub {
         my ( $header, $norm, $value ) = @_;
         delete $header->{-date} if $value;
@@ -152,6 +157,7 @@ my %exists = (
         exists $header->{ $norm }
             || first { $header->{$_} } qw(-nph -expires -cookie );
     },
+    -server => sub { shift->{-nph} },
     -set_cookie    => sub { exists shift->{-cookie} },
     -window_target => sub { exists shift->{-target} },
 );
@@ -178,6 +184,7 @@ my %delete = (
     -date    => sub {},
     -expires => sub {},
     -p3p     => sub {},
+    -server  => sub {},
     -set_cookie    => sub { delete shift->{-cookie} },
     -window_target => sub { delete shift->{-target} },
 );
@@ -267,27 +274,29 @@ sub p3p_tags {
 }
 
 sub field_names {
-    my $self   = shift;
-    my $header = $header{ refaddr $self };
-    my %header = %{ $header }; # copy
+    my $self    = shift;
+    my $header  = $header{ refaddr $self };
+    my %headers = %{ $header }; # copy
 
     my @fields;
 
-    push @fields, 'Status'        if delete $header{-status};
-    push @fields, 'Window-Target' if delete $header{-target};
-    push @fields, 'P3P'           if delete $header{-p3p};
+    push @fields, 'Server' if my $nph = delete $headers{-nph};
 
-    push @fields, 'Set-Cookie' if my $cookie  = delete $header{-cookie};
-    push @fields, 'Expires'    if my $expires = delete $header{-expires};
-    push @fields, 'Date' if delete $header{-nph} or $cookie or $expires;
+    push @fields, 'Status'        if delete $headers{-status};
+    push @fields, 'Window-Target' if delete $headers{-target};
+    push @fields, 'P3P'           if delete $headers{-p3p};
 
-    push @fields, 'Content-Disposition' if delete $header{-attachment};
+    push @fields, 'Set-Cookie' if my $cookie  = delete $headers{-cookie};
+    push @fields, 'Expires'    if my $expires = delete $headers{-expires};
+    push @fields, 'Date'       if $nph or $cookie or $expires;
 
-    my $type = delete @header{qw/-charset -type/};
+    push @fields, 'Content-Disposition' if delete $headers{-attachment};
+
+    my $type = delete @headers{qw/-charset -type/};
 
     # not ordered
-    for my $norm ( keys %header ) {
-        next unless defined $header{ $norm };
+    for my $norm ( keys %headers ) {
+        next unless defined $headers{ $norm };
 
         push @fields, do {
             my $field = $norm;
@@ -339,13 +348,12 @@ sub as_string {
     my @lines;
 
     if ( $header->{-nph} ) {
-        my $software = $ENV{SERVER_SOFTWARE} || 'cmdline';
         my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
         my $status   = $header->{-status}    || '200 OK';
-        push @lines, "$protocol $status";
-        push @lines, "Server: $software";
+        push @lines, "$protocol $status"; # add Status-Line
     }
 
+    # add response headers
     $self->each(sub {
         my ( $field, $value ) = @_;
         $value =~ s/$eol(\s)/$1/g;

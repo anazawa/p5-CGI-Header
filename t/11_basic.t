@@ -168,6 +168,7 @@ subtest 'field_names()' => sub {
     my @got = $header->field_names;
 
     my @expected = qw(
+        Server
         Status
         Window-Target
         P3P
