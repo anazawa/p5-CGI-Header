@@ -4,7 +4,12 @@ use Benchmark qw/cmpthese/;
 use CGI;
 use CGI::Cookie;
 use CGI::Header;
+use CGI::PSGI;
+use CGI::Util;
+use HTTP::Date;
 use HTTP::Headers;
+use HTTP::Parser::XS qw/parse_http_response HEADERS_AS_ARRAYREF/;
+use Storable qw/dclone/;
 
 my $CRLF = $CGI::CRLF;
 
@@ -36,15 +41,23 @@ my @args = (
     -p3p        => [qw/CAO DSP LAW CURa/],
 );
 
+#                 Rate CGI::header()   CGI::Header
+# CGI::header() 2279/s            --          -11%
+# CGI::Header   2571/s           13%            --
+
 cmpthese(-1, {
     'CGI::header()' => sub {
-        my $output = CGI::header( @args );
+        my $header = CGI->new->header( @args );
     },
     'CGI::Header' => sub {
-        my $header = CGI::Header->new( @args );
-        my $output = $header->as_string( $CRLF );
+        my $header = CGI::Header->new( @args )->as_string( $CRLF );
+        $header.= $CRLF;
     },
 });
+
+#                 Rate   CGI::Header HTTP::Headers
+# CGI::Header   1227/s            --          -30%
+# HTTP::Headers 1747/s           42%            --
 
 cmpthese(-1, {
     'CGI::Header' => sub {
@@ -76,7 +89,7 @@ cmpthese(-1, {
             push @each, $field, $value;
         });
 
-        my $clone = $header->clone;
+        my $clone = dclone( $header );
 
         $header->clear;
     },
@@ -113,4 +126,41 @@ cmpthese(-1, {
 
         $header->clear;
     },
+});
+
+#                    Rate        CGI::PSGI HTTP::Parser::XS      CGI::Header
+# CGI::PSGI        2142/s               --              -1%             -28%
+# HTTP::Parser::XS 2174/s               1%               --             -27%
+# CGI::Header      2995/s              40%              38%               --
+
+cmpthese(-1, {
+    'HTTP::Parser::XS' => sub {
+        my $header = CGI->new->header( @args );
+        my ( $ret, $minor_version, $status, $msg, $headers )
+            = parse_http_response( $header, HEADERS_AS_ARRAYREF );
+    },
+    'CGI::PSGI' => sub {
+        my ( $status_code, $headers_aref )
+            = CGI::PSGI->new->psgi_header( @args );
+    },
+    'CGI::Header' => sub {
+        my $header = CGI::Header->new( @args );
+
+        my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
+
+        my $status = $header->get('Status') || '200 OK';
+        my ( $code, $message ) = split ' ', $status, 2;
+
+        my $software = $ENV{SERVER_SOFTWARE} || 'cmdline';
+        my @headers = ( $header->flatten, 'Server', $software );
+    },
+});
+
+#                          Rate   CGI::Util::expires HTTP::Date::time2str
+# CGI::Util::expires    35951/s                   --                 -70%
+# HTTP::Date::time2str 121020/s                 237%                   --
+
+cmpthese(-1, {
+    'CGI::Util::expires'   => sub { my $date = CGI::Util::expires()   },
+    'HTTP::Date::time2str' => sub { my $date = HTTP::Date::time2str() },
 });
