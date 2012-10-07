@@ -219,13 +219,6 @@ sub _normalize {
     $is_ignored{ $norm } ? undef : $norm;
 }
 
-sub clone {
-    my $self = shift;
-    my $class = ref $self or croak "Can't clone non-object: $self";
-    my $header = $header{ refaddr $self };
-    $class->new( %{ $header } );
-}
-
 sub is_empty { !shift->SCALAR }
 
 sub clear {
@@ -233,6 +226,13 @@ sub clear {
     my $header = $header{ refaddr $self };
     %{ $header } = ( -type => q{} );
     return;
+}
+
+sub clone {
+    my $self = shift;
+    my $class = ref $self or croak "Can't clone non-object: $self";
+    my $header = $header{ refaddr $self };
+    $class->new( %{$header} );
 }
 
 BEGIN {
@@ -278,29 +278,29 @@ sub p3p_tags {
 }
 
 sub field_names {
-    my $self    = shift;
-    my $header  = $header{ refaddr $self };
-    my %headers = %{ $header }; # copy
+    my $self   = shift;
+    my $header = $header{ refaddr $self };
+    my %copy   = %{ $header };
 
     my @fields;
 
-    push @fields, 'Server' if my $nph = delete $headers{-nph};
+    push @fields, 'Server' if my $nph = delete $copy{-nph};
 
-    push @fields, 'Status'        if delete $headers{-status};
-    push @fields, 'Window-Target' if delete $headers{-target};
-    push @fields, 'P3P'           if delete $headers{-p3p};
+    push @fields, 'Status'        if delete $copy{-status};
+    push @fields, 'Window-Target' if delete $copy{-target};
+    push @fields, 'P3P'           if delete $copy{-p3p};
 
-    push @fields, 'Set-Cookie' if my $cookie  = delete $headers{-cookie};
-    push @fields, 'Expires'    if my $expires = delete $headers{-expires};
+    push @fields, 'Set-Cookie' if my $cookie  = delete $copy{-cookie};
+    push @fields, 'Expires'    if my $expires = delete $copy{-expires};
     push @fields, 'Date'       if $nph or $cookie or $expires;
 
-    push @fields, 'Content-Disposition' if delete $headers{-attachment};
+    push @fields, 'Content-Disposition' if delete $copy{-attachment};
 
-    my $type = delete @headers{qw/-charset -type/};
+    my $type = delete @copy{qw/-charset -type/};
 
     # not ordered
-    for my $norm ( keys %headers ) {
-        next unless defined $headers{ $norm };
+    while ( my ($norm, $value) = CORE::each %copy ) {
+        next unless defined $value;
 
         push @fields, do {
             my $field = $norm;
@@ -592,7 +592,7 @@ this module removes them instead of throwing exceptions.
 
 =item $header->attachment( $filename )
 
-Can be used to turn tha page into an attachment.
+Can be used to turn the page into an attachment.
 Represents suggested name for the saved file.
 
   $header->attachment( 'genome.jpg' );
