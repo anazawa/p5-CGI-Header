@@ -19,10 +19,12 @@ t/11_basic.t
 t/12_tie.t
 t/20_content_type.t
 t/21_date.t
-t/22_p3p.t
-t/23_set_cookie.t
-t/24_content_disposition.t
-t/25_window_target.t
+t/22_expires.t
+t/23_p3p.t
+t/24_set_cookie.t
+t/25_content_disposition.t
+t/26_window_target.t
+t/27_server.t
 t/30_as_string.t
 tools/benchmark.pl
 xt/pod.t

@@ -8,7 +8,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my %header;
 
@@ -71,8 +71,9 @@ my %get = (
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
     -server => sub {
-        my $header = shift;
-        $header->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : undef;
+        my ( $header, $norm ) = @_;
+        return $ENV{SERVER_SOFTWARE} || 'cmdline' if $header->{-nph};
+        $header->{ $norm };
     },
     -set_cookie    => sub { shift->{-cookie} },
     -window_target => sub { shift->{-target} },
@@ -157,7 +158,10 @@ my %exists = (
         exists $header->{ $norm }
             || first { $header->{$_} } qw(-nph -expires -cookie );
     },
-    -server => sub { shift->{-nph} },
+    -server => sub {
+        my ( $header, $norm ) = @_;
+        $header->{-nph} || exists $header->{ $norm };
+    },
     -set_cookie    => sub { exists shift->{-cookie} },
     -window_target => sub { exists shift->{-target} },
 );
@@ -347,10 +351,11 @@ sub as_string {
 
     my @lines;
 
+    # add Status-Line
     if ( $header->{-nph} ) {
         my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
         my $status   = $header->{-status}    || '200 OK';
-        push @lines, "$protocol $status"; # add Status-Line
+        push @lines, "$protocol $status";
     }
 
     # add response headers

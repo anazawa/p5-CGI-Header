@@ -1,5 +1,11 @@
 Revision history for Perl extension CGI::Header.
 
+0.03 Oct 7th, 2012
+  - add a benchmark against HTTP::Parser::XS
+  - update POD
+  - add t/server.t
+  - tests require CGI.pm 3.51 because the distribution contains t/headers.t
+
 0.02 Oct 4th, 2012
   - tests require CGI.pm 3.60 and HTTP::Date
   - fix typo
