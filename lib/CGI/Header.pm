@@ -119,12 +119,12 @@ my %set = (
     },
     -server => sub {},
     -set_cookie => sub {
-        my ( $header, $norm, $value ) = @_;
+        my ( $header, $value ) = @_[0, 2];
         delete $header->{-date} if $value;
         $header->{-cookie} = $value;
     },
     -window_target => sub {
-        my ( $header, $norm, $value ) = @_;
+        my ( $header, $value ) = @_[0, 2];
         $header->{-target} = $value;
     },
 );
@@ -132,13 +132,14 @@ my %set = (
 sub set {
     my $self   = shift;
     my $norm   = _normalize( shift ) || return;
+    my $value  = shift;
     my $header = $header{ refaddr $self };
 
     if ( my $set = $set{$norm} ) {
-        $set->( $header, $norm, @_ );
+        $set->( $header, $norm, $value );
     }
     else {
-        $header->{ $norm } = shift;
+        $header->{ $norm } = $value;
     }
 
     return;
@@ -179,18 +180,27 @@ sub exists {
 }
 
 my %delete = (
-    -content_disposition => sub { delete shift->{-attachment} },
+    -content_disposition => sub {
+        my ( $header, $norm ) = @_;
+        delete @{ $header }{ $norm, '-attachment' };
+    },
     -content_type => sub {
-        my $header = shift;
+        my $header = shift; 
         delete $header->{-charset};
         $header->{-type} = q{};
     },
-    -date    => sub {},
-    -expires => sub {},
-    -p3p     => sub {},
-    -server  => sub {},
-    -set_cookie    => sub { delete shift->{-cookie} },
-    -window_target => sub { delete shift->{-target} },
+    -date => sub {
+        my ( $header, $norm ) = @_;
+        delete $header->{-date};
+    },
+    -expires => sub { delete shift->{-expires} },
+    -p3p     => sub { delete shift->{-p3p}     },
+    -server => sub {
+        my ( $header, $norm ) = @_;
+        delete $header->{ $norm };
+    },
+    -set_cookie    => sub { delete shift->{-cookie}  },
+    -window_target => sub { delete shift->{-target}  },
 );
 
 sub delete {
@@ -200,9 +210,8 @@ sub delete {
     my $header = $header{ refaddr $self };
 
     if ( my $delete = $delete{$norm} ) {
-        my $value  = defined wantarray && $self->get( $field );
+        my $value = defined wantarray && $self->get( $field );
         $delete->( $header, $norm );
-        delete $header->{ $norm };
         return $value;
     }
 
@@ -210,13 +219,11 @@ sub delete {
 }
 
 my %is_ignored = map { $_ => 1 }
-    qw( -attachment -charset -cookie -cookies -nph -target -type );
+    qw( attachment charset cookie cookies nph target type );
 
 sub _normalize {
-    my $norm = lc shift;
-    $norm =~ tr/-/_/;
-    $norm = "-$norm";
-    $is_ignored{ $norm } ? undef : $norm;
+    ( my $norm = shift ) =~ tr/A-Z-/a-z_/;
+    $is_ignored{ $norm } ? undef : "-$norm";
 }
 
 sub is_empty { !shift->SCALAR }
@@ -329,10 +336,11 @@ sub flatten {
 }
 
 sub each {
-    my ( $self, $callback ) = @_;
+    my $self     = shift;
+    my $callback = shift;
+    my @headers  = $self->flatten;
 
     if ( ref $callback eq 'CODE' ) {
-        my @headers = $self->flatten;
         while ( my ($field, $value) = splice @headers, 0, 2 ) {
             $callback->( $field, $value );
         }
@@ -597,7 +605,7 @@ Represents suggested name for the saved file.
 
   $header->attachment( 'genome.jpg' );
 
-In this case, the outgoing will be formatted as:
+In this case, the outgoing header will be formatted as:
 
   Content-Disposition: attachment; filename="genome.jpg"
 

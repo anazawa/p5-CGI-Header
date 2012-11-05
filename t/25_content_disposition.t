@@ -1,59 +1,71 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 31;
+use Test::More tests => 4;
 
-my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
+subtest 'default' => sub {
+    my $header = tie my %header, 'CGI::Header';
+    is $header{Content_Disposition}, undef;
+    ok !exists $header{Content_Disposition};
+    is $header->attachment, undef;
+    is delete $header{Content_Disposition}, undef;
+    is_deeply $header->header, {};
+};
 
-%adaptee = ();
-is $adapter{Content_Disposition}, undef;
-ok !exists $adapter{Content_Disposition};
-is $adapter->attachment, undef;
-is delete $adapter{Content_Disposition}, undef;
-is_deeply \%adaptee, {};
+subtest '-attachment' => sub {
+    my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ( -attachment => undef );
-is $adapter{Content_Disposition}, undef;
-ok !exists $adapter{Content_Disposition};
-is $adapter->attachment, undef;
-is delete $adapter{Content_Disposition}, undef;
-is_deeply \%adaptee, {};
+    %{ $header->header } = ( -attachment => undef );
+    is $header{Content_Disposition}, undef;
+    ok !exists $header{Content_Disposition};
+    is $header->attachment, undef;
+    is delete $header{Content_Disposition}, undef;
+    is_deeply $header->header, {};
 
-%adaptee = ( -attachment => q{} );
-is $adapter{Content_Disposition}, undef;
-ok !exists $adapter{Content_Disposition};
-is $adapter->attachment, q{};
-is delete $adapter{Content_Disposition}, undef;
-is_deeply \%adaptee, {};
+    %{ $header->header } = ( -attachment => q{} );
+    is $header{Content_Disposition}, undef;
+    ok !exists $header{Content_Disposition};
+    is $header->attachment, q{};
+    is delete $header{Content_Disposition}, undef;
+    is_deeply $header->header, {};
 
-%adaptee = ( -attachment => 'genome.jpg' );
-is $adapter{Content_Disposition}, 'attachment; filename="genome.jpg"';
-ok exists $adapter{Content_Disposition};
-is $adapter->attachment, 'genome.jpg';
-is delete $adapter{Content_Disposition}, 'attachment; filename="genome.jpg"';
-is_deeply \%adaptee, {};
+    %{ $header->header } = ( -attachment => 'genome.jpg' );
+    is $header{Content_Disposition}, 'attachment; filename="genome.jpg"';
+    ok exists $header{Content_Disposition};
+    is $header->attachment, 'genome.jpg';
+    is delete $header{Content_Disposition}, 'attachment; filename="genome.jpg"';
+    is_deeply $header->header, {};
 
-%adaptee = ( -content_disposition => q{} );
-is $adapter{Content_Disposition}, q{};
-ok exists $adapter{Content_Disposition};
-is delete $adapter{Content_Disposition}, q{};
-is_deeply \%adaptee, {};
+    %{ $header->header } = ();
+    $header->attachment( 'genome.jpg' );
+    is_deeply $header->header, { -attachment => 'genome.jpg' };
+};
 
-%adaptee = ( -content_disposition => 'inline' );
-is $adapter{Content_Disposition}, 'inline';
-ok exists $adapter{Content_Disposition};
-is delete $adapter{Content_Disposition}, 'inline';
-is_deeply \%adaptee, {};
+subtest '-content_disposition' => sub {
+    my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ( -attachment => 'genome.jpg' );
-$adapter{Content_Disposition} = 'inline';
-is_deeply \%adaptee, { -content_disposition => 'inline' };
+    %{ $header->header } = ( -content_disposition => q{} );
+    is $header{Content_Disposition}, q{};
+    ok exists $header{Content_Disposition};
+    is delete $header{Content_Disposition}, q{};
+    is_deeply $header->header, {};
 
-%adaptee = ( -attachment => 'genome.jpg' );
-$adapter{Content_Disposition} = q{};
-is_deeply \%adaptee, { -content_disposition => q{} };
+    %{ $header->header } = ( -content_disposition => 'inline' );
+    is $header{Content_Disposition}, 'inline';
+    ok exists $header{Content_Disposition};
+    is delete $header{Content_Disposition}, 'inline';
+    is_deeply $header->header, {};
+};
 
-%adaptee = ();
-$adapter->attachment( 'genome.jpg' );
-is_deeply \%adaptee, { -attachment => 'genome.jpg' };
+subtest '-attachment and -content_disposition' => sub {
+    my $header = tie my %header, 'CGI::Header';
+
+    %{ $header->header } = ( -attachment => 'genome.jpg' );
+    $header{Content_Disposition} = 'inline';
+    is_deeply $header->header, { -content_disposition => 'inline' };
+
+    %{ $header->header } = ( -attachment => 'genome.jpg' );
+    $header{Content_Disposition} = q{};
+    is_deeply $header->header, { -content_disposition => q{} };
+};
+

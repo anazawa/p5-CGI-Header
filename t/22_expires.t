@@ -1,63 +1,62 @@
 use strict;
 use warnings;
-
 use Test::MockTime qw/set_fixed_time/;
-
 use CGI::Header;
 use Test::More tests => 22;
 use Test::Warn;
 
-set_fixed_time( 1341637509 );
-my $now = 'Sat, 07 Jul 2012 05:05:09 GMT';
+set_fixed_time '1341637509';
 
-my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
+my $today    = 'Sat, 07 Jul 2012 05:05:09 GMT';
+my $tomorrow = 'Sun, 08 Jul 2012 05:05:09 GMT';
 
-%adaptee = ();
-ok !exists $adapter{Expires};
-is $adapter{Expires}, undef;
-is $adapter->expires, undef;
-is delete $adapter{Expires}, undef;
-is_deeply \%adaptee, {};
+my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ( -expires => '+3d' );
-ok exists $adapter{Expires};
-ok exists $adapter{Date};
-is $adapter{Expires}, 'Tue, 10 Jul 2012 05:05:09 GMT';
-is $adapter{Date}, $now;
-is $adapter->expires, '+3d';
-is delete $adapter{Expires}, 'Tue, 10 Jul 2012 05:05:09 GMT';
-is_deeply \%adaptee, {};
+%{ $header->header } = ();
+ok !exists $header{Expires};
+is $header{Expires}, undef;
+is $header->expires, undef;
+is delete $header{Expires}, undef;
+is_deeply $header->header, {};
 
-#warning_is { delete $adapter{Date} } 'The Date header is fixed';
-#warning_is { $adapter{Date} = 'foo' } 'The Date header is fixed';
+%{ $header->header } = ( -expires => '+1d' );
+ok exists $header{Expires};
+ok exists $header{Date};
+is $header{Expires}, $tomorrow;
+is $header{Date}, $today;
+is $header->expires, '+1d';
+is delete $header{Expires}, $tomorrow;
+is_deeply $header->header, {};
 
-%adaptee = ( -expires => q{} );
-ok exists $adapter{Expires};
-ok !exists $adapter{Date};
-is $adapter{Expires}, q{};
-is $adapter{Date}, undef;
-is $adapter->expires, q{};
-is delete $adapter{Expires}, q{};
-is_deeply \%adaptee, {};
+#warning_is { delete $header{Date} } 'The Date header is fixed';
+#warning_is { $header{Date} = 'foo' } 'The Date header is fixed';
+
+%{ $header->header } = ( -expires => q{} );
+ok exists $header{Expires};
+ok !exists $header{Date};
+is $header{Expires}, q{};
+is $header{Date}, undef;
+is $header->expires, q{};
+is delete $header{Expires}, q{};
+is_deeply $header->header, {};
 
 #%adaptee = ( -expires => 0 );
 
 # Follows the rule of least surprize.
-# The following behavior will surprize us :)
+# The following behavior will surprize us ;)
 #
-#   $adapter{Expires} = '+3d';
-#   my $value = $adapter{Expires}; # => 'Tue, 10 Jul 2012 05:05:09 GMT'
+#   $header{Expires} = '+3d';
+#   my $value = $header{Expires}; # => "Tue, 10 Jul 2012 05:05:09 GMT"
 #
 
-warning_is { $adapter{Expires} = '+3d' }
+warning_is { $header{Expires} = '+3d' }
     "Can't assign to '-expires' directly, use expires() instead";
 
-%adaptee = ();
-$adapter->expires( '+3d' );
-is_deeply \%adaptee, { -expires => '+3d' };
+%{ $header->header } = ();
+$header->expires( '+3d' );
+is_deeply $header->header, { -expires => '+3d' };
 
-%adaptee = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
-$adapter->expires( '+3d' );
-is_deeply \%adaptee, { -expires => '+3d' };
+%{ $header->header } = ( -date => $today );
+$header->expires( '+3d' );
+is_deeply $header->header, { -expires => '+3d' };
 

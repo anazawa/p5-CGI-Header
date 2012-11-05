@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 use CGI::Cookie;
 use CGI::Header;
 use Test::More tests => 13;
@@ -13,27 +14,26 @@ my $cookie2 = CGI::Cookie->new(
     -value => 'baz',
 );
 
-my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
+my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ();
-is $adapter{Set_Cookie}, undef;
-ok !exists $adapter{Set_Cookie};
-is delete $adapter{Set_Cookie}, undef;
-is_deeply \%adaptee, {};
+%{ $header->header } = ();
+is $header{Set_Cookie}, undef;
+ok !exists $header{Set_Cookie};
+is delete $header{Set_Cookie}, undef;
+is_deeply $header->header, {};
 
-%adaptee = ( -cookie => $cookie1 );
-is $adapter{Set_Cookie}, 'foo=bar; path=/';
-ok exists $adapter{Set_Cookie};
-is delete $adapter{Set_Cookie}, 'foo=bar; path=/';
-is_deeply \%adaptee, {};
+%{ $header->header } = ( -cookie => $cookie1 );
+is $header{Set_Cookie}, 'foo=bar; path=/';
+ok exists $header{Set_Cookie};
+is delete $header{Set_Cookie}, 'foo=bar; path=/';
+is_deeply $header->header, {};
 
-%adaptee = ( -cookie => [$cookie1, $cookie2] );
-is_deeply $adapter{Set_Cookie}, [ $cookie1, $cookie2 ];
-ok exists $adapter{Set_Cookie};
-is_deeply delete $adapter{Set_Cookie}, [ $cookie1, $cookie2 ];
-is_deeply \%adaptee, {};
+%{ $header->header } = ( -cookie => [$cookie1, $cookie2] );
+is_deeply $header{Set_Cookie}, [ $cookie1, $cookie2 ];
+ok exists $header{Set_Cookie};
+is_deeply delete $header{Set_Cookie}, [ $cookie1, $cookie2 ];
+is_deeply $header->header, {};
 
-%adaptee = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
-$adapter{Set_Cookie} = $cookie1;
-is_deeply \%adaptee, { -cookie => $cookie1 };
+%{ $header->header } = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
+$header{Set_Cookie} = $cookie1;
+is_deeply $header->header, { -cookie => $cookie1 };

@@ -3,27 +3,26 @@ use warnings;
 use CGI::Header;
 use Test::More tests => 19;
 
-my $class = 'CGI::Header';
-
 my %alias = (
-    TIEHASH => 'new',
-    FETCH   => 'get',
-    STORE   => 'set',
-    DELETE  => 'delete',
-    EXISTS  => 'exists',
-    CLEAR   => 'clear',
+    'TIEHASH' => 'new',
+    'FETCH'   => 'get',
+    'STORE'   => 'set',
+    'DELETE'  => 'delete',
+    'EXISTS'  => 'exists',
+    'CLEAR'   => 'clear',
 );
 
-can_ok $class, ( keys %alias, 'SCALAR' );
+can_ok 'CGI::Header', ( keys %alias, 'SCALAR' );
 
+my $class = 'CGI::Header';
 while ( my ($got, $expected) = each %alias ) {
     is $class->can($got), $class->can($expected);
 }
 
 my %adaptee;
-tie my %adapter, $class, \%adaptee;
+tie my %adapter, 'CGI::Header', \%adaptee;
 
-isa_ok tied %adapter, $class;
+isa_ok tied %adapter, 'CGI::Header';
 
 # SCALAR
 %adaptee = ();
@@ -56,4 +55,3 @@ is $adapter{Bar}, undef;
 %adaptee = ();
 $adapter{Foo} = 'bar';
 is_deeply \%adaptee, { -foo => 'bar' };
-

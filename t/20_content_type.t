@@ -1,88 +1,102 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 27;
+use Test::More tests => 5;
 use Test::Warn;
 
-my %adaptee;
-my $adapter = tie my %adapter, 'CGI::Header', \%adaptee;
-
-%adaptee = ( -type => q{} );
-is $adapter{Content_Type}, undef;
-ok !exists $adapter{Content_Type};
-is delete $adapter{Content_Type}, undef;
-
-%adaptee = ();
-is $adapter{Content_Type}, 'text/html; charset=ISO-8859-1';
-ok exists $adapter{Content_Type};
-is delete $adapter{Content_Type}, 'text/html; charset=ISO-8859-1';
-is_deeply \%adaptee, { -type => q{} };
-
-%adaptee = ( -type => 'text/plain' );
-is $adapter{Content_Type}, 'text/plain; charset=ISO-8859-1';
-ok exists $adapter{Content_Type};
-
-%adaptee = ( -type => undef );
-is $adapter{Content_Type}, 'text/html; charset=ISO-8859-1';
-ok exists $adapter{Content_Type};
-ok %adapter;
-
-%adaptee = ( -type => undef, -charset => 'utf-8' );
-is $adapter{Content_Type}, 'text/html; charset=utf-8';
-
-%adaptee = ( -type => 'text/plain', -charset => 'utf-8' );
-is delete $adapter{Content_Type}, 'text/plain; charset=utf-8';
-is_deeply \%adaptee, { -type => q{} };
-
-# feature
-%adaptee = ( -type => 'text/plain; charSet=utf-8' );
-is $adapter{Content_Type}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
-
-# FETCH
-
-%adaptee = ( -charset => 'utf-8' );
-is $adapter{Content_Type}, 'text/html; charset=utf-8';
-
-%adaptee = ( -type => q{}, -charset => 'utf-8' );
-is $adapter{Content_Type}, undef;
-
-%adaptee = ( -type => 'text/plain; charset=EUC-JP' );
-is $adapter{Content_Type}, 'text/plain; charset=EUC-JP';
-
-%adaptee = (
-    -type    => 'text/plain; charset=euc-jp',
-    -charset => 'utf-8',
-);
-is $adapter{Content_Type}, 'text/plain; charset=euc-jp';
-
-%adaptee = ( -charset => q{} );
-is $adapter{Content_Type}, 'text/html';
-
-%adaptee = ( -type => 'text/plain; Foo=1', -charset => 'utf-8' );
-is $adapter{Content_Type}, 'text/plain; Foo=1; charset=utf-8';
-
-
-# STORE
-
-%adaptee = ();
-$adapter{Content_Type} = 'text/plain; charset=utf-8';
-is_deeply \%adaptee, {
-    -type    => 'text/plain; charset=utf-8',
-    -charset => q{}
+subtest 'default' => sub {
+    my $header = tie my %header, 'CGI::Header';
+    is $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    ok exists $header{Content_Type};
+    is delete $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    is_deeply $header->header, { -type => q{} };
 };
 
-%adaptee = ();
-$adapter{Content_Type} = 'text/plain';
-is_deeply \%adaptee, { -type => 'text/plain', -charset => q{} };
+subtest '-type' => sub {
+    my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ( -charset => 'euc-jp' );
-$adapter{Content_Type} = 'text/plain; charset=utf-8';
-is_deeply \%adaptee, {
-    -type    => 'text/plain; charset=utf-8',
-    -charset => q{},
+    %{ $header->header } = ( -type => q{} );
+    is $header{Content_Type}, undef;
+    ok !exists $header{Content_Type};
+    is delete $header{Content_Type}, undef;
+    is_deeply $header->header, { -type => q{} };
+
+    %{ $header->header } = ( -type => 'text/plain' );
+    is $header{Content_Type}, 'text/plain; charset=ISO-8859-1';
+    ok exists $header{Content_Type};
+
+    %{ $header->header } = ( -type => undef );
+    is $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    ok exists $header{Content_Type};
+    ok %header;
+
+    %{ $header->header } = ( -type => 'text/plain; charset=EUC-JP' );
+    is $header{Content_Type}, 'text/plain; charset=EUC-JP';
+
+    # feature
+    %{ $header->header } = ( -type => 'text/plain; charSet=utf-8' );
+    is $header{Content_Type}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
 };
 
-%adaptee = ();
-warning_is { $adapter{Content_Type} = q{} }
-    "Can't set '-content_type' to neither undef nor an empty string";
-is_deeply \%adaptee, {};
+subtest '-charset' => sub {
+    my $header = tie my %header, 'CGI::Header';
+
+    %{ $header->header } = ( -charset => 'utf-8' );
+    is $header{Content_Type}, 'text/html; charset=utf-8';
+
+    %{ $header->header } = ( -charset => q{} );
+    is $header{Content_Type}, 'text/html';
+};
+
+subtest '-type and -charset' => sub {
+    my $header = tie my %header, 'CGI::Header';
+
+    %{ $header->header } = ( -type => undef, -charset => 'utf-8' );
+    is $header{Content_Type}, 'text/html; charset=utf-8';
+
+    %{ $header->header } = ( -type => 'text/plain', -charset => 'utf-8' );
+    is delete $header{Content_Type}, 'text/plain; charset=utf-8';
+    is_deeply $header->header, { -type => q{} };
+
+    %{ $header->header } = ( -type => q{}, -charset => 'utf-8' );
+    is $header{Content_Type}, undef;
+
+    %{ $header->header } = (
+        -type    => 'text/plain; charset=euc-jp',
+        -charset => 'utf-8',
+    );
+    is $header{Content_Type}, 'text/plain; charset=euc-jp';
+
+    %{ $header->header } = (
+        -type    => 'text/plain; Foo=1',
+        -charset => 'utf-8',
+    );
+    is $header{Content_Type}, 'text/plain; Foo=1; charset=utf-8';
+};
+
+subtest 'STORE()' => sub {
+    my $header = tie my %header, 'CGI::Header';
+
+    %{ $header->header } = ();
+    $header{Content_Type} = 'text/plain; charset=utf-8';
+    is_deeply $header->header, {
+        -type    => 'text/plain; charset=utf-8',
+        -charset => q{}
+    };
+
+    %{ $header->header } = ();
+    $header{Content_Type} = 'text/plain';
+    is_deeply $header->header, { -type => 'text/plain', -charset => q{} };
+
+    %{ $header->header } = ( -charset => 'euc-jp' );
+    $header{Content_Type} = 'text/plain; charset=utf-8';
+    is_deeply $header->header, {
+        -type    => 'text/plain; charset=utf-8',
+        -charset => q{},
+    };
+
+    %{ $header->header } = ();
+    warning_is { $header{Content_Type} = q{} }
+        "Can't set '-content_type' to neither undef nor an empty string";
+    is_deeply $header->header, {};
+};

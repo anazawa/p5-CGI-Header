@@ -41,13 +41,13 @@ my @args = (
     -p3p        => [qw/CAO DSP LAW CURa/],
 );
 
-#                 Rate CGI::header()   CGI::Header
-# CGI::header() 2279/s            --          -11%
-# CGI::Header   2571/s           13%            --
+#                 Rate   CGI::Header CGI::header()
+# CGI::Header   2509/s            --          -22% 
+# CGI::header() 3214/s           28%            -- 
 
 cmpthese(-1, {
     'CGI::header()' => sub {
-        my $header = CGI->new->header( @args );
+        my $header = CGI::header( @args );
     },
     'CGI::Header' => sub {
         my $header = CGI::Header->new( @args )->as_string( $CRLF );
@@ -56,8 +56,8 @@ cmpthese(-1, {
 });
 
 #                 Rate   CGI::Header HTTP::Headers
-# CGI::Header   1227/s            --          -30%
-# HTTP::Headers 1747/s           42%            --
+# CGI::Header   1147/s            --          -34%
+# HTTP::Headers 1747/s           52%            --
 
 cmpthese(-1, {
     'CGI::Header' => sub {
@@ -128,31 +128,27 @@ cmpthese(-1, {
     },
 });
 
-#                    Rate        CGI::PSGI HTTP::Parser::XS      CGI::Header
-# CGI::PSGI        2142/s               --              -1%             -28%
-# HTTP::Parser::XS 2174/s               1%               --             -27%
-# CGI::Header      2995/s              40%              38%               --
+#                    Rate      CGI::Header HTTP::Parser::XS        CGI::PSGI
+# CGI::Header      2965/s               --              -2%             -10%
+# HTTP::Parser::XS 3039/s               2%               --              -8%
+# CGI::PSGI        3286/s              11%               8%               --
+
+my $cgi_psgi = CGI::PSGI->new;
 
 cmpthese(-1, {
     'HTTP::Parser::XS' => sub {
-        my $header = CGI->new->header( @args );
+        my $header = CGI::header( @args );
         my ( $ret, $minor_version, $status, $msg, $headers )
             = parse_http_response( $header, HEADERS_AS_ARRAYREF );
     },
     'CGI::PSGI' => sub {
-        my ( $status_code, $headers_aref )
-            = CGI::PSGI->new->psgi_header( @args );
+        my ( $status_code, $headers_aref ) = $cgi_psgi->psgi_header( @args );
     },
     'CGI::Header' => sub {
         my $header = CGI::Header->new( @args );
-
-        my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
-
-        my $status = $header->get('Status') || '200 OK';
+        my $status = $header->delete('Status') || '200 OK';
         my ( $code, $message ) = split ' ', $status, 2;
-
-        my $software = $ENV{SERVER_SOFTWARE} || 'cmdline';
-        my @headers = ( $header->flatten, 'Server', $software );
+        my @headers = $header->flatten;
     },
 });
 

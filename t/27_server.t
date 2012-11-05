@@ -3,24 +3,23 @@ use warnings;
 use CGI::Header;
 use Test::More tests => 8;
 
-my %adaptee;
-tie my %adapter, 'CGI::Header', \%adaptee;
+my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ();
-is $adapter{Server}, undef;
-ok !exists $adapter{Server};
+%{ $header->header } = ();
+is $header{Server}, undef;
+ok !exists $header{Server};
 
-%adaptee = ( -server => 'Apache/1.3.27 (Unix)' );
-is $adapter{Server}, 'Apache/1.3.27 (Unix)';
-ok exists $adapter{Server};
+%{ $header->header } = ( -server => 'Apache/1.3.27 (Unix)' );
+is $header{Server}, 'Apache/1.3.27 (Unix)';
+ok exists $header{Server};
 
-%adaptee = ( -nph => 1 );
+%{ $header->header } = ( -nph => 1 );
 
 local $ENV{SERVER_SOFTWARE};
-is $adapter{Server}, 'cmdline';
-ok exists $adapter{Server};
+is $header{Server}, 'cmdline';
+ok exists $header{Server};
 
 $ENV{SERVER_SOFTWARE} = 'Apache/1.3.27 (Unix)';
-is $adapter{Server}, 'Apache/1.3.27 (Unix)';
-ok exists $adapter{Server};
+is $header{Server}, 'Apache/1.3.27 (Unix)';
+ok exists $header{Server};
 

@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - reorganized tests using subtest() function
+
 0.03 Oct 7th, 2012
   - add a benchmark against HTTP::Parser::XS
   - update POD

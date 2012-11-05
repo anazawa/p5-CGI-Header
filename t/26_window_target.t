@@ -3,27 +3,26 @@ use warnings;
 use CGI::Header;
 use Test::More tests => 13;
 
-my %adaptee;
-tie my %adapter, 'CGI::Header', \%adaptee;
+my $header = tie my %header, 'CGI::Header';
 
-%adaptee = ();
-is $adapter{Window_Target}, undef;
-ok !exists $adapter{Window_Target};
-is delete $adapter{Window_Target}, undef;
-is_deeply \%adaptee, {};
+%{ $header->header } = ();
+is $header{Window_Target}, undef;
+ok !exists $header{Window_Target};
+is delete $header{Window_Target}, undef;
+is_deeply $header->header, {};
 
-%adaptee = ( -target => q{} );
-is $adapter{Window_Target}, q{};
-ok exists $adapter{Window_Target};
-is delete $adapter{Window_Target}, q{};
-is_deeply \%adaptee, {};
+%{ $header->header } = ( -target => q{} );
+is $header{Window_Target}, q{};
+ok exists $header{Window_Target};
+is delete $header{Window_Target}, q{};
+is_deeply $header->header, {};
 
-%adaptee = ( -target => 'ResultsWindow' );
-is $adapter{Window_Target}, 'ResultsWindow';
-ok exists $adapter{Window_Target};
-is delete $adapter{Window_Target}, 'ResultsWindow';
-is_deeply \%adaptee, {};
+%{ $header->header } = ( -target => 'ResultsWindow' );
+is $header{Window_Target}, 'ResultsWindow';
+ok exists $header{Window_Target};
+is delete $header{Window_Target}, 'ResultsWindow';
+is_deeply $header->header, {};
 
-%adaptee = ();
-$adapter{Window_Target} = 'ResultsWindow';
-is_deeply \%adaptee, { -target => 'ResultsWindow' };
+%{ $header->header } = ();
+$header{Window_Target} = 'ResultsWindow';
+is_deeply $header->header, { -target => 'ResultsWindow' };
