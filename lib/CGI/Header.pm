@@ -29,6 +29,7 @@ sub DESTROY {
 }
 
 my %get = (
+    default => sub { $_[0]->{$_[1]} },
     -content_disposition => sub {
         my ( $header, $norm ) = @_;
         my $filename = $header->{-attachment};
@@ -80,18 +81,14 @@ my %get = (
 );
 
 sub get {
-    my $self   = shift;
-    my $norm   = _normalize( shift ) || return;
+    my $self = shift;
+    my $norm = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
-
-    if ( my $get = $get{$norm} ) {
-        return $get->( $header, $norm );
-    }
-    
-    $header->{ $norm };
+    do { $get{$norm} || $get{default} }->( $header, $norm );
 }
 
 my %set = (
+    default => sub { $_[0]->{$_[1]} = $_[2] },
     -content_disposition => sub {
         my ( $header, $norm, $value ) = @_;
         delete $header->{-attachment};
@@ -130,22 +127,15 @@ my %set = (
 );
 
 sub set {
-    my $self   = shift;
-    my $norm   = _normalize( shift ) || return;
-    my $value  = shift;
+    my $self = shift;
+    my $norm = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
-
-    if ( my $set = $set{$norm} ) {
-        $set->( $header, $norm, $value );
-    }
-    else {
-        $header->{ $norm } = $value;
-    }
-
+    do { $set{$norm} || $set{default} }->( $header, $norm, @_ );
     return;
 }
 
 my %exists = (
+    default => sub { exists $_[0]->{$_[1]} },
     -content_type => sub {
         my $header = shift;
         !defined $header->{-type} || $header->{-type} ne q{};
@@ -168,15 +158,10 @@ my %exists = (
 );
 
 sub exists {
-    my $self   = shift;
-    my $norm   = _normalize( shift ) || return;
+    my $self = shift;
+    my $norm = _normalize( shift ) || return;
     my $header = $header{ refaddr $self };
-
-    if ( my $exists = $exists{$norm} ) {
-        return $exists->( $header, $norm );
-    }
-
-    exists $header->{ $norm };
+    do { $exists{$norm} || $exists{default} }->( $header, $norm );
 }
 
 my %delete = (
