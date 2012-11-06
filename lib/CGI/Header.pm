@@ -20,7 +20,7 @@ sub new {
     $self;
 }
 
-sub header { $header{ refaddr shift } }
+sub header { $header{ refaddr $_[0] } }
 
 sub DESTROY {
     my $self = shift;
@@ -28,71 +28,55 @@ sub DESTROY {
     return;
 }
 
+my $get = sub { $_[0]->{$_[1]} };
+
 my %get = (
-    default => sub { $_[0]->{$_[1]} },
     -content_disposition => sub {
-        my ( $header, $norm ) = @_;
-        my $filename = $header->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $header->{ $norm };
+        my $filename = $_[0]->{-attachment};
+        $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
     },
     -content_type => sub {
-        my $header  = shift;
-        my $type    = $header->{-type};
-        my $charset = $header->{-charset};
-
-        if ( defined $type and $type eq q{} ) {
-            undef $charset;
-            undef $type;
-        }
-        else {
-            $type ||= 'text/html';
-
-            if ( $type =~ /\bcharset\b/ ) {
-                undef $charset;
-            }
-            elsif ( !defined $charset ) {
-                $charset = 'ISO-8859-1';
-            }
-        }
-
-        $charset ? "$type; charset=$charset" : $type;
+        my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
+        return if defined $type and $type eq q{};
+        return $type if $type and $type =~ /\bcharset\b/;
+        $type ||= 'text/html';
+        $type .= "; charset=$charset" if $charset;
+        $type .= '; charset=ISO-8859-1' unless defined $charset;
+        $type;
     },
     -date => sub {
-        my ( $header, $norm ) = @_;
-        my $is_fixed = first { $header->{$_} } qw(-nph -expires -cookie);
-        $is_fixed ? CGI::Util::expires() : $header->{ $norm };
+        my $is_fixed = first { $_[0]->{$_} } qw(-nph -expires -cookie);
+        $is_fixed ? CGI::Util::expires() : $get->( @_ );
     },
     -expires => sub {
-        my $expires = shift->{-expires};
-        $expires && CGI::Util::expires( $expires )
+        my $expires = $get->( @_ );
+        $expires && CGI::Util::expires( $expires );
     },
     -p3p => sub {
-        my $tags = shift->{-p3p};
+        my $tags = $get->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
     -server => sub {
-        my ( $header, $norm ) = @_;
-        return $ENV{SERVER_SOFTWARE} || 'cmdline' if $header->{-nph};
-        $header->{ $norm };
+        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
     },
-    -set_cookie    => sub { shift->{-cookie} },
-    -window_target => sub { shift->{-target} },
+    -set_cookie    => sub { $_[0]->{-cookie} },
+    -window_target => sub { $_[0]->{-target} },
 );
 
 sub get {
     my $self = shift;
-    my $norm = _normalize( shift ) || return;
+    my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    do { $get{$norm} || $get{default} }->( $header, $norm );
+    $norm ? do { $get{$norm} || $get }->( $header, $norm ) : undef;
 }
 
+my $set = sub { $_[0]->{$_[1]} = $_[2] };
+
 my %set = (
-    default => sub { $_[0]->{$_[1]} = $_[2] },
     -content_disposition => sub {
-        my ( $header, $norm, $value ) = @_;
-        delete $header->{-attachment};
-        $header->{ $norm } = $value;
+        $set->( @_ );
+        delete $_[0]->{-attachment};
     },
     -content_type => sub {
         my ( $header, $norm, $value ) = @_;
@@ -104,9 +88,7 @@ my %set = (
         }
     },
     -date => sub {
-        my ( $header, $norm, $value ) = @_;
-        return if first { $header->{$_} } qw(-nph -expires -cookie);
-        $header->{ $norm } = $value;
+        $set->( @_ ) unless first { $_[0]->{$_} } qw(-nph -expires -cookie);
     },
     -expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
@@ -120,48 +102,35 @@ my %set = (
         delete $header->{-date} if $value;
         $header->{-cookie} = $value;
     },
-    -window_target => sub {
-        my ( $header, $value ) = @_[0, 2];
-        $header->{-target} = $value;
-    },
+    -window_target => sub { $_[0]->{-target} = $_[2] },
 );
 
 sub set {
     my $self = shift;
-    my $norm = _normalize( shift ) || return;
+    my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    do { $set{$norm} || $set{default} }->( $header, $norm, @_ );
+    do { $set{$norm} || $set }->( $header, $norm, shift ) if $norm and @_;
     return;
 }
 
+my $exists = sub { exists $_[0]->{$_[1]} };
+
 my %exists = (
-    default => sub { exists $_[0]->{$_[1]} },
-    -content_type => sub {
-        my $header = shift;
-        !defined $header->{-type} || $header->{-type} ne q{};
-    },
-    -content_disposition => sub {
-        my ( $header, $norm ) = @_;
-        exists $header->{ $norm } || $header->{-attachment};
-    },
+    -content_type => sub { !defined $_[0]->{-type} || $_[0]->{-type} ne q{} },
+    -content_disposition => sub { $exists->( @_ ) || $_[0]->{-attachment} },
     -date => sub {
-        my ( $header, $norm ) = @_;
-        exists $header->{ $norm }
-            || first { $header->{$_} } qw(-nph -expires -cookie );
+        $exists->( @_ ) || first { $_[0]->{$_} } qw(-nph -expires -cookie);
     },
-    -server => sub {
-        my ( $header, $norm ) = @_;
-        $header->{-nph} || exists $header->{ $norm };
-    },
-    -set_cookie    => sub { exists shift->{-cookie} },
-    -window_target => sub { exists shift->{-target} },
+    -server        => sub { $_[0]->{-nph} || $exists->( @_ ) },
+    -set_cookie    => sub { exists $_[0]->{-cookie} },
+    -window_target => sub { exists $_[0]->{-target} },
 );
 
 sub exists {
     my $self = shift;
-    my $norm = _normalize( shift ) || return;
+    my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    do { $exists{$norm} || $exists{default} }->( $header, $norm );
+    $norm ? do { $exists{$norm} || $exists }->( $header, $norm ) : undef;
 }
 
 my %delete = (
