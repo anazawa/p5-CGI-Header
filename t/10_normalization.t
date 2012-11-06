@@ -3,7 +3,7 @@ use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $normalize = CGI::Header->can( '_normalize' );
+my $normalize = \&CGI::Header::_normalize;
 
 run {
     my $block = shift;

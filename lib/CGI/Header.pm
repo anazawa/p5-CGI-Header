@@ -237,9 +237,8 @@ sub clear {
 
 sub clone {
     my $self = shift;
-    my $class = ref $self or croak "Can't clone non-object: $self";
     my $header = $header{ refaddr $self };
-    $class->new( %{$header} );
+    ref( $self )->new( %{$header} );
 }
 
 BEGIN {
@@ -306,15 +305,11 @@ sub field_names {
     my $type = delete @copy{qw/-charset -type/};
 
     # not ordered
-    while ( my ($norm, $value) = CORE::each %copy ) {
+    while ( my ($field, $value) = CORE::each %copy ) {
         next unless defined $value;
-
-        push @fields, do {
-            my $field = $norm;
-            $field =~ s/^-(\w)/\u$1/;
-            $field =~ tr/_/-/;
-            $field;
-        };
+        $field =~ s/^-(\w)/\u$1/;
+        $field =~ tr/_/-/;
+        push @fields, $field;
     }
 
     push @fields, 'Content-Type' if !defined $type or $type ne q{};

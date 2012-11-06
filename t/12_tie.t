@@ -19,39 +19,38 @@ while ( my ($got, $expected) = each %alias ) {
     is $class->can($got), $class->can($expected);
 }
 
-my %adaptee;
-tie my %adapter, 'CGI::Header', \%adaptee;
+my $header = tie my %header, 'CGI::Header';
 
-isa_ok tied %adapter, 'CGI::Header';
+isa_ok tied %header, 'CGI::Header';
 
 # SCALAR
-%adaptee = ();
-ok %adapter;
-%adaptee = ( -type => q{} );
-ok !%adapter;
+%{ $header->header } = ();
+ok %header;
+%{ $header->header } = ( -type => q{} );
+ok !%header;
 
 # CLEAR
-%adaptee = ();
-%adapter = ();
-is_deeply \%adaptee, { -type => q{} };
+%{ $header->header } = ();
+%header = ();
+is_deeply $header->header, { -type => q{} };
 
 # EXISTS
-%adaptee = ( -foo => 'bar', -bar => q{} );
-ok exists $adapter{Foo};
-ok exists $adapter{Bar};
-ok !exists $adapter{Baz};
+%{ $header->header } = ( -foo => 'bar', -bar => q{} );
+ok exists $header{Foo};
+ok exists $header{Bar};
+ok !exists $header{Baz};
 
 # DELETE
-%adaptee = ( -foo => 'bar', -bar => 'baz' );
-is delete $adapter{Foo}, 'bar';
-is_deeply \%adaptee, { -bar => 'baz' };
+%{ $header->header } = ( -foo => 'bar', -bar => 'baz' );
+is delete $header{Foo}, 'bar';
+is_deeply $header->header, { -bar => 'baz' };
 
 # FETCH
-%adaptee = ( -foo => 'bar' );
-is $adapter{Foo}, 'bar';
-is $adapter{Bar}, undef;
+%{ $header->header } = ( -foo => 'bar' );
+is $header{Foo}, 'bar';
+is $header{Bar}, undef;
 
 # STORE
-%adaptee = ();
-$adapter{Foo} = 'bar';
-is_deeply \%adaptee, { -foo => 'bar' };
+%{ $header->header } = ();
+$header{Foo} = 'bar';
+is_deeply $header->header, { -foo => 'bar' };

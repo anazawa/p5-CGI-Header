@@ -67,60 +67,7 @@ subtest 'basic' => sub {
     is_deeply \%header, {};
 };
 
-subtest 'each()' => sub {
-    my $header = CGI::Header->new(
-        -status         => '304 Not Modified',
-        -content_length => 12345,
-    );
 
-    my $expected = qr{^Must provide a code reference to each\(\)};
-    throws_ok { $header->each } $expected;
-
-    my @got;
-    $header->each(sub {
-        my ( $field, $value ) = @_;
-        push @got, $field, $value;
-    });
-
-    my @expected = (
-        'Status',         '304 Not Modified',
-        'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
-    );
-
-    is_deeply \@got, \@expected;
-};
-
-subtest 'flatten()' => sub {
-    my $cookie1 = CGI::Cookie->new(
-        -name  => 'foo',
-        -value => 'bar',
-    );
-
-    my $cookie2 = CGI::Cookie->new(
-        -name  => 'bar',
-        -value => 'baz',
-    );
-
-    my $header = CGI::Header->new(
-        -status         => '304 Not Modified',
-        -content_length => 12345,
-        -cookie         => [ $cookie1, $cookie2 ],
-    );
-
-    my @got = $header->flatten;
-
-    my @expected = (
-        'Status',         '304 Not Modified',
-        'Set-Cookie',     "$cookie1",
-        'Set-Cookie',     "$cookie2",
-        'Date',           CGI::Util::expires(),
-        'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
-    );
-
-    is_deeply \@got, \@expected;
-};
 
 subtest 'clone()' => sub {
     my $header = CGI::Header->new( -foo => 'bar' );
@@ -176,6 +123,61 @@ subtest 'field_names()' => sub {
         Content-Disposition
         Foo-bar
         Content-Type
+    );
+
+    is_deeply \@got, \@expected;
+};
+
+subtest 'flatten()' => sub {
+    my $cookie1 = CGI::Cookie->new(
+        -name  => 'foo',
+        -value => 'bar',
+    );
+
+    my $cookie2 = CGI::Cookie->new(
+        -name  => 'bar',
+        -value => 'baz',
+    );
+
+    my $header = CGI::Header->new(
+        -status         => '304 Not Modified',
+        -content_length => 12345,
+        -cookie         => [ $cookie1, $cookie2 ],
+    );
+
+    my @got = $header->flatten;
+
+    my @expected = (
+        'Status',         '304 Not Modified',
+        'Set-Cookie',     "$cookie1",
+        'Set-Cookie',     "$cookie2",
+        'Date',           CGI::Util::expires(),
+        'Content-length', '12345',
+        'Content-Type',   'text/html; charset=ISO-8859-1',
+    );
+
+    is_deeply \@got, \@expected;
+};
+
+subtest 'each()' => sub {
+    my $header = CGI::Header->new(
+        -status         => '304 Not Modified',
+        -content_length => 12345,
+    );
+
+    throws_ok { $header->each }
+        qr{^Must provide a code reference to each\(\)};
+
+    my @got;
+    $header->each(sub {
+        my ( $field, $value ) = @_;
+        push @got, $field, $value;
+    });
+
+    my @expected = (
+        'Status',         '304 Not Modified',
+        'Content-length', '12345',
+        'Content-Type',   'text/html; charset=ISO-8859-1',
     );
 
     is_deeply \@got, \@expected;
