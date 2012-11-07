@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my %header;
 
@@ -481,22 +481,27 @@ Any return values of the callback routine are ignored.
 
 =item @headers = $header->flatten
 
-Returns pairs of fields and values. It's identical to:
+Returns pairs of fields and values. 
+It's identical to:
 
   my @headers;
-
-  $header->each(sub {
+  $self->each(sub {
       my ( $field, $value ) = @_;
-      push @headers, $field, $value;
+      push @headers, $field, "$value"; # force stringification
   });
+
+This method can be used to generate L<PSGI>-compatible header array references:
+
+  # NOTE: untested
+
+  my $status_code = $header->delete( 'Status' ) || '200 OK';
+  $status_code =~ s/\D*$//;
+
+  my @headers = $header->flatten;
 
 =item $header->clear
 
 This will remove all header fields.
-
-Internally, this method is a shortcut for:
-
-  %{ $header->header } = ( -type => q{} );
 
 =item $bool = $header->is_empty
 
@@ -591,6 +596,28 @@ If set to a true value, will issue the correct headers to work
 with a NPH (no-parse-header) script.
 
   $header->nph( 1 );
+
+=back
+
+=head1 DIAGNOSTICS
+
+=over 4
+
+=item Can't set '-content_type' to neither undef nor an empty string
+
+  # wrong
+  $header->set( 'Content-Type' => undef );
+  $header->set( 'Content-Type' => q{} );
+
+=item Can't assign to '-expires' directly, use expires() instead
+
+  # wrong
+  $header->set( 'Expires' => '+3d' );
+
+=item Can't assign to '-p3p' directly, use p3p_tags() instead
+
+  # wrong
+  $header->set( 'P3P' => '/path/to/p3p.xml' );
 
 =back
 
