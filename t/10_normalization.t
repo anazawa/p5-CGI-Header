@@ -3,11 +3,9 @@ use Test::Base;
 
 plan tests => 1 * blocks();
 
-my $normalize = \&CGI::Header::_normalize;
-
 run {
     my $block = shift;
-    is $normalize->( $block->input ), $block->expected;
+    is CGI::Header::_normalize( $block->input ), $block->expected;
 };
 
 __DATA__

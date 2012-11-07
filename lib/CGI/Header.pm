@@ -2,7 +2,6 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use overload q{""} => 'as_string', fallback => 1;
 use CGI::Util qw//;
 use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
@@ -37,8 +36,8 @@ my %get = (
     },
     -content_type => sub {
         my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
-        return if defined $type and $type eq q{};
         return $type if $type and $type =~ /\bcharset\b/;
+        return if defined $type and $type eq q{};
         $type ||= 'text/html';
         $type .= "; charset=$charset" if $charset;
         $type .= '; charset=ISO-8859-1' unless defined $charset;
@@ -68,16 +67,13 @@ sub get {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    $norm ? do { $get{$norm} || $get }->( $header, $norm ) : undef;
+    $norm ? ( $get{$norm} || $get )->( $header, $norm ) : undef;
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
 
 my %set = (
-    -content_disposition => sub {
-        $set->( @_ );
-        delete $_[0]->{-attachment};
-    },
+    -content_disposition => sub { $set->( @_ ); delete $_[0]->{-attachment} },
     -content_type => sub {
         my ( $header, $norm, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
@@ -96,7 +92,7 @@ my %set = (
     -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    -server => sub {},
+    -server => sub { $_[0]->{-nph} || $set->( @_ ) },
     -set_cookie => sub {
         my ( $header, $value ) = @_[0, 2];
         delete $header->{-date} if $value;
@@ -109,7 +105,7 @@ sub set {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    do { $set{$norm} || $set }->( $header, $norm, shift ) if $norm and @_;
+    ( $set{$norm} || $set )->( $header, $norm, shift ) if $norm and @_;
     return;
 }
 
@@ -130,14 +126,11 @@ sub exists {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    $norm ? do { $exists{$norm} || $exists }->( $header, $norm ) : undef;
+    $norm ? ( $exists{$norm} || $exists )->( $header, $norm ) : undef;
 }
 
 my %delete = (
-    -content_disposition => sub {
-        my ( $header, $norm ) = @_;
-        delete @{ $header }{ $norm, '-attachment' };
-    },
+    -content_disposition => sub { delete @{$_[0]}{$_[1], '-attachment'} },
     -content_type => sub {
         my $header = shift; 
         delete $header->{-charset};
@@ -147,14 +140,14 @@ my %delete = (
         my ( $header, $norm ) = @_;
         delete $header->{-date};
     },
-    -expires => sub { delete shift->{-expires} },
-    -p3p     => sub { delete shift->{-p3p}     },
+    -expires => sub { delete $_[0]->{-expires} },
+    -p3p     => sub { delete $_[0]->{-p3p}     },
     -server => sub {
         my ( $header, $norm ) = @_;
         delete $header->{ $norm };
     },
-    -set_cookie    => sub { delete shift->{-cookie}  },
-    -window_target => sub { delete shift->{-target}  },
+    -set_cookie    => sub { delete $_[0]->{-cookie} },
+    -window_target => sub { delete $_[0]->{-target} },
 );
 
 sub delete {
@@ -172,12 +165,12 @@ sub delete {
     delete $header->{ $norm };
 }
 
-my %is_ignored = map { $_ => 1 }
+my %is_excluded = map { $_ => 1 }
     qw( attachment charset cookie cookies nph target type );
 
 sub _normalize {
     ( my $norm = shift ) =~ tr/A-Z-/a-z_/;
-    $is_ignored{ $norm } ? undef : "-$norm";
+    $is_excluded{ $norm } ? undef : "-$norm";
 }
 
 sub is_empty { !shift->SCALAR }
@@ -197,9 +190,9 @@ sub clone {
 
 BEGIN {
     my %conflict_with = (
-        attachment => '-content_disposition',
-        nph        => '-date',
-        expires    => '-date',
+        attachment => [ '-content_disposition' ],
+        nph        => [ '-date', '-server' ],
+        expires    => [ '-date' ],
     );
 
     while ( my ($method, $conflict_with) = CORE::each %conflict_with ) {
@@ -210,7 +203,7 @@ BEGIN {
     
             if ( @_ ) {
                 my $value = shift;
-                delete $header->{ $conflict_with } if $value;
+                delete @{ $header }{ @$conflict_with } if $value;
                 $header->{ $norm } = $value;
             }
 
@@ -259,11 +252,9 @@ sub field_names {
     my $type = delete @copy{qw/-charset -type/};
 
     # not ordered
-    while ( my ($field, $value) = CORE::each %copy ) {
-        next unless defined $value;
-        $field =~ s/^-(\w)/\u$1/;
-        $field =~ tr/_/-/;
-        push @fields, $field;
+    for my $norm ( keys %copy ) {
+        next unless defined $copy{ $norm };
+        push @fields, _ucfirst( $norm );
     }
 
     push @fields, 'Content-Type' if !defined $type or $type ne q{};
@@ -271,34 +262,38 @@ sub field_names {
     @fields;
 }
 
-sub flatten {
-    my $self = shift;
-
-    my @headers;
-    for my $field ( $self->field_names ) {
-        my $value = $self->get( $field );
-        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
-        push @headers, map { $field => "$_" } @values; # force stringification
-    }
-
-    @headers;
+sub _ucfirst {
+    my $str = shift;
+    $str =~ s/^-(\w)/\u$1/;
+    $str =~ tr/_/-/;
+    $str;
 }
 
 sub each {
     my $self     = shift;
-    my $callback = shift;
-    my @headers  = $self->flatten;
+    my $callback = ref $_[0] eq 'CODE' ? shift : undef;
 
-    if ( ref $callback eq 'CODE' ) {
-        while ( my ($field, $value) = splice @headers, 0, 2 ) {
-            $callback->( $field, $value );
-        }
-    }
-    else {
-        croak 'Must provide a code reference to each()';
+    croak 'Must provide a code reference to each()' unless $callback;
+
+    for my $field ( $self->field_names ) {
+        my $value = $self->get( $field );
+        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
+        $callback->( $field, $_ ) for @values;
     }
 
     return;
+}
+
+sub flatten {
+    my $self = shift;
+
+    my @headers;
+    $self->each(sub {
+        my ( $field, $value ) = @_;
+        push @headers, $field, "$value"; # force stringification
+    });
+
+    @headers;
 }
 
 sub as_string {
@@ -333,6 +328,7 @@ sub dump {
     require Data::Dumper;
 
     local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Terse  = 1;
 
     my %dump = (
         __PACKAGE__, {

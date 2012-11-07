@@ -1,6 +1,15 @@
 Revision history for Perl extension CGI::Header.
 
-  - reorganized tests using subtest() function
+  - reorganized tests using subtest() function exported by Test::More
+  - doesn't overload '""' (stringify) with as_string()
+    because this module isn't the replacement of CGI::header() function.
+    I think CGI::header() should be used to stringify
+    header hash references in most cases.
+  - each() doesn't stringify values (cf. HTTP::Headers->scan),
+    and so the callback function will receive raw CGI::Cookie objects.
+  - On the other hand, flatten() forces stringification.
+    flatten() may be called to generate PSGI-compatible header array
+    references.
 
 0.03 Oct 7th, 2012
   - add a benchmark against HTTP::Parser::XS

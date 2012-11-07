@@ -3,7 +3,7 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 9;
+use Test::More tests => 10;
 use Test::Exception;
 
 can_ok 'CGI::Header', qw(
@@ -90,6 +90,11 @@ subtest 'nph()' => sub {
     %{ $header->header } = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
     $header->nph( 1 );
     is_deeply $header->header, { -nph => 1 }, '-date should be deleted';
+};
+
+subtest '_ucfirst()' => sub {
+    is CGI::Header::_ucfirst( '-foo'     ), 'Foo';
+    is CGI::Header::_ucfirst( '-foo_bar' ), 'Foo-bar';
 };
 
 subtest 'field_names()' => sub {
