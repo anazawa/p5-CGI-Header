@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+0.05  Nov 10th, 2012
+  - add rehash() method which rebuilds header hash references
+
 0.04  Nov 7th, 2012
   - reorganized tests using subtest() function exported by Test::More
   - doesn't overload '""' (stringify) with as_string()

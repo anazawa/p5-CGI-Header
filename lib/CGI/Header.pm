@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 my %header;
 
@@ -456,6 +456,31 @@ It also has C<header()> method that would return the same reference:
 
   $h->header; # same reference as $header
 
+=item $header->rehash
+
+Rebuilds the header hash reference:
+
+  use Data::Dumper;
+
+  print Dumper( $header->header );
+  # => {
+  #     '-content_type' => 'text/plain',
+  #     'Set_Cookie'    => 'ID=123456; path=/',
+  #     'expires'       => '+3d',
+  #     '-target'       => 'ResultsWindow',
+  # }
+
+  $header->rehash;
+
+  print Dumper( $header->header );
+  # => {
+  #     '-type'    => 'text/plain',
+  #     '-cookie'  => 'ID=123456; path=/',
+  #     '-expires' => '+3d',
+  #     '-target'  => 'ResultsWindow',
+  # }
+
+
 =item $value = $header->get( $field )
 
 =item $header->set( $field => $value )
@@ -641,13 +666,11 @@ with a NPH (no-parse-header) script.
 
 =back
 
-=head1 LIMITATIONS
-
-What CGI::header() can't do is what this module can't do.
+=head1 DIAGNOSTICS
 
 =over 4
 
-=item Can't set 'Content-Type' to neither undef nor an empty string
+=item Can't set '-content_type' to neither undef nor an empty string
 
   # wrong
   $header->set( 'Content-Type' => undef );
@@ -662,17 +685,17 @@ Use delete() instead:
   # wrong
   $header->set( 'Expires' => '+3d' );
 
-Follows the rule of least surprize.
-The following behavior will surprize us:
-
-  $header->set( 'Expires' => '+3d' ); # wrong
-
-  my $value = $header->get( 'Expires' );
-  # => "Thu, 25 Apr 1999 00:40:33 GMT"
-
 Use expires() instead:
 
   $header->expires( '+3d' );
+
+This module follows the rule of least surprize.
+The following behavior will surprize us:
+
+  $header->set( 'Expires' => '+3d' );
+
+  my $value = $header->get( 'Expires' );
+  # => "Thu, 25 Apr 1999 00:40:33 GMT"
 
 =item Can't assign to '-p3p' directly, use p3p_tags() instead
 
