@@ -21,6 +21,27 @@ sub new {
 
 sub header { $header{ refaddr $_[0] } }
 
+my %alias_of = (
+    -content_type => '-type',   -window_target => '-target',
+    -cookies      => '-cookie', -set_cookie    => '-cookie',
+);
+
+sub rehash {
+    my $self   = shift;
+    my $header = $header{ refaddr $self };
+
+    my @headers;
+    while ( my ($norm, $value) = CORE::each %{$header} ) {
+        $norm = "-$norm" unless $norm =~ /^-/;
+        substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
+        push @headers, $alias_of{ $norm } || $norm, $value;
+    }
+
+    %{ $header } = @headers;
+
+    return;
+}
+
 sub DESTROY {
     my $self = shift;
     delete $header{ refaddr $self };
@@ -67,7 +88,7 @@ sub get {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    $norm ? ( $get{$norm} || $get )->( $header, $norm ) : undef;
+    $norm && ( $get{$norm} || $get )->( $header, $norm );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -105,7 +126,7 @@ sub set {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    ( $set{$norm} || $set )->( $header, $norm, shift ) if $norm and @_;
+    ( $set{$norm} || $set )->( $header, $norm, shift ) if $norm && @_;
     return;
 }
 
@@ -126,8 +147,10 @@ sub exists {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    $norm ? ( $exists{$norm} || $exists )->( $header, $norm ) : undef;
+    $norm && ( $exists{$norm} || $exists )->( $header, $norm );
 }
+
+my $delete = sub { delete $_[0]->{$_[1]} };
 
 my %delete = (
     -content_disposition => sub { delete @{$_[0]}{$_[1], '-attachment'} },
@@ -271,14 +294,17 @@ sub _ucfirst {
 
 sub each {
     my $self     = shift;
-    my $callback = ref $_[0] eq 'CODE' ? shift : undef;
+    my $callback = ref $_[0] eq 'CODE' && shift;
 
     croak 'Must provide a code reference to each()' unless $callback;
 
     for my $field ( $self->field_names ) {
         my $value = $self->get( $field );
-        my @values = ref $value eq 'ARRAY' ? @{ $value } : $value;
-        $callback->( $field, $_ ) for @values;
+        if ( ref $value eq 'ARRAY' ) {
+            $callback->( $field, $_ ) for @{ $value };
+        } else {
+            $callback->( $field, $value );
+        }
     }
 
     return;
@@ -374,6 +400,7 @@ CGI::Header - Adapter for CGI::header() function
 
   use CGI::Header;
 
+  # supported parameters
   my $header = {
       -attachment => 'foo.gif',
       -charset    => 'utf-7',
@@ -413,13 +440,20 @@ which L<CGI>'s C<header()> function receives.
 =item $header = CGI::Header->new({ -type => 'text/plain', ... })
 
 Given a header hash reference, returns a CGI::Header object
-which holds a reference to the original given argument.
-The object updates the reference when called write methods like C<set()>,
-C<delete()> or C<clear()>. It also has C<header()> method that
-would return the same reference.
+which holds a reference to the original given argument:
 
   my $header = { -type => 'text/plain' };
   my $h = CGI::Header->new( $header );
+
+The object updates the reference when called write methods like C<set()>,
+C<delete()> or C<clear()>:
+
+  $h->set( 'Content-Length' => 3002 );
+  $h->delete( 'Content-Disposition' );
+  $h->clear;
+
+It also has C<header()> method that would return the same reference:
+
   $h->header; # same reference as $header
 
 =item $value = $header->get( $field )
@@ -479,9 +513,17 @@ Any return values of the callback routine are ignored.
       push @lines, "$field: $value";
   });
 
+  print join @lines, "\n";
+  # Content-length: 3002
+  # Content-Type: text/plain
+
 =item @headers = $header->flatten
 
 Returns pairs of fields and values. 
+
+  @headers = $header->flatten;
+  # => ( 'Content-length', '3002', 'Content-Type', 'text/plain' )
+
 It's identical to:
 
   my @headers;
@@ -599,25 +641,49 @@ with a NPH (no-parse-header) script.
 
 =back
 
-=head1 DIAGNOSTICS
+=head1 LIMITATIONS
+
+What CGI::header() can't do is what this module can't do.
 
 =over 4
 
-=item Can't set '-content_type' to neither undef nor an empty string
+=item Can't set 'Content-Type' to neither undef nor an empty string
 
   # wrong
   $header->set( 'Content-Type' => undef );
   $header->set( 'Content-Type' => q{} );
 
-=item Can't assign to '-expires' directly, use expires() instead
+Use delete() instead:
+
+  $header->delete( 'Content-Type' );
+
+=item Can't assign to 'Expires' directly, use expires() instead
 
   # wrong
   $header->set( 'Expires' => '+3d' );
 
+Follows the rule of least surprize.
+The following behavior will surprize us:
+
+  $header->set( 'Expires' => '+3d' ); # wrong
+
+  my $value = $header->get( 'Expires' );
+  # => "Thu, 25 Apr 1999 00:40:33 GMT"
+
+Use expires() instead:
+
+  $header->expires( '+3d' );
+
 =item Can't assign to '-p3p' directly, use p3p_tags() instead
+
+CGI::header() restricts where the policy-reference file is located,
+and so you can't modify the location (C</w3c/p3p.xml>).
+The following code doesn't work as you expect:
 
   # wrong
   $header->set( 'P3P' => '/path/to/p3p.xml' );
+
+You're allowed to set P3P tags using C<p3p_tags()>.
 
 =back
 

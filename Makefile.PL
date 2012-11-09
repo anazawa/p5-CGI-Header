@@ -4,7 +4,6 @@ all_from 'lib/CGI/Header.pm';
 
 repository 'https://github.com/anazawa/p5-CGI-Header';
 
-requires 'overload'     => '1.06';
 requires 'Carp'         => '1.10';
 requires 'CGI::Util'    => '1.5';
 requires 'List::Util'   => '1.19';

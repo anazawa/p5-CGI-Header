@@ -3,11 +3,11 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 10;
+use Test::More tests => 11;
 use Test::Exception;
 
 can_ok 'CGI::Header', qw(
-    new header clone clear delete exists get set is_empty DESTROY
+    new header rehash clone clear delete exists get set is_empty DESTROY
     p3p_tags expires nph attachment field_names each flatten
 );
 
@@ -67,7 +67,31 @@ subtest 'basic' => sub {
     is_deeply \%header, {};
 };
 
+subtest 'rehash()' => sub {
+    my $header = CGI::Header->new(
+        '-content_type' => 'text/plain',
+        'Set-Cookie'    => 'ID=123456; path=/',
+        '-expires'      => '+3d',
+        'foo'           => 'bar',
+        'foo-bar'       => 'baz',
+        'window_target' => 'ResultsWindow',
+    );
 
+    my $expected = $header->header;
+
+    $header->rehash;
+
+    is $header->header, $expected, 'should return the same reference';
+
+    is_deeply $header->header, {
+        -type    => 'text/plain',
+        -cookie  => 'ID=123456; path=/',
+        -expires => '+3d',
+        -foo     => 'bar',
+        -foo_bar => 'baz',
+        -target  => 'ResultsWindow',
+    };
+};
 
 subtest 'clone()' => sub {
     my $header = CGI::Header->new( -foo => 'bar' );
