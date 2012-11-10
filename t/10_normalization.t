@@ -45,8 +45,6 @@ __DATA__
 ===
 --- input: Cookie
 ===
---- input: Cookies
-===
 --- input: Target
 ===
 --- input: Attachment

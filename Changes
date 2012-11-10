@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+0.06  Nov 11th, 2012
+  - First release
+
 0.05  Nov 10th, 2012
   - add rehash() method which rebuilds header hash references
 

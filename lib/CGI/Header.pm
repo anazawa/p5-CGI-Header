@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 my %header;
 
@@ -189,7 +189,7 @@ sub delete {
 }
 
 my %is_excluded = map { $_ => 1 }
-    qw( attachment charset cookie cookies nph target type );
+    qw( attachment charset cookie nph target type );
 
 sub _normalize {
     ( my $norm = shift ) =~ tr/A-Z-/a-z_/;
@@ -316,7 +316,8 @@ sub flatten {
     my @headers;
     $self->each(sub {
         my ( $field, $value ) = @_;
-        push @headers, $field, "$value"; # force stringification
+        $value = $value->as_string if ref $value eq 'CGI::Cookie';
+        push @headers, $field, $value;
     });
 
     @headers;
@@ -339,6 +340,7 @@ sub as_string {
     # add response headers
     $self->each(sub {
         my ( $field, $value ) = @_;
+        $value = $value->as_string if ref $value eq 'CGI::Cookie';
         $value =~ s/$eol(\s)/$1/g;
         $value =~ s/$eol|\015|\012//g;
         push @lines, "$field: $value";
@@ -400,7 +402,6 @@ CGI::Header - Adapter for CGI::header() function
 
   use CGI::Header;
 
-  # supported parameters
   my $header = {
       -attachment => 'foo.gif',
       -charset    => 'utf-7',
@@ -432,8 +433,37 @@ CGI::Header - Adapter for CGI::header() function
 
 This module is a utility class to manipulate a hash reference
 which L<CGI>'s C<header()> function receives.
+This class is, so to speak, a subclass of Hash
+because the function behaves like a hash,
+while Perl5 doesn't provide a built-in class called Hash.
 
-=head2 METHODS
+This module isn't the replacement of the function.
+Although this class implements C<as_string()> method,
+the function should stringify the reference.
+
+The following use case is expected:
+
+=over 4
+
+=item 1. $header is a hash reference which represents CGI response headers
+
+  my $header = { -type => 'text/plain' };
+
+=item 2. Manipulates $header using CGI::Header
+
+  my $h = CGI::Header->new( $header );
+  $h->set( 'Content-Length' => 3002 );
+
+=item 3. Passes $header to CGI::header() to stringify the variable
+
+  print CGI::header( $header );
+  # Content-Length: 3002
+  # Content-Type: text/plain; charset=ISO-8859-1
+  #
+
+=back
+
+=head2 CLASS METHOD
 
 =over 4
 
@@ -448,6 +478,7 @@ which holds a reference to the original given argument:
 The object updates the reference when called write methods like C<set()>,
 C<delete()> or C<clear()>:
 
+  # updates $header
   $h->set( 'Content-Length' => 3002 );
   $h->delete( 'Content-Disposition' );
   $h->clear;
@@ -456,13 +487,25 @@ It also has C<header()> method that would return the same reference:
 
   $h->header; # same reference as $header
 
+=item $header = CGI::Header->new( -type => 'text/plain', ... )
+
+A shortcut for:
+
+  my %header = ( -type => 'text/plain', ... );
+  my $header = CGI::Header->new( \%header );
+
+=back
+
+=head2 INSTANCE METHODS
+
+=over 4
+
 =item $header->rehash
 
-Rebuilds the header hash reference:
+Rebuilds the header hash to normalize parameter names
+without changing the reference:
 
-  use Data::Dumper;
-
-  print Dumper( $header->header );
+  my $h1 = $header->header;
   # => {
   #     '-content_type' => 'text/plain',
   #     'Set_Cookie'    => 'ID=123456; path=/',
@@ -472,7 +515,7 @@ Rebuilds the header hash reference:
 
   $header->rehash;
 
-  print Dumper( $header->header );
+  my $h2 = $header->header; # same reference as $h1
   # => {
   #     '-type'    => 'text/plain',
   #     '-cookie'  => 'ID=123456; path=/',
@@ -480,6 +523,8 @@ Rebuilds the header hash reference:
   #     '-target'  => 'ResultsWindow',
   # }
 
+If parameter names aren't normalized, the methods listed below won't work
+as you expect.
 
 =item $value = $header->get( $field )
 
@@ -559,10 +604,10 @@ It's identical to:
 
 This method can be used to generate L<PSGI>-compatible header array references:
 
-  # NOTE: untested
-
   my $status_code = $header->delete( 'Status' ) || '200 OK';
   $status_code =~ s/\D*$//;
+
+  $header->nph( 0 ); # removes the Server header
 
   my @headers = $header->flatten;
 
@@ -666,7 +711,7 @@ with a NPH (no-parse-header) script.
 
 =back
 
-=head1 DIAGNOSTICS
+=head1 LIMITATIONS
 
 =over 4
 
@@ -680,7 +725,7 @@ Use delete() instead:
 
   $header->delete( 'Content-Type' );
 
-=item Can't assign to 'Expires' directly, use expires() instead
+=item Can't assign to '-expires' directly, use expires() instead
 
   # wrong
   $header->set( 'Expires' => '+3d' );
@@ -689,8 +734,7 @@ Use expires() instead:
 
   $header->expires( '+3d' );
 
-This module follows the rule of least surprize.
-The following behavior will surprize us:
+because the following behavior will surprize us:
 
   $header->set( 'Expires' => '+3d' );
 
@@ -714,9 +758,11 @@ You're allowed to set P3P tags using C<p3p_tags()>.
 
 L<CGI>, L<Plack::Util>
 
-=head1 BUGS AND LIMITATIONS
+=head1 BUGS
 
-This module is beta state. API may change without notice.
+There are no known bugs in this module.
+Please report problems to ANAZAWA (anazawa@cpan.org).
+Patches are welcome.
 
 =head1 AUTHOR
 
