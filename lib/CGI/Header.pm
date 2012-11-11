@@ -722,7 +722,7 @@ with a NPH (no-parse-header) script.
 
 =back
 
-=head2 C<tie()> INTERFACE
+=head2 tie() INTERFACE
 
   use CGI::Header;
 
@@ -744,7 +744,7 @@ Above methods are aliased as follows:
   EXISTS  -> exists
   SCALAR  -> !is_empty
 
-FIRSTKEY() and NEXTKEY() aren't implemented,
+C<FIRSTKEY()> and C<NEXTKEY()> aren't implemented,
 and so you can't iterate through the tied hash.
 
   # doesn't work
