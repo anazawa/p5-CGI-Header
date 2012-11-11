@@ -29,15 +29,16 @@ my %alias_of = (
 sub rehash {
     my $self   = shift;
     my $header = $header{ refaddr $self };
+    my @fields = keys %{ $header };
 
-    my @headers;
-    while ( my ($norm, $value) = CORE::each %{$header} ) {
+    my @norms = map {
+        my $norm = $_;
         $norm = "-$norm" unless $norm =~ /^-/;
         substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
-        push @headers, $alias_of{ $norm } || $norm, $value;
-    }
+        $alias_of{ $norm } || $norm;
+    } @fields;
 
-    %{ $header } = @headers;
+    @{ $header }{ @norms } = delete @{ $header }{ @fields };
 
     return;
 }
@@ -196,7 +197,7 @@ sub _normalize {
     $is_excluded{ $norm } ? undef : "-$norm";
 }
 
-sub is_empty { !shift->SCALAR }
+sub is_empty { !$_[0]->SCALAR }
 
 sub clear {
     my $self = shift;
@@ -467,7 +468,7 @@ The following use case is expected:
   use CGI;
 
   print CGI::header( $header );
-  # Content-Length: 3002
+  # Content-length: 3002
   # Content-Type: text/plain; charset=ISO-8859-1
   #
 
@@ -508,6 +509,10 @@ A shortcut for:
 =head2 INSTANCE METHODS
 
 =over 4
+
+=item $header->header
+
+Returns the header hash reference associated with this CGI::Header object.
 
 =item $header->rehash
 
@@ -744,7 +749,7 @@ Above methods are aliased as follows:
   EXISTS  -> exists
   SCALAR  -> !is_empty
 
-C<FIRSTKEY()> and C<NEXTKEY()> aren't implemented,
+NOTE: C<FIRSTKEY()> and C<NEXTKEY()> aren't implemented,
 and so you can't iterate through the tied hash.
 
   # doesn't work
@@ -786,7 +791,7 @@ because the following behavior will surprize us:
 
 =item Can't assign to '-p3p' directly, use p3p_tags() instead
 
-CGI::header() restricts where the policy-reference file is located,
+C<CGI::header()> restricts where the policy-reference file is located,
 and so you can't modify the location (C</w3c/p3p.xml>).
 The following code doesn't work as you expect:
 
