@@ -32,8 +32,7 @@ sub rehash {
     my @fields = keys %{ $header };
 
     my @norms = map {
-        my $norm = $_;
-        $norm = "-$norm" unless $norm =~ /^-/;
+        my $norm = /^-/ ? $_ : "-$_";
         substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
         $alias_of{ $norm } || $norm;
     } @fields;
@@ -127,7 +126,7 @@ sub set {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    ( $set{$norm} || $set )->( $header, $norm, shift ) if $norm && @_;
+    ( $set{$norm} || $set )->( $header, $norm, @_ ) if $norm && @_;
     return;
 }
 
@@ -591,7 +590,6 @@ once for each value.
 Any return values of the callback routine are ignored.
 
   my @lines;
-
   $header->each(sub {
       my ( $field, $value ) = @_;
       push @lines, "$field: $value";
@@ -605,7 +603,7 @@ Any return values of the callback routine are ignored.
 
 Returns pairs of fields and values. 
 
-  @headers = $header->flatten;
+  my @headers = $header->flatten;
   # => ( 'Content-length', '3002', 'Content-Type', 'text/plain' )
 
 It's identical to:
@@ -695,6 +693,8 @@ Represents P3P tags. The parameter can be an array or a space-delimited
 string. Returns a list of P3P tags.
 
   $header->p3p_tags(qw/CAO DSP LAW CURa/);
+  # or
+  $header->p3p_tags( 'CAO DSP LAW CURa' );
 
 In this case, the outgoing header will be formatted as:
 

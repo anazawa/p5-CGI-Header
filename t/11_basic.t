@@ -79,9 +79,7 @@ subtest 'rehash()' => sub {
 
     my $expected = $header->header;
 
-    warn $header->dump;
     $header->rehash;
-    warn $header->dump;
 
     is $header->header, $expected, 'should return the same reference';
 
