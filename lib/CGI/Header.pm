@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 my %header;
 
@@ -189,7 +189,7 @@ sub delete {
 }
 
 my %is_excluded = map { $_ => 1 }
-    qw( attachment charset cookie nph target type );
+    qw( attachment charset cookie cookies nph target type );
 
 sub _normalize {
     ( my $norm = shift ) =~ tr/A-Z-/a-z_/;
@@ -439,7 +439,7 @@ while Perl5 doesn't provide a built-in class called Hash.
 
 This module isn't the replacement of the function.
 Although this class implements C<as_string()> method,
-the function should stringify the reference.
+the function should stringify the reference in most cases.
 
 The following use case is expected:
 
@@ -451,10 +451,20 @@ The following use case is expected:
 
 =item 2. Manipulates $header using CGI::Header
 
+  use CGI::Header;
+
   my $h = CGI::Header->new( $header );
   $h->set( 'Content-Length' => 3002 );
 
+  $header;
+  # => {
+  #     -type => 'text/plain',
+  #     -content_length => '3002',
+  # }
+
 =item 3. Passes $header to CGI::header() to stringify the variable
+
+  use CGI;
 
   print CGI::header( $header );
   # Content-Length: 3002
@@ -491,8 +501,7 @@ It also has C<header()> method that would return the same reference:
 
 A shortcut for:
 
-  my %header = ( -type => 'text/plain', ... );
-  my $header = CGI::Header->new( \%header );
+  my $header = CGI::Header->new({ -type => 'text/plain', ... });
 
 =back
 
@@ -508,7 +517,7 @@ without changing the reference:
   my $h1 = $header->header;
   # => {
   #     '-content_type' => 'text/plain',
-  #     'Set_Cookie'    => 'ID=123456; path=/',
+  #     'Set-Cookie'    => 'ID=123456; path=/',
   #     'expires'       => '+3d',
   #     '-target'       => 'ResultsWindow',
   # }
@@ -611,6 +620,8 @@ This method can be used to generate L<PSGI>-compatible header array references:
 
   my @headers = $header->flatten;
 
+See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
+
 =item $header->clear
 
 This will remove all header fields.
@@ -710,6 +721,38 @@ with a NPH (no-parse-header) script.
   $header->nph( 1 );
 
 =back
+
+=head2 C<tie()> INTERFACE
+
+  use CGI::Header;
+
+  my $header = { -type => 'text/plain' };
+  tie my %header => 'CGI::Header' => $header;
+
+  # update $header
+  $header{'Content-Length'} = 3002;
+  delete $header{'Content-Disposition'};
+  %header = ();
+
+Above methods are aliased as follows:
+
+  TIEHASH -> new
+  FETCH   -> get
+  STORE   -> set
+  DELETE  -> delete
+  CLEAR   -> clear
+  EXISTS  -> exists
+  SCALAR  -> !is_empty
+
+FIRSTKEY() and NEXTKEY() aren't implemented,
+and so you can't iterate through the tied hash.
+
+  # doesn't work
+  keys %header;
+  values %header;
+  each %header;
+
+See also L<perltie>.
 
 =head1 LIMITATIONS
 

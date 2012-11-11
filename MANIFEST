@@ -27,4 +27,5 @@ t/26_set_cookie.t
 t/27_window_target.t
 t/30_as_string.t
 tools/benchmark.pl
+tools/profile.pl
 xt/pod.t

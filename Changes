@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+0.07  Nov 12th, 2012
+  - [DOCUMENTATION] add "tie() INTERFACE"
+
 0.06  Nov 11th, 2012
   - First release
 
