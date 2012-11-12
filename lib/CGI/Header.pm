@@ -30,11 +30,11 @@ sub rehash {
     my $self   = shift;
     my $header = $header{ refaddr $self };
 
-    for my $field ( keys %{$header} ) {
-        my $norm = $field =~ /^-/ ? $field : "-$field";
+    for my $key ( keys %{$header} ) {
+        my $norm = $key =~ /^-/ ? $key : "-$key";
         substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
         $norm = $alias_of{ $norm } if exists $alias_of{ $norm };
-        $header->{ $norm } = delete $header->{ $field } if $field ne $norm;
+        $header->{ $norm } = delete $header->{ $key };
     }
 
     return;
@@ -439,15 +439,24 @@ This module isn't the replacement of the function.
 Although this class implements C<as_string()> method,
 the function should stringify the reference in most cases.
 
-The following situation is expected:
+This module can be used in the following situation:
 
 =over 4
 
 =item 1. $header is a hash reference which represents CGI response headers
 
+For exmaple, L<CGI::Application> implements C<header_add()> method
+which can be used to add CGI.pm-compatible HTTP header properties.
+Instances of CGI applications often hold those properties.
+
   my $header = { -type => 'text/plain' };
 
 =item 2. Manipulates $header using CGI::Header
+
+Since property names are case-insensitive,
+application developers have to normalize them manually
+when they specify header properties.
+CGI::Header normalizes them automatically.
 
   use CGI::Header;
 
@@ -461,6 +470,10 @@ The following situation is expected:
   # }
 
 =item 3. Passes $header to CGI::header() to stringify the variable
+
+C<header()> function just striginfies header properties.
+This module can be used to generate L<PSGI>-compatible header
+array references. See also flatten().
 
   use CGI;
 
