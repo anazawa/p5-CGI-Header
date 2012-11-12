@@ -29,15 +29,13 @@ my %alias_of = (
 sub rehash {
     my $self   = shift;
     my $header = $header{ refaddr $self };
-    my @fields = keys %{ $header };
 
-    my @norms = map {
-        my $norm = /^-/ ? $_ : "-$_";
+    for my $field ( keys %{$header} ) {
+        my $norm = $field =~ /^-/ ? $field : "-$field";
         substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
-        $alias_of{ $norm } || $norm;
-    } @fields;
-
-    @{ $header }{ @norms } = delete @{ $header }{ @fields };
+        $norm = $alias_of{ $norm } if exists $alias_of{ $norm };
+        $header->{ $norm } = delete $header->{ $field } if $field ne $norm;
+    }
 
     return;
 }
@@ -441,7 +439,7 @@ This module isn't the replacement of the function.
 Although this class implements C<as_string()> method,
 the function should stringify the reference in most cases.
 
-The following use case is expected:
+The following situation is expected:
 
 =over 4
 
@@ -454,7 +452,7 @@ The following use case is expected:
   use CGI::Header;
 
   my $h = CGI::Header->new( $header );
-  $h->set( 'Content-Length' => 3002 );
+  $h->set( 'Content-Length' => 3002 ); # add Content-Length header
 
   $header;
   # => {
@@ -572,63 +570,6 @@ Returns the value of the deleted field.
 
   my $value = $header->delete( 'Content-Disposition' ); # => 'inline'
 
-=item @fields = $header->field_names
-
-Returns the list of distinct field names present in the header.
-The field names have case as returned by C<CGI::header()>.
-
-  my @fields = $header->field_names;
-  # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
-
-=item $header->each( \&callback )
-
-Apply a subroutine to each header field in turn.
-The callback routine is called with two parameters;
-the name of the field and a value.
-If the Set-Cookie header is multi-valued, then the routine is called
-once for each value.
-Any return values of the callback routine are ignored.
-
-  my @lines;
-  $header->each(sub {
-      my ( $field, $value ) = @_;
-      push @lines, "$field: $value";
-  });
-
-  print join @lines, "\n";
-  # Content-length: 3002
-  # Content-Type: text/plain
-
-=item @headers = $header->flatten
-
-Returns pairs of fields and values. 
-
-  my @headers = $header->flatten;
-  # => ( 'Content-length', '3002', 'Content-Type', 'text/plain' )
-
-It's identical to:
-
-  my @headers;
-  $self->each(sub {
-      my ( $field, $value ) = @_;
-      push @headers, $field, "$value"; # force stringification
-  });
-
-This method can be used to generate L<PSGI>-compatible header array references:
-
-  my $status_code = $header->delete( 'Status' ) || '200 OK';
-  $status_code =~ s/\D*$//;
-
-  $header->nph( 0 ); # removes the Server header
-
-  my @headers = $header->flatten;
-
-See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
-
-=item $header->clear
-
-This will remove all header fields.
-
 =item $bool = $header->is_empty
 
 Returns true if the header contains no key-value pairs.
@@ -639,6 +580,10 @@ Returns true if the header contains no key-value pairs.
       ...
   }
 
+=item $header->clear
+
+This will remove all header fields.
+
 =item $clone = $header->clone
 
 Returns a copy of this CGI::Header object.
@@ -646,31 +591,6 @@ It's identical to:
 
   my %copy = %{ $header->header };
   my $clone = CGI::Header->new( \%copy );
-
-=item $header->as_string
-
-=item $header->as_string( $eol )
-
-Returns the header fields as a formatted MIME header.
-The optional C<$eol> parameter specifies the line ending sequence to use.
-The default is C<\015\012>.
-
-The following:
-
-  use CGI;
-  print CGI::header( $header->header );
-
-is identical to:
-
-  my $CRLF = $CGI::CRLF;
-  print $header->as_string( $CRLF ), $CRLF;
-
-When valid multi-line headers are included, this method will always output
-them back as a single line, according to the folding rules of RFC 2616:
-the newlines will be removed, while the white space remains.
-
-Unlike CGI.pm, when invalid newlines are included,
-this module removes them instead of throwing exceptions.
 
 =item $filename = $header->attachment
 
@@ -724,6 +644,84 @@ If set to a true value, will issue the correct headers to work
 with a NPH (no-parse-header) script.
 
   $header->nph( 1 );
+
+=item @fields = $header->field_names
+
+Returns the list of distinct field names present in the header.
+The field names have case as returned by C<CGI::header()>.
+
+  my @fields = $header->field_names;
+  # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
+
+=item $header->each( \&callback )
+
+Apply a subroutine to each header field in turn.
+The callback routine is called with two parameters;
+the name of the field and a value.
+If the Set-Cookie header is multi-valued, then the routine is called
+once for each value.
+Any return values of the callback routine are ignored.
+
+  my @lines;
+  $header->each(sub {
+      my ( $field, $value ) = @_;
+      push @lines, "$field: $value";
+  });
+
+  print join @lines, "\n";
+  # Content-length: 3002
+  # Content-Type: text/plain
+
+=item @headers = $header->flatten
+
+Returns pairs of fields and values. 
+
+  my @headers = $header->flatten;
+  # => ( 'Content-length', '3002', 'Content-Type', 'text/plain' )
+
+It's identical to:
+
+  my @headers;
+  $self->each(sub {
+      my ( $field, $value ) = @_;
+      push @headers, $field, "$value"; # force stringification
+  });
+
+This method can be used to generate L<PSGI>-compatible header array references:
+
+  my $status_code = $header->delete( 'Status' ) || '200 OK';
+  $status_code =~ s/\D*$//;
+
+  $header->nph( 0 ); # removes the Server header
+  my @headers = $header->flatten;
+
+See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
+
+
+=item $header->as_string
+
+=item $header->as_string( $eol )
+
+Returns the header fields as a formatted MIME header.
+The optional C<$eol> parameter specifies the line ending sequence to use.
+The default is C<\015\012>.
+
+The following:
+
+  use CGI;
+  print CGI::header( $header->header );
+
+is identical to:
+
+  my $CRLF = $CGI::CRLF;
+  print $header->as_string( $CRLF ), $CRLF;
+
+When valid multi-line headers are included, this method will always output
+them back as a single line, according to the folding rules of RFC 2616:
+the newlines will be removed, while the white space remains.
+
+Unlike CGI.pm, when invalid newlines are included,
+this module removes them instead of throwing exceptions.
 
 =back
 
