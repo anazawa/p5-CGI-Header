@@ -24,21 +24,22 @@ my $cookie2 = CGI::Cookie->new(
 );
 
 {
-    my $header = CGI::Header->new(
-        -attachment => 'genome.jpg',
-        -charset    => 'utf-8',
-        -cookie     => [ $cookie1, $cookie2 ],
-        -expires    => '+3d',
-        -nph        => 1,
-        -p3p        => [qw/CAP DSP LAW CURa/],
-        -target     => 'ResultsWindow',
-        -type       => 'text/plain',
+    my @args = (
+        -attachment  => 'genome.jpg',
+        -cookie      => [ $cookie1, $cookie2 ],
+        -expires     => '+3d',
+        -nph         => 1,
+        -p3p         => [qw/CAP DSP LAW CURa/],
+        -target      => 'ResultsWindow',
+        -type        => 'text/plain',
+        -ingredients => join "$CRLF ", qw/ham eggs bacon/,
     );
 
-    $header->set( Ingredients => join "$CRLF ", qw/ham eggs bacon/ );
+    my $cgi    = CGI->new;
+    my $header = CGI::Header->new( @args, -charset => $cgi->charset );
 
     my $got      = $header->as_string( $CRLF ) . $CRLF;
-    my $expected = CGI->new->header( $header->header );
+    my $expected = $cgi->header( @args );
 
     is $got, $expected;
 }
@@ -47,9 +48,11 @@ my $cookie2 = CGI::Cookie->new(
     local $ENV{SERVER_SOFTWARE} = 'Apache/1.3.27 (Unix)';
     local $ENV{SERVER_PROTOCOL} = 'HTTP/1.1';
 
-    my $header   = CGI::Header->new( -nph => 1 );
+    my $cgi    = CGI->new;
+    my $header = CGI::Header->new( -nph => 1, -charset => $cgi->charset );
+
     my $got      = $header->as_string( $CRLF ) . $CRLF;
-    my $expected = CGI->new->header( $header->header );
+    my $expected = CGI->new->header( -nph => 1 );
 
     is $got, $expected;
 }

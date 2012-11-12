@@ -6,9 +6,9 @@ use Test::Warn;
 
 subtest 'default' => sub {
     my $header = tie my %header, 'CGI::Header';
-    is $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    is $header{Content_Type}, 'text/html';
     ok exists $header{Content_Type};
-    is delete $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    is delete $header{Content_Type}, 'text/html';
     is_deeply $header->header, { -type => q{} };
 };
 
@@ -22,11 +22,11 @@ subtest '-type' => sub {
     is_deeply $header->header, { -type => q{} };
 
     %{ $header->header } = ( -type => 'text/plain' );
-    is $header{Content_Type}, 'text/plain; charset=ISO-8859-1';
+    is $header{Content_Type}, 'text/plain';
     ok exists $header{Content_Type};
 
     %{ $header->header } = ( -type => undef );
-    is $header{Content_Type}, 'text/html; charset=ISO-8859-1';
+    is $header{Content_Type}, 'text/html';
     ok exists $header{Content_Type};
     ok %header;
 
@@ -34,7 +34,10 @@ subtest '-type' => sub {
     is $header{Content_Type}, 'text/plain; charset=EUC-JP';
 
     # feature
-    %{ $header->header } = ( -type => 'text/plain; charSet=utf-8' );
+    %{ $header->header } = (
+        -type => 'text/plain; charSet=utf-8',
+        -charset => 'ISO-8859-1',
+    );
     is $header{Content_Type}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
 };
 

@@ -182,7 +182,7 @@ subtest 'flatten()' => sub {
         'Set-Cookie',     "$cookie2",
         'Date',           CGI::Util::expires(),
         'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
+        'Content-Type',   'text/html',
     );
 
     is_deeply \@got, \@expected;
@@ -206,7 +206,7 @@ subtest 'each()' => sub {
     my @expected = (
         'Status',         '304 Not Modified',
         'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
+        'Content-Type',   'text/html',
     );
 
     is_deeply \@got, \@expected;

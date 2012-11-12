@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 my %header;
 
@@ -20,6 +20,12 @@ sub new {
 }
 
 sub header { $header{ refaddr $_[0] } }
+
+sub DESTROY {
+    my $self = shift;
+    delete $header{ refaddr $self };
+    return;
+}
 
 my %alias_of = (
     -content_type => '-type',   -window_target => '-target',
@@ -40,12 +46,6 @@ sub rehash {
     return;
 }
 
-sub DESTROY {
-    my $self = shift;
-    delete $header{ refaddr $self };
-    return;
-}
-
 my $get = sub { $_[0]->{$_[1]} };
 
 my %get = (
@@ -58,9 +58,7 @@ my %get = (
         return $type if $type and $type =~ /\bcharset\b/;
         return if defined $type and $type eq q{};
         $type ||= 'text/html';
-        $type .= "; charset=$charset" if $charset;
-        $type .= '; charset=ISO-8859-1' unless defined $charset;
-        $type;
+        $charset ? "$type; charset=$charset" : $type;
     },
     -date => sub {
         my $is_fixed = first { $_[0]->{$_} } qw(-nph -expires -cookie);
@@ -473,7 +471,7 @@ CGI::Header normalizes them automatically.
 
 C<header()> function just stringifies given header properties.
 This module can be used to generate L<PSGI>-compatible header
-array references. See also flatten().
+array references. See also C<flatten()>.
 
   use CGI;
 
@@ -555,21 +553,21 @@ Normalized parameter names are:
 
 =over 4
 
-=item lowercased
+=item 1. lowercased
 
   'Content-Length' -> 'content-length'
 
-=item start with a dash
+=item 2. start with a dash
 
   'content-length' -> '-content-length'
 
-=item use underscores instead of dashes except for the first character
+=item 3. use underscores instead of dashes except for the first character
 
   '-content-length' -> '-content_length'
 
 =back
 
-C<CGI::header()> also accepsts aliases of parameter names.
+C<CGI::header()> also accepts aliases of parameter names.
 This module converts them as follows:
 
  '-content_type'  -> '-type'
@@ -751,16 +749,6 @@ Returns the header fields as a formatted MIME header.
 The optional C<$eol> parameter specifies the line ending sequence to use.
 The default is C<\015\012>.
 
-The following:
-
-  use CGI;
-  print CGI::header( $header->header );
-
-is identical to:
-
-  my $CRLF = $CGI::CRLF;
-  print $header->as_string( $CRLF ), $CRLF;
-
 When valid multi-line headers are included, this method will always output
 them back as a single line, according to the folding rules of RFC 2616:
 the newlines will be removed, while the white space remains.
@@ -792,6 +780,8 @@ Above methods are aliased as follows:
   EXISTS  -> exists
   SCALAR  -> !is_empty
 
+See also L<perltie>.
+
 NOTE: C<FIRSTKEY()> and C<NEXTKEY()> aren't implemented,
 and so you can't iterate through the tied hash.
 
@@ -799,8 +789,6 @@ and so you can't iterate through the tied hash.
   keys %header;
   values %header;
   each %header;
-
-See also L<perltie>.
 
 =head1 LIMITATIONS
 

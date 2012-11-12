@@ -1,5 +1,17 @@
 Revision history for Perl extension CGI::Header.
 
+0.09  Nov 13th, 2012
+  - CGI.pm has charset() attribute which defaults to 'ISO-8859-1'.
+    CGI::header() function depends on this attribute.
+    I noticed this module depends on the default value, 'ISO-8859-1',
+    and so decided to remove this dependency because this module
+    shouldn't depend on the internal state of CGI.pm.
+    Namely,
+        my $h = CGI::Header->new( -type => 'text/plain' );
+        $h->get( 'Content-Type' ); # => "text/plain; charset=ISO-8859-1"
+    become
+        $h->get( 'Content-Type' ); # => "text/plain"
+
 0.08  Nov 13th, 2012
   - reimplemented rehash()
   - [DOCUMENTATION] add header() to "INSTANCE METHODS"
