@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 my %header;
 
@@ -471,7 +471,7 @@ CGI::Header normalizes them automatically.
 
 =item 3. Passes $header to CGI::header() to stringify the variable
 
-C<header()> function just striginfies header properties.
+C<header()> function just stringifies given header properties.
 This module can be used to generate L<PSGI>-compatible header
 array references. See also flatten().
 
@@ -527,28 +527,60 @@ Returns the header hash reference associated with this CGI::Header object.
 =item $header->rehash
 
 Rebuilds the header hash to normalize parameter names
-without changing the reference:
+without changing the reference.
+If parameter names aren't normalized, the methods listed below won't work
+as you expect.
 
   my $h1 = $header->header;
   # => {
-  #     '-content_type' => 'text/plain',
-  #     'Set-Cookie'    => 'ID=123456; path=/',
-  #     'expires'       => '+3d',
-  #     '-target'       => 'ResultsWindow',
+  #     '-content_type'   => 'text/plain',
+  #     'Set-Cookie'      => 'ID=123456; path=/',
+  #     'expires'         => '+3d',
+  #     '-target'         => 'ResultsWindow',
+  #     '-content-length' => '3002',
   # }
 
   $header->rehash;
 
   my $h2 = $header->header; # same reference as $h1
   # => {
-  #     '-type'    => 'text/plain',
-  #     '-cookie'  => 'ID=123456; path=/',
-  #     '-expires' => '+3d',
-  #     '-target'  => 'ResultsWindow',
+  #     '-type'           => 'text/plain',
+  #     '-cookie'         => 'ID=123456; path=/',
+  #     '-expires'        => '+3d',
+  #     '-target'         => 'ResultsWindow',
+  #     '-content_length' => '3002',
   # }
 
-If parameter names aren't normalized, the methods listed below won't work
-as you expect.
+Normalized parameter names are:
+
+=over 4
+
+=item lowercased
+
+  'Content-Length' -> 'content-length'
+
+=item start with a dash
+
+  'content-length' -> '-content-length'
+
+=item use underscores instead of dashes except for the first character
+
+  '-content-length' -> '-content_length'
+
+=back
+
+C<CGI::header()> also accepsts aliases of parameter names.
+This module converts them as follows:
+
+ '-content_type'  -> '-type'
+ '-set_cookie'    -> '-cookie'
+ '-cookies'       -> '-cookie'
+ '-window_target' -> '-target'
+
+NOTE: C<new()> doesn't check whether parameter names are normalized
+or not at all,
+and so you have to C<rehash()> the header hash explicitly
+when you aren't sure that they are normalized.
 
 =item $value = $header->get( $field )
 

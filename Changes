@@ -1,6 +1,9 @@
 Revision history for Perl extension CGI::Header.
 
+0.08  Nov 13th, 2012
+  - reimplemented rehash()
   - [DOCUMENTATION] add header() to "INSTANCE METHODS"
+  - [DOCUMENTATION] describe how this module normalizes parameter names
 
 0.07  Nov 12th, 2012
   - [DOCUMENTATION] add "tie() INTERFACE"
