@@ -1,5 +1,10 @@
 Revision history for Perl extension CGI::Header.
 
+  - p3p_tags() returns the number of P3P tags
+    instead of the first element in scalar context
+  - rehash() returns the current object itself:
+      my @headers = CGI::Header->new(@args)->rehash->flatten;
+
 0.09  Nov 13th, 2012
   - CGI.pm has charset() attribute which defaults to 'ISO-8859-1'.
     CGI::header() function depends on this attribute.

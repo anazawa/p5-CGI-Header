@@ -28,8 +28,8 @@ sub DESTROY {
 }
 
 my %alias_of = (
-    -content_type => '-type',   -window_target => '-target',
-    -cookies      => '-cookie', -set_cookie    => '-cookie',
+    content_type => 'type',   window_target => 'target',
+    cookies      => 'cookie', set_cookie    => 'cookie',
 );
 
 sub rehash {
@@ -37,13 +37,17 @@ sub rehash {
     my $header = $header{ refaddr $self };
 
     for my $key ( keys %{$header} ) {
-        my $norm = $key =~ /^-/ ? $key : "-$key";
-        substr( $norm, 1 ) =~ tr/A-Z-/a-z_/;
-        $norm = $alias_of{ $norm } if exists $alias_of{ $norm };
+        my $norm = lc $key;
+           $norm =~ s/^-//;
+           $norm =~ tr/-/_/;
+           $norm = '-' . ( $alias_of{$norm} || $norm );
+
+        next if $key eq $norm;
+
         $header->{ $norm } = delete $header->{ $key };
     }
 
-    return;
+    $self;
 }
 
 my $get = sub { $_[0]->{$_[1]} };
@@ -134,8 +138,8 @@ my %exists = (
     -date => sub {
         $exists->( @_ ) || first { $_[0]->{$_} } qw(-nph -expires -cookie);
     },
-    -server        => sub { $_[0]->{-nph} || $exists->( @_ ) },
-    -set_cookie    => sub { exists $_[0]->{-cookie} },
+    -server => sub { $_[0]->{-nph} || $exists->( @_ ) },
+    -set_cookie => sub { exists $_[0]->{-cookie} },
     -window_target => sub { exists $_[0]->{-target} },
 );
 
@@ -160,12 +164,12 @@ my %delete = (
         delete $header->{-date};
     },
     -expires => sub { delete $_[0]->{-expires} },
-    -p3p     => sub { delete $_[0]->{-p3p}     },
+    -p3p => sub { delete $_[0]->{-p3p} },
     -server => sub {
         my ( $header, $norm ) = @_;
         delete $header->{ $norm };
     },
-    -set_cookie    => sub { delete $_[0]->{-cookie} },
+    -set_cookie => sub { delete $_[0]->{-cookie} },
     -window_target => sub { delete $_[0]->{-target} },
 );
 
@@ -176,7 +180,7 @@ sub delete {
     my $header = $header{ refaddr $self };
 
     if ( my $delete = $delete{$norm} ) {
-        my $value = defined wantarray && $self->get( $field );
+        my $value = defined wantarray && $get{$norm}->($header, $norm);
         $delete->( $header, $norm );
         return $value;
     }
@@ -188,7 +192,7 @@ my %is_excluded = map { $_ => 1 }
     qw( attachment charset cookie cookies nph target type );
 
 sub _normalize {
-    ( my $norm = shift ) =~ tr/A-Z-/a-z_/;
+    ( my $norm = lc shift ) =~ tr/-/_/;
     $is_excluded{ $norm } ? undef : "-$norm";
 }
 
@@ -208,13 +212,13 @@ sub clone {
 }
 
 BEGIN {
-    my %conflict_with = (
+    my @conflicts = (
         attachment => [ '-content_disposition' ],
         nph        => [ '-date', '-server' ],
         expires    => [ '-date' ],
     );
 
-    while ( my ($method, $conflict_with) = CORE::each %conflict_with ) {
+    while ( my ($method, $conflicts) = splice @conflicts, 0, 2 ) {
         my $norm = "-$method";
         my $code = sub {
             my $self   = shift;
@@ -222,7 +226,7 @@ BEGIN {
     
             if ( @_ ) {
                 my $value = shift;
-                delete @{ $header }{ @$conflict_with } if $value;
+                delete @{ $header }{ @$conflicts } if $value;
                 $header->{ $norm } = $value;
             }
 
@@ -242,38 +246,42 @@ sub p3p_tags {
         $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
     }
     elsif ( my $tags = $header->{-p3p} ) {
-        my @tags = ref $tags eq 'ARRAY' ? @{ $tags } : split ' ', $tags;
-        return wantarray ? @tags : $tags[0];
+        return ref $tags eq 'ARRAY' ? @{$tags} : split ' ', $tags;
     }
 
     return;
 }
 
+my %is_reserved = map { $_ => 1 } qw(
+    -attachment -charset -cookie -expires -nph
+    -p3p        -status  -target -type
+);
+
 sub field_names {
     my $self   = shift;
     my $header = $header{ refaddr $self };
-    my %copy   = %{ $header };
 
     my @fields;
 
-    push @fields, 'Server' if my $nph = delete $copy{-nph};
+    my ( $nph, $cookie, $expires, $type )
+        = @{ $header }{qw/-nph -cookie -expires -type/};
 
-    push @fields, 'Status'        if delete $copy{-status};
-    push @fields, 'Window-Target' if delete $copy{-target};
-    push @fields, 'P3P'           if delete $copy{-p3p};
+    push @fields, 'Server' if $nph;
 
-    push @fields, 'Set-Cookie' if my $cookie  = delete $copy{-cookie};
-    push @fields, 'Expires'    if my $expires = delete $copy{-expires};
-    push @fields, 'Date'       if $nph or $cookie or $expires;
+    push @fields, 'Status'        if exists $header->{-status};
+    push @fields, 'Window-Target' if exists $header->{-target};
+    push @fields, 'P3P'           if exists $header->{-p3p};
 
-    push @fields, 'Content-Disposition' if delete $copy{-attachment};
+    push @fields, 'Set-Cookie' if $cookie;
+    push @fields, 'Expires'    if $expires;
+    push @fields, 'Date'       if $expires or $cookie or $nph;
 
-    my $type = delete @copy{qw/-charset -type/};
+    push @fields, 'Content-Disposition' if $header->{-attachment};
 
     # not ordered
-    for my $norm ( keys %copy ) {
-        next unless defined $copy{ $norm };
-        push @fields, _ucfirst( $norm );
+    for my $norm ( keys %{$header} ) {
+        next if $is_reserved{$norm};
+        push @fields, _ucfirst($norm);
     }
 
     push @fields, 'Content-Type' if !defined $type or $type ne q{};
@@ -289,17 +297,23 @@ sub _ucfirst {
 }
 
 sub each {
-    my $self     = shift;
-    my $callback = ref $_[0] eq 'CODE' && shift;
+    my $self   = shift;
+    my $code   = shift;
+    my $header = $header{ refaddr $self };
 
-    croak 'Must provide a code reference to each()' unless $callback;
+    croak 'Must provide a code reference to each()' if ref $code ne 'CODE';
 
     for my $field ( $self->field_names ) {
-        my $value = $self->get( $field );
+        my $norm  = _normalize( $field );
+        my $value = ( $get{$norm} || $get )->( $header, $norm );
+
         if ( ref $value eq 'ARRAY' ) {
-            $callback->( $field, $_ ) for @{ $value };
-        } else {
-            $callback->( $field, $value );
+            for my $v ( @{$value} ) {
+                $code->( $field, $v ); # multi-valued header
+            }
+        }
+        else {
+            $code->( $field, $value );
         }
     }
 
@@ -354,14 +368,12 @@ sub dump {
     local $Data::Dumper::Indent = 1;
     local $Data::Dumper::Terse  = 1;
 
-    my %dump = (
+    Data::Dumper::Dumper({
         __PACKAGE__, {
             header => $header{ $this },
         },
         @_,
-    );
-
-    Data::Dumper::Dumper( \%dump );
+    });
 }
 
 BEGIN {
@@ -469,16 +481,16 @@ CGI::Header normalizes them automatically.
 
 =item 3. Passes $header to CGI::header() to stringify the variable
 
-C<header()> function just stringifies given header properties.
-This module can be used to generate L<PSGI>-compatible header
-array references. See also C<flatten()>.
-
   use CGI;
 
   print CGI::header( $header );
   # Content-length: 3002
   # Content-Type: text/plain; charset=ISO-8859-1
   #
+
+C<header()> function just stringifies given header properties.
+This module can be used to generate L<PSGI>-compatible header
+array references. See also C<flatten()>.
 
 =back
 
@@ -522,10 +534,10 @@ A shortcut for:
 
 Returns the header hash reference associated with this CGI::Header object.
 
-=item $header->rehash
+=item $self = $header->rehash
 
 Rebuilds the header hash to normalize parameter names
-without changing the reference.
+without changing the reference. Returns this object itself.
 If parameter names aren't normalized, the methods listed below won't work
 as you expect.
 
@@ -643,6 +655,7 @@ Can be used to turn the page into an attachment.
 Represents suggested name for the saved file.
 
   $header->attachment( 'genome.jpg' );
+  my $filename = $header->attachment; # => "genome.jpg"
 
 In this case, the outgoing header will be formatted as:
 
@@ -653,11 +666,14 @@ In this case, the outgoing header will be formatted as:
 =item $header->p3p_tags( @tags )
 
 Represents P3P tags. The parameter can be an array or a space-delimited
-string. Returns a list of P3P tags.
+string. Returns a list of P3P tags. (In scalar context,
+returns the number of P3P tags.)
 
   $header->p3p_tags(qw/CAO DSP LAW CURa/);
   # or
   $header->p3p_tags( 'CAO DSP LAW CURa' );
+
+  my @tags = $header->p3p_tags; # => ("CAO", "DSP", "LAW", "CURa")
 
 In this case, the outgoing header will be formatted as:
 
@@ -687,6 +703,7 @@ If set to a true value, will issue the correct headers to work
 with a NPH (no-parse-header) script.
 
   $header->nph( 1 );
+  my $nph = $header->nph; # => 1
 
 =item @fields = $header->field_names
 
@@ -818,7 +835,7 @@ because the following behavior will surprize us:
   $header->set( 'Expires' => '+3d' );
 
   my $value = $header->get( 'Expires' );
-  # => "Thu, 25 Apr 1999 00:40:33 GMT"
+  # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
 
 =item Can't assign to '-p3p' directly, use p3p_tags() instead
 

@@ -78,9 +78,7 @@ subtest 'rehash()' => sub {
     );
 
     my $expected = $header->header;
-
-    $header->rehash;
-
+    is $header->rehash, $header, 'should return the current object itself';
     is $header->header, $expected, 'should return the same reference';
 
     is_deeply $header->header, {
@@ -136,7 +134,6 @@ subtest 'field_names()' => sub {
         -expires    => 1,
         -attachment => 1,
         -foo_bar    => 1,
-        -bar        => undef,
     );
 
     my @got = $header->field_names;
