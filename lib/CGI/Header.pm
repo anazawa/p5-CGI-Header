@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 my %header;
 
@@ -50,12 +50,12 @@ sub rehash {
     $self;
 }
 
-my $get = sub { $_[0]->{$_[1]} };
+my $GET = sub { $_[0]->{$_[1]} };
 
-my %get = (
+my %GET = (
     -content_disposition => sub {
         my $filename = $_[0]->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
+        $filename ? qq{attachment; filename="$filename"} : $GET->( @_ );
     },
     -content_type => sub {
         my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
@@ -66,19 +66,19 @@ my %get = (
     },
     -date => sub {
         my $is_fixed = first { $_[0]->{$_} } qw(-nph -expires -cookie);
-        $is_fixed ? CGI::Util::expires() : $get->( @_ );
+        $is_fixed ? CGI::Util::expires() : $GET->( @_ );
     },
     -expires => sub {
-        my $expires = $get->( @_ );
+        my $expires = $GET->( @_ );
         $expires && CGI::Util::expires( $expires );
     },
     -p3p => sub {
-        my $tags = $get->( @_ );
+        my $tags = $GET->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
     },
     -server => sub {
-        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
+        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $GET->( @_ );
     },
     -set_cookie    => sub { $_[0]->{-cookie} },
     -window_target => sub { $_[0]->{-target} },
@@ -88,7 +88,7 @@ sub get {
     my $self = shift;
     my $norm = _normalize( shift );
     my $header = $header{ refaddr $self };
-    $norm && ( $get{$norm} || $get )->( $header, $norm );
+    $norm && ( $GET{$norm} || $GET )->( $header, $norm );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -180,7 +180,7 @@ sub delete {
     my $header = $header{ refaddr $self };
 
     if ( my $delete = $delete{$norm} ) {
-        my $value = defined wantarray && $get{$norm}->($header, $norm);
+        my $value = defined wantarray && $GET{$norm}->($header, $norm);
         $delete->( $header, $norm );
         return $value;
     }
@@ -252,41 +252,65 @@ sub p3p_tags {
     return;
 }
 
-my %is_reserved = map { $_ => 1 } qw(
-    -attachment -charset -cookie -expires -nph
-    -p3p        -status  -target -type
+my %field_name_of = (
+    -content_disposition => 'Content-Disposition',
+    -content_type        => 'Content-Type',
+    -date                => 'Date',
+    -expires             => 'Expires',
+    -p3p                 => 'P3P',
+    -server              => 'Server',
+    -set_cookie          => 'Set-Cookie',
+    -status              => 'Status',
+    -window_target       => 'Window-Target',
 );
 
-sub field_names {
+sub each {
     my $self   = shift;
+    my $code   = shift;
     my $header = $header{ refaddr $self };
+    my %copy   = %{ $header };
 
-    my @fields;
+    croak 'Must provide a code reference to each()' if ref $code ne 'CODE';
 
-    my ( $nph, $cookie, $expires, $type )
-        = @{ $header }{qw/-nph -cookie -expires -type/};
+    my $each = sub {
+        my $norm = shift;
+        $code->(
+            $field_name_of{ $norm },
+            ( $GET{$norm} || $GET )->( $header, $norm ),
+        );
+    };
 
-    push @fields, 'Server' if $nph;
+    my ( $cookie, $expires, $nph )
+        = delete @copy{qw/-cookie -expires -nph/};
 
-    push @fields, 'Status'        if exists $header->{-status};
-    push @fields, 'Window-Target' if exists $header->{-target};
-    push @fields, 'P3P'           if exists $header->{-p3p};
+    $each->('-server')        if $nph;
+    $each->('-status')        if delete $copy{-status};
+    $each->('-window_target') if delete $copy{-target};
+    $each->('-p3p')           if delete $copy{-p3p};
 
-    push @fields, 'Set-Cookie' if $cookie;
-    push @fields, 'Expires'    if $expires;
-    push @fields, 'Date'       if $expires or $cookie or $nph;
-
-    push @fields, 'Content-Disposition' if $header->{-attachment};
-
-    # not ordered
-    for my $norm ( keys %{$header} ) {
-        next if $is_reserved{$norm};
-        push @fields, _ucfirst($norm);
+    if ( ref $cookie eq 'ARRAY' ) {
+        for my $c ( @{$cookie} ) {
+            $code->( 'Set-Cookie', $c );
+        }
+    }
+    elsif ( $cookie ) {
+        $code->( 'Set-Cookie', $cookie );
     }
 
-    push @fields, 'Content-Type' if !defined $type or $type ne q{};
+    $each->('-expires')             if $expires;
+    $each->('-date')                if $expires or $cookie or $nph;
+    $each->('-content_disposition') if delete $copy{-attachment};
 
-    @fields;
+    my $type = delete @copy{qw/-charset -type/};
+
+    # not ordered
+    while ( my ($norm, $value) = each %copy ) {
+        $code->( _ucfirst($norm), $value );
+    }
+
+    $each->('-content_type') if !defined $type or $type ne q{};
+
+    return;
 }
 
 sub _ucfirst {
@@ -296,28 +320,19 @@ sub _ucfirst {
     $str;
 }
 
-sub each {
-    my $self   = shift;
-    my $code   = shift;
-    my $header = $header{ refaddr $self };
+sub field_names {
+    my $self = shift;
 
-    croak 'Must provide a code reference to each()' if ref $code ne 'CODE';
+    # FIXME:
+    # If the Set-Cookie header is multi-valued,
+    # @fields will contain duplicate values
+    
+    my @fields;
+    $self->each(sub {
+        push @fields, $_[0];
+    });
 
-    for my $field ( $self->field_names ) {
-        my $norm  = _normalize( $field );
-        my $value = ( $get{$norm} || $get )->( $header, $norm );
-
-        if ( ref $value eq 'ARRAY' ) {
-            for my $v ( @{$value} ) {
-                $code->( $field, $v ); # multi-valued header
-            }
-        }
-        else {
-            $code->( $field, $value );
-        }
-    }
-
-    return;
+    @fields;
 }
 
 sub flatten {

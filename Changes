@@ -1,9 +1,15 @@
 Revision history for Perl extension CGI::Header.
 
+0.10  Dec 14th, 2012
   - p3p_tags() returns the number of P3P tags
     instead of the first element in scalar context
   - rehash() returns the current object itself:
       my @headers = CGI::Header->new(@args)->rehash->flatten;
+  - each() doesn't depend on field_names().
+    field_names() depends on each().
+    As a result, if Set-Cookie header is multi-valued,
+    field_names() will return a list which contains duplicate values.
+    I don't know how to solve this problem at this time.
 
 0.09  Nov 13th, 2012
   - CGI.pm has charset() attribute which defaults to 'ISO-8859-1'.
