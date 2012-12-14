@@ -9,7 +9,7 @@ use List::Util qw/first/;
 
 our $VERSION = '0.10';
 
-my %header;
+my ( %header, %iterator );
 
 sub new {
     my $class = shift;
@@ -22,8 +22,9 @@ sub new {
 sub header { $header{ refaddr $_[0] } }
 
 sub DESTROY {
-    my $self = shift;
-    delete $header{ refaddr $self };
+    my $this = refaddr shift;
+    delete $header{ $this };
+    delete $iterator{ $this };
     return;
 }
 
@@ -252,18 +253,6 @@ sub p3p_tags {
     return;
 }
 
-my %field_name_of = (
-    -content_disposition => 'Content-Disposition',
-    -content_type        => 'Content-Type',
-    -date                => 'Date',
-    -expires             => 'Expires',
-    -p3p                 => 'P3P',
-    -server              => 'Server',
-    -set_cookie          => 'Set-Cookie',
-    -status              => 'Status',
-    -window_target       => 'Window-Target',
-);
-
 sub each {
     my $self   = shift;
     my $code   = shift;
@@ -272,43 +261,45 @@ sub each {
 
     croak 'Must provide a code reference to each()' if ref $code ne 'CODE';
 
-    my $each = sub {
-        my $norm = shift;
-        $code->(
-            $field_name_of{ $norm },
-            ( $GET{$norm} || $GET )->( $header, $norm ),
-        );
-    };
+    my ( $cookie, $expires, $nph, $status, $target )
+        = delete @copy{qw/-cookie -expires -nph -status -target/};
 
-    my ( $cookie, $expires, $nph )
-        = delete @copy{qw/-cookie -expires -nph/};
+    $code->( 'Server', $ENV{SERVER_SOFTWARE} || 'cmdline' ) if $nph;
+    $code->( 'Status', $status ) if $status;
+    $code->( 'Window-Target', $target ) if $target;
 
-    $each->('-server')        if $nph;
-    $each->('-status')        if delete $copy{-status};
-    $each->('-window_target') if delete $copy{-target};
-    $each->('-p3p')           if delete $copy{-p3p};
+    if ( my $tags = delete $copy{-p3p} ) {
+        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
+        $code->( 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"} );
+    }
 
     if ( ref $cookie eq 'ARRAY' ) {
-        for my $c ( @{$cookie} ) {
-            $code->( 'Set-Cookie', $c );
-        }
+        my @cookies = @{ $cookie }; # copy
+        $code->( 'Set-Cookie', $_ ) for @cookies;
     }
     elsif ( $cookie ) {
         $code->( 'Set-Cookie', $cookie );
     }
 
-    $each->('-expires')             if $expires;
-    $each->('-date')                if $expires or $cookie or $nph;
-    $each->('-content_disposition') if delete $copy{-attachment};
+    $code->( 'Expires', CGI::Util::expires($expires) ) if $expires;
+    $code->( 'Date', CGI::Util::expires() ) if $expires or $cookie or $nph;
 
-    my $type = delete @copy{qw/-charset -type/};
+    if ( my $file = delete $copy{-attachment} ) {
+        $code->( 'Content-Disposition', qq{attachment; filename="$file"} );
+    }
+
+    my ( $type, $charset ) = delete @copy{qw/-type -charset/};
 
     # not ordered
     while ( my ($norm, $value) = each %copy ) {
         $code->( _ucfirst($norm), $value );
     }
 
-    $each->('-content_type') if !defined $type or $type ne q{};
+    if ( !defined $type or $type ne q{} ) {
+        $type ||= 'text/html';
+        $type .= "; charset=$charset" if $type !~ /\bcharset\b/ and $charset;
+        $code->( 'Content-Type', $type );
+    }
 
     return;
 }
@@ -323,13 +314,11 @@ sub _ucfirst {
 sub field_names {
     my $self = shift;
 
-    # FIXME:
-    # If the Set-Cookie header is multi-valued,
-    # @fields will contain duplicate values
-    
+    my %seen; # Set-Cookie header may be multi-valued
     my @fields;
     $self->each(sub {
-        push @fields, $_[0];
+        my $field = shift;
+        push @fields, $field unless $seen{$field}++;
     });
 
     @fields;
@@ -401,6 +390,14 @@ sub SCALAR {
     my $header = $header{ refaddr $self };
     !defined $header->{-type} || first { $_ } values %{ $header };
 }
+
+sub FIRSTKEY {
+    my $self = shift;
+    my @fields = $self->field_names;
+    ( $iterator{ refaddr $self } = sub { shift @fields } )->();
+}
+
+sub NEXTKEY { $iterator{ refaddr $_[0] }->() }
 
 sub STORABLE_freeze {
     my ( $self, $cloning ) = @_;

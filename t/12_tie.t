@@ -54,3 +54,7 @@ is $header{Bar}, undef;
 %{ $header->header } = ();
 $header{Foo} = 'bar';
 is_deeply $header->header, { -foo => 'bar' };
+
+%{ $header->header } = ( -foo => 'bar' );
+is_deeply [ sort keys %header ], [qw/Content-Type Foo/];
+
