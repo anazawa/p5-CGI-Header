@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add FIRSTKEY() and NEXTKEY(). These methods were implemented to
+    test this module itself.
+
 0.10  Dec 14th, 2012
   - p3p_tags() returns the number of P3P tags
     instead of the first element in scalar context

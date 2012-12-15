@@ -172,7 +172,6 @@ subtest 'flatten()' => sub {
     );
 
     my @got = $header->flatten;
-
     my @expected = (
         'Status',         '304 Not Modified',
         'Set-Cookie',     "$cookie1",
@@ -181,8 +180,17 @@ subtest 'flatten()' => sub {
         'Content-length', '12345',
         'Content-Type',   'text/html',
     );
+    is_deeply \@got, \@expected, 'default';
 
-    is_deeply \@got, \@expected;
+    @got = $header->flatten(0);
+    @expected = (
+        'Status',         '304 Not Modified',
+        'Set-Cookie',     [ $cookie1, $cookie2 ],
+        'Date',           CGI::Util::expires(),
+        'Content-length', '12345',
+        'Content-Type',   'text/html',
+    );
+    is_deeply \@got, \@expected, 'not recursive';
 };
 
 subtest 'each()' => sub {

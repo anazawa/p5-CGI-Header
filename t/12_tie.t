@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 19;
+use Test::More tests => 22;
 
 my %alias = (
     'TIEHASH' => 'new',
@@ -12,7 +12,7 @@ my %alias = (
     'CLEAR'   => 'clear',
 );
 
-can_ok 'CGI::Header', ( keys %alias, 'SCALAR' );
+can_ok 'CGI::Header', ( keys %alias, 'SCALAR', 'FIRSTKEY', 'NEXTKEY' );
 
 my $class = 'CGI::Header';
 while ( my ($got, $expected) = each %alias ) {
@@ -35,7 +35,7 @@ ok !%header;
 is_deeply $header->header, { -type => q{} };
 
 # EXISTS
-%{ $header->header } = ( -foo => 'bar', -bar => q{} );
+%{ $header->header } = ( -foo => 'bar', -bar => undef );
 ok exists $header{Foo};
 ok exists $header{Bar};
 ok !exists $header{Baz};
@@ -55,6 +55,9 @@ is $header{Bar}, undef;
 $header{Foo} = 'bar';
 is_deeply $header->header, { -foo => 'bar' };
 
+# FIRSTKEY and NEXTKEY
 %{ $header->header } = ( -foo => 'bar' );
-is_deeply [ sort keys %header ], [qw/Content-Type Foo/];
+is_deeply [ each %header ], [ 'Foo', 'bar' ];
+is_deeply [ each %header ], [ 'Content-Type', 'text/html' ];
+is each %header, undef, 'should be exhausted'; 
 
