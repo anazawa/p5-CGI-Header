@@ -26,7 +26,6 @@ subtest 'an array' => sub {
     is_deeply $header->header, { -p3p => [qw/CAO DSP LAW CURa/] };
     is $header{P3P}, 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"';
     ok exists $header{P3P};
-    #is $header->p3p_tags, 'CAO';
     is $header->p3p_tags, 4;
     is_deeply [ $header->p3p_tags ], [qw/CAO DSP LAW CURa/];
     is delete $header{P3P}, 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"';
@@ -38,7 +37,6 @@ subtest 'a plain string' => sub {
     $header->p3p_tags( 'CAO DSP LAW CURa' );
     is_deeply $header->header, { -p3p => 'CAO DSP LAW CURa' };
     ok exists $header{P3P};
-    #is $header->p3p_tags, 'CAO';
     is $header->p3p_tags, 4;
     is_deeply [ $header->p3p_tags ], [qw/CAO DSP LAW CURa/];
     is delete $header{P3P}, 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"';

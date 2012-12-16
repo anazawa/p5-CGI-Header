@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 22;
+use Test::More tests => 20;
 
 my %alias = (
     'TIEHASH' => 'new',
@@ -57,7 +57,5 @@ is_deeply $header->header, { -foo => 'bar' };
 
 # FIRSTKEY and NEXTKEY
 %{ $header->header } = ( -foo => 'bar' );
-is_deeply [ each %header ], [ 'Foo', 'bar' ];
-is_deeply [ each %header ], [ 'Content-Type', 'text/html' ];
-is each %header, undef, 'should be exhausted'; 
+is_deeply [ sort keys %header ], [ 'Content-Type', 'Foo' ];
 

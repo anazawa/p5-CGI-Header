@@ -78,10 +78,11 @@ subtest 'rehash()' => sub {
     );
 
     my $expected = $header->header;
+
     is $header->rehash, $header, 'should return the current object itself';
     is $header->header, $expected, 'should return the same reference';
 
-    is_deeply $header->header, {
+    is_deeply $expected, {
         -type    => 'text/plain',
         -cookie  => 'ID=123456; path=/',
         -expires => '+3d',
@@ -151,7 +152,7 @@ subtest 'field_names()' => sub {
         Content-Type
     );
 
-    is_deeply \@got, \@expected;
+    is_deeply [ sort @got ], [ sort @expected ];
 };
 
 subtest 'flatten()' => sub {

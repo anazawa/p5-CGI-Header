@@ -1,7 +1,13 @@
 Revision history for Perl extension CGI::Header.
 
+0.11  Dec 16th, 2012
   - Add FIRSTKEY() and NEXTKEY(). These methods were implemented to
     test this module itself.
+  - flatten() receives optional $is_recursive argument
+    which determines whether to flatten the Set-Cookie headers recursively.
+    $is_recursive defaults to true.
+  - flatten() and each() don't stringify CGI::Cookie objects.
+  - field_names() returns a list of field names in a random order
 
 0.10  Dec 14th, 2012
   - p3p_tags() returns the number of P3P tags

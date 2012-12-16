@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 my ( %header, %iterator );
 
@@ -328,23 +328,6 @@ sub each {
 
     return;
 }
-
-#sub field_names {
-#    my $self    = shift;
-#    my @headers = $self->flatten(0);
-
-#    if ( my $size = @headers ) {
-#        return @headers[ map { $_ * 2 } 0 .. $size/2-1 ];
-#    }
-
-#    return;
-#}
-
-#sub field_names {
-#    my $self = shift;
-#    my %headers = $self->flatten(0);
-#    keys %headers;
-#}
 
 sub field_names { keys %{{ $_[0]->flatten(0) }} }
 
@@ -730,7 +713,8 @@ with a NPH (no-parse-header) script.
 
 =item @fields = $header->field_names
 
-Returns the list of distinct field names present in the header.
+Returns the list of distinct field names present in the header
+in a random order.
 The field names have case as returned by C<CGI::header()>.
 
   my @fields = $header->field_names;
