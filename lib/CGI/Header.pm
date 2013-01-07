@@ -9,13 +9,17 @@ use List::Util qw/first/;
 
 our $VERSION = '0.11';
 
-my ( %header, %iterator );
+my ( %header, %iterator ); # instance variables
 
 sub new {
-    my $class = shift;
+    my $class  = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
-    my $self = bless \do { my $anon_scalar }, $class;
+    my $self   = bless \do { my $anon_scalar }, $class;
+
+    # This class behaves like a hash, and so the hash dereference
+    # operator of the derived class may be overloaded.
     $header{ refaddr $self } = $header;
+
     $self;
 }
 
@@ -265,7 +269,7 @@ sub flatten {
         = delete @copy{qw/-cookie -expires -nph -status -target/};
 
     push @headers, 'Server', $ENV{SERVER_SOFTWARE} || 'cmdline' if $nph;
-    push @headers, 'Status', $status if $status;
+    push @headers, 'Status',        $status if $status;
     push @headers, 'Window-Target', $target if $target;
 
     if ( my $tags = delete $copy{-p3p} ) {
@@ -332,16 +336,15 @@ sub each {
 sub field_names { keys %{{ $_[0]->flatten(0) }} }
 
 sub as_string {
-    my $self   = shift;
-    my $eol    = defined $_[0] ? shift : "\015\012";
-    my $header = $header{ refaddr $self };
+    my $self = shift;
+    my $eol  = defined $_[0] ? shift : "\015\012";
 
     my @lines;
 
     # add Status-Line
-    if ( $header->{-nph} ) {
+    if ( $self->nph ) {
         my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
-        my $status   = $header->{-status}    || '200 OK';
+        my $status   = $self->get('Status')  || '200 OK';
         push @lines, "$protocol $status";
     }
 
@@ -359,7 +362,6 @@ sub as_string {
 
 sub dump {
     my $self = shift;
-    my $this = refaddr $self;
 
     require Data::Dumper;
 
@@ -368,7 +370,7 @@ sub dump {
 
     Data::Dumper::Dumper({
         __PACKAGE__, {
-            header => $header{ $this },
+            header => $self->header,
         },
         @_,
     });
@@ -504,6 +506,7 @@ which holds a reference to the original given argument:
 
   my $header = { -type => 'text/plain' };
   my $h = CGI::Header->new( $header );
+  $h->header; # same reference as $header
 
 The object updates the reference when called write methods like C<set()>,
 C<delete()> or C<clear()>:
