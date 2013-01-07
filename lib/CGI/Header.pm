@@ -7,19 +7,20 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
+
+# Why Inside-out?
+# To avoid blessing a hash. This class behaves like a hash,
+# and so the hash dereference operator of the derived class
+# may be overloaded. Maybe not.
 
 my ( %header, %iterator ); # instance variables
 
 sub new {
-    my $class  = shift;
+    my $class = shift;
     my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
-    my $self   = bless \do { my $anon_scalar }, $class;
-
-    # This class behaves like a hash, and so the hash dereference
-    # operator of the derived class may be overloaded.
+    my $self = bless \do { my $anon_scalar }, $class;
     $header{ refaddr $self } = $header;
-
     $self;
 }
 
@@ -33,8 +34,8 @@ sub DESTROY {
 }
 
 my %alias_of = (
-    content_type => 'type',   window_target => 'target',
-    cookies      => 'cookie', set_cookie    => 'cookie',
+    -content_type => '-type',   -window_target => '-target',
+    -cookies      => '-cookie', -set_cookie    => '-cookie',
 );
 
 sub rehash {
@@ -42,10 +43,8 @@ sub rehash {
     my $header = $header{ refaddr $self };
 
     for my $key ( keys %{$header} ) {
-        my $norm = lc $key;
-           $norm =~ s/^-//;
-           $norm =~ tr/-/_/;
-           $norm = '-' . ( $alias_of{$norm} || $norm );
+        my $norm = _lc( $key );
+           $norm = $alias_of{ $norm } || $norm;
 
         next if $key eq $norm;
 
@@ -91,7 +90,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $norm = _lc( shift );
     my $header = $header{ refaddr $self };
     $norm && ( $GET{$norm} || $GET )->( $header, $norm );
 }
@@ -129,7 +128,7 @@ my %set = (
 
 sub set {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $norm = _lc( shift );
     my $header = $header{ refaddr $self };
     ( $set{$norm} || $set )->( $header, $norm, @_ ) if $norm && @_;
     return;
@@ -150,7 +149,7 @@ my %exists = (
 
 sub exists {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $norm = _lc( shift );
     my $header = $header{ refaddr $self };
     $norm && ( $exists{$norm} || $exists )->( $header, $norm );
 }
@@ -181,7 +180,7 @@ my %delete = (
 sub delete {
     my $self   = shift;
     my $field  = shift;
-    my $norm   = _normalize( $field ) || return;
+    my $norm   = _lc( $field ) || return;
     my $header = $header{ refaddr $self };
 
     if ( my $delete = $delete{$norm} ) {
@@ -194,11 +193,12 @@ sub delete {
 }
 
 my %is_excluded = map { $_ => 1 }
-    qw( attachment charset cookie cookies nph target type );
+    qw( -attachment -charset -cookie -cookies -nph -target -type );
 
+# This funtion is obsolete and will be removed in 0.13
 sub _normalize {
     ( my $norm = lc shift ) =~ tr/-/_/;
-    $is_excluded{ $norm } ? undef : "-$norm";
+    $is_excluded{ $norm } ? undef : $norm;
 }
 
 sub is_empty { !$_[0]->SCALAR }
@@ -310,13 +310,6 @@ sub flatten {
     @headers;
 }
 
-sub _ucfirst {
-    my $str = shift;
-    $str =~ s/^-(\w)/\u$1/;
-    $str =~ tr/_/-/;
-    $str;
-}
-
 sub each {
     my ( $self, $callback ) = @_;
 
@@ -376,6 +369,20 @@ sub dump {
     });
 }
 
+sub _lc {
+    my $str = lc shift;
+    $str = "-$str" if $str !~ /^-/;
+    substr( $str, 1 ) =~ tr/-/_/;
+    $str;
+}
+
+sub _ucfirst {
+    my $str = shift;
+    $str =~ s/^-(\w)/\u$1/;
+    $str =~ tr/_/-/;
+    $str;
+}
+
 BEGIN {
     *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
     *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
@@ -418,6 +425,7 @@ CGI::Header - Adapter for CGI::header() function
 
   use CGI::Header;
 
+  # CGI.pm-compatible HTTP header properties
   my $header = {
       -attachment => 'foo.gif',
       -charset    => 'utf-7',
@@ -429,6 +437,7 @@ CGI::Header - Adapter for CGI::header() function
       -type       => 'image/gif'
   };
 
+  # create a CGI::Header object
   my $h = CGI::Header->new( $header );
 
   # update $header
@@ -646,7 +655,7 @@ Returns true if the header contains no key-value pairs.
 Returns a copy of this CGI::Header object.
 It's identical to:
 
-  my %copy = %{ $header->header };
+  my %copy = %{ $header->header }; # shallow copy
   my $clone = CGI::Header->new( \%copy );
 
 =item $filename = $header->attachment
@@ -712,6 +721,16 @@ automatically.
 
   my $server = $header->get('Server'); # => $ENV{SERVER_SOFTWARE}
   my $date   = $header->get('Date');   # => HTTP-Date
+
+NOTE: You can't modify those headers when C<< $header->nph >> is true:
+
+  $header->nph(1);
+
+  # wrong
+  $header->set( 'Server' => 'Apache/1.3.27 (Unix)' );
+  $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' );
+  $header->delete( 'Server' );
+  $header->delete( 'Date' );
 
 =item @fields = $header->field_names
 
@@ -806,8 +825,8 @@ the newlines will be removed, while the white space remains.
 Unlike CGI.pm, when invalid newlines are included,
 this module removes them instead of throwing exceptions.
 
-If C<< $header->nph >> is true, the Status-Line will be added
-to the beginning of reseponse headers automatically.
+If C<< $header->nph >> is true, the Status-Line will be added to
+the beginning of response headers automatically.
 
   $header->nph(1);
 

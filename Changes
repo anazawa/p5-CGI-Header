@@ -1,6 +1,13 @@
 Revision history for Perl extension CGI::Header.
 
-  - [DOCUMENTATION] Add HTTP::Headers to "SEE ALSO"
+0.12  Jan 7th, 2012
+
+  [INTERNALS]
+    - Rename _normalize() to _lc()
+    - Add a benchmark against HTTP::Response->parse
+
+  [DOCUMENTATION]
+    - Add HTTP::Headers to "SEE ALSO"
 
 0.11  Dec 16th, 2012
   - Add FIRSTKEY() and NEXTKEY(). These methods were implemented to

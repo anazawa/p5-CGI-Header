@@ -1,5 +1,5 @@
 use CGI::Header;
-use Test::Base;
+use Test::Base skip_all => '_normalize() was replaced with _lc()';
 
 plan tests => 1 * blocks();
 
