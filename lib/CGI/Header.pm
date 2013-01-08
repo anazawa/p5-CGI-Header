@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use Scalar::Util qw/refaddr/;
 use List::Util qw/first/;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 # Why Inside-out?
 # To avoid blessing a hash. This class behaves like a hash,

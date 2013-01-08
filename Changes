@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.13  Jan 8th, 2012
+
   - clear() and each() return the current object itself
   - set() returns the given value:
       $header->set( 'Foo' => 'bar' ); # => "bar"

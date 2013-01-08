@@ -9,7 +9,6 @@ requires 'CGI::Util'    => '1.5';
 requires 'List::Util'   => '1.19';
 requires 'Scalar::Util' => '1.19';
 
-test_requires 'Test::Base'      => '0.60';
 test_requires 'Test::Exception' => '0.31';
 test_requires 'Test::More'      => '0.98';
 test_requires 'Test::Pod'       => '1.45';

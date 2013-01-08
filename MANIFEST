@@ -14,9 +14,8 @@ MANIFEST			This list of files
 META.yml
 README
 t/00_compile.t
-t/10_normalization.t
-t/11_basic.t
-t/12_tie.t
+t/10_basic.t
+t/11_tie.t
 t/20_content_disposition.t
 t/21_content_type.t
 t/22_date.t
