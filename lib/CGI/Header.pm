@@ -43,12 +43,13 @@ sub rehash {
     my $header = $header{ refaddr $self };
 
     for my $key ( keys %{$header} ) {
-        my $norm = _lc( $key );
-           $norm = $alias_of{ $norm } || $norm;
+        my $prop = _lc( $key );
+           $prop = $alias_of{ $prop } || $prop;
 
-        next if $key eq $norm;
+        next if $key eq $prop;
 
-        $header->{ $norm } = delete $header->{ $key };
+        # overwrites existent property
+        $header->{ $prop } = delete $header->{ $key };
     }
 
     $self;
@@ -90,9 +91,9 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $norm = _lc( shift );
+    my $key = _lc( shift );
     my $header = $header{ refaddr $self };
-    $norm && ( $GET{$norm} || $GET )->( $header, $norm );
+    $key && ( $GET{$key} || $GET )->( $header, $key );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -105,7 +106,7 @@ my %set = (
             @{ $header }{qw/-type -charset/} = ( $value, q{} );
         }
         else {
-            carp "Can't set '$norm' to neither undef nor an empty string";
+            carp "Can set '$norm' to neither undef nor an empty string";
         }
     },
     -date => sub {
@@ -128,10 +129,11 @@ my %set = (
 
 sub set {
     my $self = shift;
-    my $norm = _lc( shift );
+    my $key = _lc( shift );
+    my $value = shift;
     my $header = $header{ refaddr $self };
-    ( $set{$norm} || $set )->( $header, $norm, @_ ) if $norm && @_;
-    return;
+    ( $set{$key} || $set )->( $header, $key, $value ) if $key;
+    $value;
 }
 
 my $exists = sub { exists $_[0]->{$_[1]} };
@@ -149,9 +151,9 @@ my %exists = (
 
 sub exists {
     my $self = shift;
-    my $norm = _lc( shift );
+    my $key = _lc( shift );
     my $header = $header{ refaddr $self };
-    $norm && ( $exists{$norm} || $exists )->( $header, $norm );
+    $key && ( $exists{$key} || $exists )->( $header, $key );
 }
 
 my $delete = sub { delete $_[0]->{$_[1]} };
@@ -192,22 +194,12 @@ sub delete {
     delete $header->{ $norm };
 }
 
-my %is_excluded = map { $_ => 1 }
-    qw( -attachment -charset -cookie -cookies -nph -target -type );
-
-# This funtion is obsolete and will be removed in 0.13
-sub _normalize {
-    ( my $norm = lc shift ) =~ tr/-/_/;
-    $is_excluded{ $norm } ? undef : $norm;
-}
-
 sub is_empty { !$_[0]->SCALAR }
 
 sub clear {
     my $self = shift;
-    my $header = $header{ refaddr $self };
-    %{ $header } = ( -type => q{} );
-    return;
+    %{ $self->header } = ( -type => q{} );
+    $self;
 }
 
 sub clone {
@@ -224,7 +216,7 @@ BEGIN {
     );
 
     while ( my ($method, $conflicts) = splice @conflicts, 0, 2 ) {
-        my $norm = "-$method";
+        my $prop = "-$method";
         my $code = sub {
             my $self   = shift;
             my $header = $header{ refaddr $self };
@@ -232,10 +224,10 @@ BEGIN {
             if ( @_ ) {
                 my $value = shift;
                 delete @{ $header }{ @$conflicts } if $value;
-                $header->{ $norm } = $value;
+                $header->{ $prop } = $value;
             }
 
-            $header->{ $norm };
+            $header->{ $prop };
         };
 
         no strict 'refs';
@@ -297,8 +289,8 @@ sub flatten {
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
 
     # not ordered
-    while ( my ($norm, $value) = each %copy ) {
-        push @headers, _ucfirst( $norm ), $value;
+    while ( my ($key, $value) = each %copy ) {
+        push @headers, _ucfirst( $key ), $value;
     }
 
     if ( !defined $type or $type ne q{} ) {
@@ -323,7 +315,7 @@ sub each {
         croak 'Must provide a code reference to each()';
     }
 
-    return;
+    $self;
 }
 
 sub field_names { keys %{{ $_[0]->flatten(0) }} }
@@ -465,7 +457,7 @@ This module can be used in the following situation:
 
 =item 1. $header is a hash reference which represents CGI response headers
 
-For exmaple, L<CGI::Application> implements C<header_add()> method
+For example, L<CGI::Application> implements C<header_add()> method
 which can be used to add CGI.pm-compatible HTTP header properties.
 Instances of CGI applications often hold those properties.
 
@@ -601,7 +593,7 @@ when you aren't sure that they are normalized.
 
 =item $value = $header->get( $field )
 
-=item $header->set( $field => $value )
+=item $value = $header->set( $field => $value )
 
 Get or set the value of the header field.
 The header field name (C<$field>) is not case sensitive.
@@ -615,7 +607,7 @@ The C<$value> argument may be a plain string or
 a reference to an array of L<CGI::Cookie> objects for the Set-Cookie header.
 
   $header->set( 'Content-Length' => 3002 );
-  my $content_length = $header->get( 'Content-Length' ); # => 3002
+  my $length = $header->get( 'Content-Length' ); # => 3002
 
   # $cookie1 and $cookie2 are CGI::Cookie objects
   $header->set( 'Set-Cookie' => [$cookie1, $cookie2] );
@@ -636,7 +628,7 @@ Returns the value of the deleted field.
 
   my $value = $header->delete( 'Content-Disposition' ); # => 'inline'
 
-=item $header->clear
+=item $self = $header->clear
 
 This will remove all header fields.
 
@@ -713,24 +705,9 @@ expiration interval. The following forms are all valid for this field:
 
 If set to a true value, will issue the correct headers to work
 with a NPH (no-parse-header) script.
-Specifically, the Date and Server headers will be added to response headers
-automatically.
 
   $header->nph( 1 );
   my $nph = $header->nph; # => 1
-
-  my $server = $header->get('Server'); # => $ENV{SERVER_SOFTWARE}
-  my $date   = $header->get('Date');   # => HTTP-Date
-
-NOTE: You can't modify those headers when C<< $header->nph >> is true:
-
-  $header->nph(1);
-
-  # wrong
-  $header->set( 'Server' => 'Apache/1.3.27 (Unix)' );
-  $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' );
-  $header->delete( 'Server' );
-  $header->delete( 'Date' );
 
 =item @fields = $header->field_names
 
@@ -741,7 +718,7 @@ The field names have case as returned by C<CGI::header()>.
   my @fields = $header->field_names;
   # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
 
-=item $header->each( \&callback )
+=item $self = $header->each( \&callback )
 
 Apply a subroutine to each header field in turn.
 The callback routine is called with two parameters;
@@ -837,7 +814,7 @@ the beginning of response headers automatically.
 
 =back
 
-=head2 tie() INTERFACE
+=head2 CREATING A CASE-INSENSITIVE HASH
 
   use CGI::Header;
 
@@ -873,7 +850,9 @@ See also L<perltie>.
 
 =over 4
 
-=item Can't set '-content_type' to neither undef nor an empty string
+=item Content-Type
+
+You can set the Content-Type header to neither undef nor an empty:
 
   # wrong
   $header->set( 'Content-Type' => undef );
@@ -883,7 +862,24 @@ Use delete() instead:
 
   $header->delete( 'Content-Type' );
 
-=item Can't assign to '-expires' directly, use expires() instead
+=item Date
+
+If one of the following conditions is met, the Date header will be set
+automatically:
+
+  if ( $header->nph or $header->get('Set-Cookie') or $header->expires ) {
+      my $date = $header->get( 'Date' ); # => HTTP-Date (current time)
+  }
+
+and also the header field will become read-only: 
+
+  # wrong
+  $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' );
+  $header->delete( 'Date' );
+
+=item Expires
+
+You can't assign to the Expires header directly:
 
   # wrong
   $header->set( 'Expires' => '+3d' );
@@ -892,23 +888,36 @@ Use expires() instead:
 
   $header->expires( '+3d' );
 
-because the following behavior will surprize us:
-
-  $header->set( 'Expires' => '+3d' );
+because the following behavior will surprise us:
 
   my $value = $header->get( 'Expires' );
   # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
 
-=item Can't assign to '-p3p' directly, use p3p_tags() instead
+=item P3P
 
-C<CGI::header()> restricts where the policy-reference file is located,
-and so you can't modify the location (C</w3c/p3p.xml>).
-The following code doesn't work as you expect:
+You can't assign to the P3P header directly:
 
   # wrong
   $header->set( 'P3P' => '/path/to/p3p.xml' );
 
+C<CGI::header()> restricts where the policy-reference file is located,
+and so you can't modify the location (C</w3c/p3p.xml>).
 You're allowed to set P3P tags using C<p3p_tags()>.
+
+=item Server
+
+If the following condition is met, the Server header will be set
+automatically:
+
+  if ( $header->nph ) {
+      my $server = $header->get( 'Server' ); # => $ENV{SERVER_SOFTWARE}
+  }
+
+and also the header field will become read-only: 
+
+  # wrong
+  $header->set( 'Server' => 'Apache/1.3.27 (Unix)' );
+  $header->delete( 'Server' );
 
 =back
 

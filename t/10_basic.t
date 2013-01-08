@@ -29,6 +29,19 @@ subtest 'new()' => sub {
     is_deeply $header->header, { -foo => 'bar' };
 };
 
+subtest '_lc()' => sub {
+    my @data = (
+        'Foo'      => '-foo',
+        'Foo-Bar'  => '-foo_bar',
+        '-foo'     => '-foo',
+        '-foo_bar' => '-foo_bar',
+    );
+
+    while ( my ($input, $expected) = splice @data, 0, 2 ) {
+        is CGI::Header::_lc($input), $expected;
+    }
+};
+
 subtest 'basic' => sub {
     my %header;
     my $header = CGI::Header->new( \%header );
@@ -45,12 +58,12 @@ subtest 'basic' => sub {
 
     # clear()
     %header = ( -foo => 'bar' );
-    $header->clear;
+    is $header->clear, $header, "should return current object itself";
     is_deeply \%header, { -type => q{} }, 'should be empty';
 
     # set()
     %header = ();
-    $header->set( Foo => 'bar' );
+    is $header->set( Foo => 'bar' ), 'bar';
     is_deeply \%header, { -foo => 'bar' };
 
     # is_empty()
@@ -113,19 +126,6 @@ subtest 'nph()' => sub {
     %{ $header->header } = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
     $header->nph( 1 );
     is_deeply $header->header, { -nph => 1 }, '-date should be deleted';
-};
-
-subtest '_lc()' => sub {
-    my @data = (
-        'Foo'      => '-foo',
-        'Foo-Bar'  => '-foo_bar',
-        '-foo'     => '-foo',
-        '-foo_bar' => '-foo_bar',
-    );
-
-    while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is CGI::Header::_lc($input), $expected;
-    }
 };
 
 subtest '_ucfirst()' => sub {
@@ -229,6 +229,8 @@ subtest 'each()' => sub {
     );
 
     is_deeply \@got, \@expected;
+
+    is $header->each(sub {}), $header, "should return current object itself";
 };
 
 subtest 'DESTROY()' => sub {

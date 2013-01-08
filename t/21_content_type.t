@@ -100,6 +100,6 @@ subtest 'STORE()' => sub {
 
     %{ $header->header } = ();
     warning_is { $header{Content_Type} = q{} }
-        "Can't set '-content_type' to neither undef nor an empty string";
+        "Can set '-content_type' to neither undef nor an empty string";
     is_deeply $header->header, {};
 };

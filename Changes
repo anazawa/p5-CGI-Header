@@ -1,5 +1,20 @@
 Revision history for Perl extension CGI::Header.
 
+  - clear() and each() return the current object itself
+  - set() returns the given value:
+      $header->set( 'Foo' => 'bar' ); # => "bar"
+
+  [BUG FIXES]
+
+    Correct the following warning message:
+      "Can't set '-content_type' to neither undef nor an empty string"
+    This message was replaced with:
+      "Can set '-content_type' to neither undef nor an empty string"
+
+  [DOCUMENTATION]
+
+    Add "Server" and "Date" to "LIMITATIONS" 
+
 0.12  Jan 7th, 2012
 
   [INTERNALS]
