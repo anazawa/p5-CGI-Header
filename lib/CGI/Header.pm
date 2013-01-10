@@ -4,34 +4,29 @@ use strict;
 use warnings;
 use CGI::Util qw//;
 use Carp qw/carp croak/;
-use Scalar::Util qw/refaddr/;
+use Scalar::Util qw//;
 use List::Util qw/first/;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
+
+my $READONLY = 'Modification of a read-only value attempted';
 
 # Why Inside-out?
 # To avoid blessing a hash. This class behaves like a hash,
 # and so the hash dereference operator of the derived class
 # may be overloaded. Maybe not.
 
+BEGIN { *id = \&Scalar::Util::refaddr }
+
 my ( %header, %iterator ); # instance variables
 
 sub new {
-    my $class = shift;
-    my $header = ref $_[0] eq 'HASH' ? shift : { @_ };
-    my $self = bless \do { my $anon_scalar }, $class;
-    $header{ refaddr $self } = $header;
+    my $self = bless \do { my $anon_scalar }, shift;
+    $header{ id $self } = ref $_[0] eq 'HASH' ? shift : { @_ };
     $self;
 }
 
-sub header { $header{ refaddr $_[0] } }
-
-sub DESTROY {
-    my $this = refaddr shift;
-    delete $header{ $this };
-    delete $iterator{ $this };
-    return;
-}
+sub header { $header{ id $_[0] } }
 
 my %alias_of = (
     -content_type => '-type',   -window_target => '-target',
@@ -40,7 +35,7 @@ my %alias_of = (
 
 sub rehash {
     my $self   = shift;
-    my $header = $header{ refaddr $self };
+    my $header = $header{ id $self };
 
     for my $key ( keys %{$header} ) {
         my $prop = _lc( $key );
@@ -55,45 +50,46 @@ sub rehash {
     $self;
 }
 
-my $GET = sub { $_[0]->{$_[1]} };
+my $get = sub { $_[0]->{$_[1]} };
 
-my %GET = (
+my %get = (
     -content_disposition => sub {
         my $filename = $_[0]->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $GET->( @_ );
+        $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
     },
     -content_type => sub {
         my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
-        return $type if $type and $type =~ /\bcharset\b/;
         return if defined $type and $type eq q{};
         $type ||= 'text/html';
-        $charset ? "$type; charset=$charset" : $type;
+        $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
+        $type;
     },
     -date => sub {
-        my $is_fixed = first { $_[0]->{$_} } qw(-nph -expires -cookie);
-        $is_fixed ? CGI::Util::expires() : $GET->( @_ );
+        my ( $h ) = @_;
+        $h->{-nph} || $h->{-cookie} || $h->{-expires}
+            ? CGI::Util::expires() : $get->( @_ );
     },
     -expires => sub {
-        my $expires = $GET->( @_ );
-        $expires && CGI::Util::expires( $expires );
+        my $expires = $get->( @_ );
+        $expires ? CGI::Util::expires( $expires ) : undef;
     },
     -p3p => sub {
-        my $tags = $GET->( @_ );
+        my $tags = $get->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
-        $tags && qq{policyref="/w3c/p3p.xml", CP="$tags"};
+        $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
     -server => sub {
-        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $GET->( @_ );
+        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
     },
-    -set_cookie    => sub { $_[0]->{-cookie} },
+    -set_cookie => sub { $_[0]->{-cookie} },
     -window_target => sub { $_[0]->{-target} },
 );
 
 sub get {
     my $self = shift;
-    my $key = _lc( shift );
-    my $header = $header{ refaddr $self };
-    $key && ( $GET{$key} || $GET )->( $header, $key );
+    my $field = _lc( shift );
+    my $header = $header{ id $self };
+    $field && ( $get{$field} || $get )->( $header, $field );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -110,7 +106,9 @@ my %set = (
         }
     },
     -date => sub {
-        $set->( @_ ) unless first { $_[0]->{$_} } qw(-nph -expires -cookie);
+        my ( $h ) = @_;
+        croak $READONLY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
+        $set->( @_ );
     },
     -expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
@@ -118,7 +116,11 @@ my %set = (
     -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    -server => sub { $_[0]->{-nph} || $set->( @_ ) },
+    -server => sub {
+        my ( $h ) = @_;
+        croak $READONLY if $h->{-nph};
+        $set->( @_ );
+    },
     -set_cookie => sub {
         my ( $header, $value ) = @_[0, 2];
         delete $header->{-date} if $value;
@@ -128,21 +130,21 @@ my %set = (
 );
 
 sub set {
-    my $self = shift;
-    my $key = _lc( shift );
-    my $value = shift;
-    my $header = $header{ refaddr $self };
-    ( $set{$key} || $set )->( $header, $key, $value ) if $key;
+    my ( $self, $field, $value ) = @_;
+    $field = _lc( $field );
+    my $header = $header{ id $self };
+    ( $set{$field} || $set )->( $header, $field, $value ) if $field;
     $value;
 }
 
 my $exists = sub { exists $_[0]->{$_[1]} };
 
 my %exists = (
-    -content_type => sub { !defined $_[0]->{-type} || $_[0]->{-type} ne q{} },
     -content_disposition => sub { $exists->( @_ ) || $_[0]->{-attachment} },
+    -content_type => sub { !defined $_[0]->{-type} || $_[0]->{-type} ne q{} },
     -date => sub {
-        $exists->( @_ ) || first { $_[0]->{$_} } qw(-nph -expires -cookie);
+        my ( $h ) = @_;
+        $h->{-nph} || $h->{-expires} || $h->{-cookie} || $exists->( @_ );
     },
     -server => sub { $_[0]->{-nph} || $exists->( @_ ) },
     -set_cookie => sub { exists $_[0]->{-cookie} },
@@ -151,47 +153,40 @@ my %exists = (
 
 sub exists {
     my $self = shift;
-    my $key = _lc( shift );
-    my $header = $header{ refaddr $self };
-    $key && ( $exists{$key} || $exists )->( $header, $key );
+    my $field = _lc( shift );
+    my $header = $header{ id $self };
+    $field && ( $exists{$field} || $exists )->( $header, $field );
 }
 
 my $delete = sub { delete $_[0]->{$_[1]} };
 
 my %delete = (
     -content_disposition => sub { delete @{$_[0]}{$_[1], '-attachment'} },
-    -content_type => sub {
-        my $header = shift; 
-        delete $header->{-charset};
-        $header->{-type} = q{};
-    },
+    -content_type => sub { delete $_[0]->{-charset}; $_[0]->{-type} = q{} },
     -date => sub {
-        my ( $header, $norm ) = @_;
-        delete $header->{-date};
+        my ( $h ) = @_;
+        croak $READONLY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
+        $delete->( @_ );
     },
-    -expires => sub { delete $_[0]->{-expires} },
-    -p3p => sub { delete $_[0]->{-p3p} },
-    -server => sub {
-        my ( $header, $norm ) = @_;
-        delete $header->{ $norm };
-    },
+    -expires => $delete,
+    -p3p => $delete,
+    -server => sub { $_[0]->{-nph} and croak $READONLY; $delete->( @_ ) },
     -set_cookie => sub { delete $_[0]->{-cookie} },
     -window_target => sub { delete $_[0]->{-target} },
 );
 
 sub delete {
     my $self   = shift;
-    my $field  = shift;
-    my $norm   = _lc( $field ) || return;
-    my $header = $header{ refaddr $self };
+    my $field  = _lc( shift );
+    my $header = $header{ id $self };
 
-    if ( my $delete = $delete{$norm} ) {
-        my $value = defined wantarray && $GET{$norm}->($header, $norm);
-        $delete->( $header, $norm );
+    if ( my $code = $delete{$field} ) {
+        my $value = defined wantarray && $self->get( $field );
+        $code->( $header, $field );
         return $value;
     }
 
-    delete $header->{ $norm };
+    delete $header->{ $field };
 }
 
 sub is_empty { !$_[0]->SCALAR }
@@ -204,7 +199,7 @@ sub clear {
 
 sub clone {
     my $self = shift;
-    my $header = $header{ refaddr $self };
+    my $header = $header{ id $self };
     ref( $self )->new( %{$header} );
 }
 
@@ -219,7 +214,7 @@ BEGIN {
         my $prop = "-$method";
         my $code = sub {
             my $self   = shift;
-            my $header = $header{ refaddr $self };
+            my $header = $header{ id $self };
     
             if ( @_ ) {
                 my $value = shift;
@@ -237,7 +232,7 @@ BEGIN {
 
 sub p3p_tags {
     my $self   = shift;
-    my $header = $header{ refaddr $self };
+    my $header = $header{ id $self };
 
     if ( @_ ) {
         $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
@@ -250,10 +245,9 @@ sub p3p_tags {
 }
 
 sub flatten {
-    my $self   = shift;
-    my $level  = defined $_[0] ? int shift : 1;
-    my $header = $header{ refaddr $self };
-    my %copy   = %{ $header };
+    my $self  = shift;
+    my $level = defined $_[0] ? int shift : 1;
+    my %copy  = %{ $self->header };
 
     my @headers;
 
@@ -382,26 +376,33 @@ BEGIN {
 
 sub SCALAR {
     my $self = shift;
-    my $header = $header{ refaddr $self };
+    my $header = $header{ id $self };
     !defined $header->{-type} || first { $_ } values %{ $header };
 }
 
 sub FIRSTKEY {
     my $self = shift;
     my @fields = $self->field_names;
-    ( $iterator{ refaddr $self } = sub { shift @fields } )->();
+    ( $iterator{ id $self } = sub { shift @fields } )->();
 }
 
-sub NEXTKEY { $iterator{ refaddr $_[0] }->() }
+sub NEXTKEY { $iterator{ id $_[0] }->() }
+
+sub DESTROY {
+    my $self = shift;
+    delete $header{ id $self };
+    delete $iterator{ id $self };
+    return;
+}
 
 sub STORABLE_freeze {
     my ( $self, $cloning ) = @_;
-    ( q{}, $header{ refaddr $self } );
+    ( q{}, $header{ id $self } );
 }
 
 sub STORABLE_thaw {
     my ( $self, $serialized, $cloning, $header ) = @_;
-    $header{ refaddr $self } = $header;
+    $header{ id $self } = $header;
     $self;
 }
 

@@ -1,6 +1,22 @@
 Revision history for Perl extension CGI::Header.
 
-0.13  Jan 8th, 2012
+0.14  Jan 9th, 2013
+
+  - set() and delete() throw exceptions when the specified header field
+    is read-only.
+  - get() returns undef in the following situations:
+
+      $header->header; # => { -expires => q{}, ... }
+      $header->get( 'Expires' ); # => undef
+
+      $header->header; # => { -p3p => q{}, ... }
+      $header->get( 'P3P' ); # => undef
+
+  [INTERNALS]
+
+    id() is aliased to Scalar::Util::refaddr()
+
+0.13  Jan 8th, 2013
 
   - clear() and each() return the current object itself
   - set() returns the given value:
@@ -17,7 +33,7 @@ Revision history for Perl extension CGI::Header.
 
     Add "Server" and "Date" to "LIMITATIONS" 
 
-0.12  Jan 7th, 2012
+0.12  Jan 7th, 2013
 
   [INTERNALS]
     - Rename _normalize() to _lc()

@@ -34,10 +34,10 @@ is_deeply $header->header, {};
 %{ $header->header } = ( -expires => q{} );
 ok exists $header{Expires};
 ok !exists $header{Date};
-is $header{Expires}, q{};
+is $header{Expires}, undef;
 is $header{Date}, undef;
 is $header->expires, q{};
-is delete $header{Expires}, q{};
+is delete $header{Expires}, undef;
 is_deeply $header->header, {};
 
 #%adaptee = ( -expires => 0 );
