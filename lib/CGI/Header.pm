@@ -4,29 +4,23 @@ use strict;
 use warnings;
 use CGI::Util qw//;
 use Carp qw/carp croak/;
-use Scalar::Util qw//;
 use List::Util qw/first/;
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
-my $READONLY = 'Modification of a read-only value attempted';
-
-# Why Inside-out?
-# To avoid blessing a hash. This class behaves like a hash,
-# and so the hash dereference operator of the derived class
-# may be overloaded. Maybe not.
-
-BEGIN { *id = \&Scalar::Util::refaddr }
-
-my ( %header, %iterator ); # instance variables
+# copied from Readonly.pm
+my $MODIFY = 'Modification of a read-only value attempted';
 
 sub new {
-    my $self = bless \do { my $anon_scalar }, shift;
-    $header{ id $self } = ref $_[0] eq 'HASH' ? shift : { @_ };
+    my $self = bless {}, shift;
+    $self->{header} = ref $_[0] eq 'HASH' ? shift : { splice @_ };
+    $self->{env} = shift || \%ENV;
     $self;
 }
 
-sub header { $header{ id $_[0] } }
+sub header { $_[0]->{header} }
+
+sub env { $_[0]->{env} }
 
 my %alias_of = (
     -content_type => '-type',   -window_target => '-target',
@@ -35,7 +29,7 @@ my %alias_of = (
 
 sub rehash {
     my $self   = shift;
-    my $header = $header{ id $self };
+    my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
         my $prop = _lc( $key );
@@ -79,7 +73,7 @@ my %get = (
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
     -server => sub {
-        $_[0]->{-nph} ? $ENV{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
+        $_[0]->{-nph} ? $_[2]->{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
     },
     -set_cookie => sub { $_[0]->{-cookie} },
     -window_target => sub { $_[0]->{-target} },
@@ -88,8 +82,8 @@ my %get = (
 sub get {
     my $self = shift;
     my $field = _lc( shift );
-    my $header = $header{ id $self };
-    $field && ( $get{$field} || $get )->( $header, $field );
+    my ( $header, $env ) = @{ $self }{qw/header env/};
+    $field && ( $get{$field} || $get )->( $header, $field, $env );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -107,7 +101,7 @@ my %set = (
     },
     -date => sub {
         my ( $h ) = @_;
-        croak $READONLY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
+        croak $MODIFY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
         $set->( @_ );
     },
     -expires => sub {
@@ -118,7 +112,7 @@ my %set = (
     },
     -server => sub {
         my ( $h ) = @_;
-        croak $READONLY if $h->{-nph};
+        croak $MODIFY if $h->{-nph};
         $set->( @_ );
     },
     -set_cookie => sub {
@@ -132,7 +126,7 @@ my %set = (
 sub set {
     my ( $self, $field, $value ) = @_;
     $field = _lc( $field );
-    my $header = $header{ id $self };
+    my $header = $self->{header};
     ( $set{$field} || $set )->( $header, $field, $value ) if $field;
     $value;
 }
@@ -154,7 +148,7 @@ my %exists = (
 sub exists {
     my $self = shift;
     my $field = _lc( shift );
-    my $header = $header{ id $self };
+    my $header = $self->{header};
     $field && ( $exists{$field} || $exists )->( $header, $field );
 }
 
@@ -165,12 +159,12 @@ my %delete = (
     -content_type => sub { delete $_[0]->{-charset}; $_[0]->{-type} = q{} },
     -date => sub {
         my ( $h ) = @_;
-        croak $READONLY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
+        croak $MODIFY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
         $delete->( @_ );
     },
     -expires => $delete,
     -p3p => $delete,
-    -server => sub { $_[0]->{-nph} and croak $READONLY; $delete->( @_ ) },
+    -server => sub { $_[0]->{-nph} and croak $MODIFY; $delete->( @_ ) },
     -set_cookie => sub { delete $_[0]->{-cookie} },
     -window_target => sub { delete $_[0]->{-target} },
 );
@@ -178,7 +172,7 @@ my %delete = (
 sub delete {
     my $self   = shift;
     my $field  = _lc( shift );
-    my $header = $header{ id $self };
+    my $header = $self->{header};
 
     if ( my $code = $delete{$field} ) {
         my $value = defined wantarray && $self->get( $field );
@@ -193,14 +187,14 @@ sub is_empty { !$_[0]->SCALAR }
 
 sub clear {
     my $self = shift;
-    %{ $self->header } = ( -type => q{} );
+    %{ $self->{header} } = ( -type => q{} );
     $self;
 }
 
 sub clone {
     my $self = shift;
-    my $header = $header{ id $self };
-    ref( $self )->new( %{$header} );
+    my %copy = %{ $self->{header} };
+    ref( $self )->new( \%copy, $self->{env} );
 }
 
 BEGIN {
@@ -214,7 +208,7 @@ BEGIN {
         my $prop = "-$method";
         my $code = sub {
             my $self   = shift;
-            my $header = $header{ id $self };
+            my $header = $self->{header};
     
             if ( @_ ) {
                 my $value = shift;
@@ -232,7 +226,7 @@ BEGIN {
 
 sub p3p_tags {
     my $self   = shift;
-    my $header = $header{ id $self };
+    my $header = $self->{header};
 
     if ( @_ ) {
         $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
@@ -247,14 +241,15 @@ sub p3p_tags {
 sub flatten {
     my $self  = shift;
     my $level = defined $_[0] ? int shift : 1;
-    my %copy  = %{ $self->header };
+    my $env   = $self->{env};
+    my %copy  = %{ $self->{header} };
 
     my @headers;
 
     my ( $cookie, $expires, $nph, $status, $target )
         = delete @copy{qw/-cookie -expires -nph -status -target/};
 
-    push @headers, 'Server', $ENV{SERVER_SOFTWARE} || 'cmdline' if $nph;
+    push @headers, 'Server', $env->{SERVER_SOFTWARE} || 'cmdline' if $nph;
     push @headers, 'Status',        $status if $status;
     push @headers, 'Window-Target', $target if $target;
 
@@ -283,8 +278,8 @@ sub flatten {
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
 
     # not ordered
-    while ( my ($key, $value) = each %copy ) {
-        push @headers, _ucfirst( $key ), $value;
+    while ( my ($field, $value) = each %copy ) {
+        push @headers, _ucfirst( $field ), $value;
     }
 
     if ( !defined $type or $type ne q{} ) {
@@ -322,8 +317,8 @@ sub as_string {
 
     # add Status-Line
     if ( $self->nph ) {
-        my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
-        my $status   = $self->get('Status')  || '200 OK';
+        my $protocol = $self->env->{SERVER_PROTOCOL} || 'HTTP/1.0';
+        my $status   = $self->get('Status')          || '200 OK';
         push @lines, "$protocol $status";
     }
 
@@ -339,21 +334,24 @@ sub as_string {
     join $eol, @lines, q{};
 }
 
-sub dump {
-    my $self = shift;
-
-    require Data::Dumper;
-
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Terse  = 1;
-
-    Data::Dumper::Dumper({
-        __PACKAGE__, {
-            header => $self->header,
-        },
-        @_,
-    });
+BEGIN {
+    *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
+    *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
 }
+
+sub SCALAR {
+    my $self = shift;
+    my $header = $self->{header};
+    !defined $header->{-type} || first { $_ } values %{ $header };
+}
+
+sub FIRSTKEY {
+    my $self = shift;
+    my @fields = $self->field_names;
+    ( $self->{iterator} = sub { shift @fields } )->();
+}
+
+sub NEXTKEY { $_[0]->{iterator}->() }
 
 sub _lc {
     my $str = lc shift;
@@ -367,43 +365,6 @@ sub _ucfirst {
     $str =~ s/^-(\w)/\u$1/;
     $str =~ tr/_/-/;
     $str;
-}
-
-BEGIN {
-    *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
-    *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
-}
-
-sub SCALAR {
-    my $self = shift;
-    my $header = $header{ id $self };
-    !defined $header->{-type} || first { $_ } values %{ $header };
-}
-
-sub FIRSTKEY {
-    my $self = shift;
-    my @fields = $self->field_names;
-    ( $iterator{ id $self } = sub { shift @fields } )->();
-}
-
-sub NEXTKEY { $iterator{ id $_[0] }->() }
-
-sub DESTROY {
-    my $self = shift;
-    delete $header{ id $self };
-    delete $iterator{ id $self };
-    return;
-}
-
-sub STORABLE_freeze {
-    my ( $self, $cloning ) = @_;
-    ( q{}, $header{ id $self } );
-}
-
-sub STORABLE_thaw {
-    my ( $self, $serialized, $cloning, $header ) = @_;
-    $header{ id $self } = $header;
-    $self;
 }
 
 1;
@@ -501,7 +462,7 @@ array references. See also C<flatten()>.
 
 =over 4
 
-=item $header = CGI::Header->new({ -type => 'text/plain', ... })
+=item $header = CGI::Header->new({ -type => 'text/plain', ... }[, \%ENV])
 
 Given a header hash reference, returns a CGI::Header object
 which holds a reference to the original given argument:
@@ -529,6 +490,11 @@ A shortcut for:
 =head2 INSTANCE METHODS
 
 =over 4
+
+=item $header->env
+
+Returns the reference to the hash which contains your current environment.
+C<env()> defaults to C<\%ENV>.
 
 =item $header->header
 
@@ -767,24 +733,30 @@ whether to flatten them recursively.
 This method can be used to generate L<PSGI>-compatible header array
 references. For example,
 
-  use parent 'CGI';
+  use parent 'CGI::PSGI';
   use CGI::Header;
+  use Plack::Util;
 
+  # untested
   sub psgi_header {
       my $self   = shift;
-      my $header = CGI::Header->new(@_)->rehash;
+      my %header = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+      my $header = CGI::Header->new(\%header, $self->env)->rehash;
+
+      # breaks encapsulation
+      $header{-charset} = $self->charset( $header{-charset} );
+
+      $header->set( 'Pragma' => 'no-cache' ) if $self->cache;
 
       my $status = $header->delete('Status') || '200 OK';
       $status =~ s/\D*$//;
 
+      if ( Plack::Util::status_with_no_entity_body($status) ) {
+          $header->delete( $_ ) for qw( Content-Type Content-Length );
+      }
+
       $status, [ $header->flatten ];
   }
-
-Strictly speaking, you have to check C<charset()> attribute of CGI.pm.
-In addition, if C<< $header->nph >> is true,
-C<< $header->flatten >> will return the Server header
-which C<psgi_header()> shouldn't return.
-Moreover, this method depends on a global variable C<%ENV>.
 
 See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
 
@@ -911,7 +883,8 @@ If the following condition is met, the Server header will be set
 automatically:
 
   if ( $header->nph ) {
-      my $server = $header->get( 'Server' ); # => $ENV{SERVER_SOFTWARE}
+      my $server = $header->get( 'Server' );
+      # => $header->env->{SERVER_SOFTWARE}
   }
 
 and also the header field will become read-only: 

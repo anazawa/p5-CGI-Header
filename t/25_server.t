@@ -4,7 +4,8 @@ use CGI::Header;
 use Test::More tests => 12;
 use Test::Exception;
 
-my $header = tie my %header, 'CGI::Header';
+my %env;
+my $header = tie my %header, 'CGI::Header', {}, \%env;
 
 %{ $header->header } = ();
 is $header{Server}, undef;
@@ -20,11 +21,11 @@ is_deeply $header->header, { -nph => 1 }, '-server should be deleted';
 
 %{ $header->header } = ( -nph => 1 );
 
-local $ENV{SERVER_SOFTWARE};
+%{ $header->env } = ();
 is $header{Server}, 'cmdline';
 ok exists $header{Server};
 
-$ENV{SERVER_SOFTWARE} = 'Apache/1.3.27 (Unix)';
+%{ $header->env } = ( SERVER_SOFTWARE => 'Apache/1.3.27 (Unix)' );
 is $header{Server}, 'Apache/1.3.27 (Unix)';
 ok exists $header{Server};
 

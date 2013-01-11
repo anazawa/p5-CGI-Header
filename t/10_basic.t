@@ -3,25 +3,28 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 12;
+use Test::More tests => 11;
 use Test::Exception;
 
 can_ok 'CGI::Header', qw(
-    new header rehash clone clear delete exists get set is_empty DESTROY
+    new header env rehash clone clear delete exists get set is_empty
     p3p_tags expires nph attachment field_names each flatten
 );
 
 subtest 'new()' => sub {
     my %header = ();
     my $header = CGI::Header->new( \%header );
+    is $header->env, \%ENV;
     is $header->header, \%header;
     is_deeply $header->header, {};
 
     $header = CGI::Header->new;
     is_deeply $header->header, {};
 
+    my %env;
     %header = ( -foo => 'bar' );
-    $header = CGI::Header->new( \%header );
+    $header = CGI::Header->new( \%header, \%env );
+    is $header->env, \%env;
     is $header->header, \%header;
     is_deeply $header->header, { -foo => 'bar' };
 
@@ -110,6 +113,10 @@ subtest 'clone()' => sub {
     my $clone = $header->clone;
     isnt $clone->header, $header->header;
     is_deeply $clone->header, $header->header;
+
+    my %env;
+    $header = CGI::Header->new( {}, \%env );
+    is $header->clone->env, \%env;
 };
 
 subtest 'nph()' => sub {
@@ -231,10 +238,4 @@ subtest 'each()' => sub {
     is_deeply \@got, \@expected;
 
     is $header->each(sub {}), $header, "should return current object itself";
-};
-
-subtest 'DESTROY()' => sub {
-    my $header = CGI::Header->new;
-    $header->DESTROY;
-    ok !$header->header;
 };

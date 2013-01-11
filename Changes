@@ -1,5 +1,17 @@
 Revision history for Perl extension CGI::Header.
 
+0.15  Jan 11th, 2013
+
+  Add env() which defaults to \%ENV. new() receives an additional
+  argument which determines the value of the attribute.
+     my $header = CGI::Header->new({ -type => 'text/plain' }, \%ENV);
+     $header->env; # => \%ENV
+
+  [INTERNALS]
+
+    - Add psgi_headers.t which requires CGI::PSGI
+    - new() returns an object based on a blessed hash.
+
 0.14  Jan 9th, 2013
 
   - set() and delete() throw exceptions when the specified header field

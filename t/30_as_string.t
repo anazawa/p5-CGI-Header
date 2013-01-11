@@ -1,12 +1,12 @@
 use strict;
 use warnings;
-
 use Test::MockTime qw/set_fixed_time/;
-
 use CGI;
 use CGI::Cookie;
 use CGI::Header;
 use Test::More tests => 2;
+
+# Tests whether or not CGI::Header is compatible with CGI::header()
 
 my $now = 1349043453;
 set_fixed_time( $now );
