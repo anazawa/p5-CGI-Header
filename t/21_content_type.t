@@ -81,18 +81,20 @@ subtest 'STORE()' => sub {
     my $header = tie my %header, 'CGI::Header';
 
     %{ $header->header } = ();
-    $header{Content_Type} = 'text/plain; charset=utf-8';
+    my $value = 'text/plain; charset=utf-8';
+    is $header->set( Content_Type => $value ), $value;
     is_deeply $header->header, {
         -type    => 'text/plain; charset=utf-8',
         -charset => q{}
     };
 
     %{ $header->header } = ();
-    $header{Content_Type} = 'text/plain';
+    is $header->set( Content_Type => 'text/plain' ), 'text/plain';
     is_deeply $header->header, { -type => 'text/plain', -charset => q{} };
 
     %{ $header->header } = ( -charset => 'euc-jp' );
-    $header{Content_Type} = 'text/plain; charset=utf-8';
+    $value = 'text/plain; charset=utf-8';
+    is $header->set( Content_Type => $value ), $value;
     is_deeply $header->header, {
         -type    => 'text/plain; charset=utf-8',
         -charset => q{},

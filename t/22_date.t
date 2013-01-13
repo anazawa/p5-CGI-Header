@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
-use Test::More tests => 25;
+use Test::More tests => 26;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
@@ -43,7 +43,8 @@ throws_ok { $header{Date} = 'Sat, 07 Jul 2012 05:05:09 GMT' } $expected;
 throws_ok { delete $header{Date} } $expected;
 
 %{ $header->header } = ();
-$header{Date} = 'Sat, 07 Jul 2012 05:05:09 GMT';
+my $value = 'Sat, 07 Jul 2012 05:05:09 GMT';
+is $header->set( Date => $value ), $value;
 is_deeply $header->header, { -date => 'Sat, 07 Jul 2012 05:05:09 GMT' };
 
 %{ $header->header } = ( -expires => '+3d' );

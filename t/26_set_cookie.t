@@ -58,6 +58,6 @@ subtest 'CGI::Cookie objects' => sub {
 subtest '-cookie and -date' => sub {
     my $header = tie my %header, 'CGI::Header';
     $header{Date} = 'Sat, 07 Jul 2012 05:05:09 GMT';
-    $header{Set_Cookie} = $cookie1;
+    is $header->set( Set_Cookie => $cookie1 ), $cookie1;
     is_deeply $header->header, { -cookie => $cookie1 };
 };

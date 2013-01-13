@@ -61,11 +61,11 @@ subtest '-attachment and -content_disposition' => sub {
     my $header = tie my %header, 'CGI::Header';
 
     %{ $header->header } = ( -attachment => 'genome.jpg' );
-    $header{Content_Disposition} = 'inline';
+    is $header->set( 'Content-Disposition' => 'inline' ), 'inline';
     is_deeply $header->header, { -content_disposition => 'inline' };
 
     %{ $header->header } = ( -attachment => 'genome.jpg' );
-    $header{Content_Disposition} = q{};
+    is $header->set( 'Content-Disposition' => q{} ), q{};
     is_deeply $header->header, { -content_disposition => q{} };
 };
 

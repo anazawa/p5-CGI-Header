@@ -1,5 +1,32 @@
 Revision history for Perl extension CGI::Header.
 
+  [INCOMPATIBLE CHANGES]
+
+    rehash() throws an exception when a property name is duplicated:
+
+      my $header = CGI::Header->(
+          -Type        => 'text/plain',
+          Content_Type => 'text/html',
+      );
+
+      $header->rehash; # die "Property '-type' already exists"
+
+    If it was allowed to overwrite existent properties,
+    it would be essentially impossible to predict 
+    the overwritten value of '-type' in the above example:
+
+      $header->header->{-type}; # => 'text/html' or 'text/plain' ?
+
+    I don't know  whether to allow rehash() to take an optional
+    $force_overwrite argument at this time :(
+
+      # overwrites existent properties silently (not implemented yet)
+      $header->rehash(1);
+
+  [INTERNALS]
+
+    Add a subtest called 'as_string()' to t/10_basic.t
+
 0.15  Jan 11th, 2013
 
   Add env() which defaults to \%ENV. new() receives an additional

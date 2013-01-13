@@ -35,10 +35,11 @@ sub rehash {
         my $prop = _lc( $key );
            $prop = $alias_of{ $prop } || $prop;
 
-        next if $key eq $prop;
+        next if $key eq $prop; # $key is normalized
 
-        # overwrites existent property
-        $header->{ $prop } = delete $header->{ $key };
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+
+        $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
     }
 
     $self;
@@ -89,11 +90,12 @@ sub get {
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
 
 my %set = (
-    -content_disposition => sub { $set->( @_ ); delete $_[0]->{-attachment} },
+    -content_disposition => sub { delete $_[0]->{-attachment}; $set->( @_ ) },
     -content_type => sub {
         my ( $header, $norm, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
-            @{ $header }{qw/-type -charset/} = ( $value, q{} );
+            @{ $header }{qw/-charset -type/} = ( q{}, $value );
+            return $value;
         }
         else {
             carp "Can set '$norm' to neither undef nor an empty string";
@@ -110,11 +112,7 @@ my %set = (
     -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    -server => sub {
-        my ( $h ) = @_;
-        croak $MODIFY if $h->{-nph};
-        $set->( @_ );
-    },
+    -server => sub { $_[0]->{-nph} and croak $MODIFY; $set->( @_ ) },
     -set_cookie => sub {
         my ( $header, $value ) = @_[0, 2];
         delete $header->{-date} if $value;
@@ -124,11 +122,10 @@ my %set = (
 );
 
 sub set {
-    my ( $self, $field, $value ) = @_;
-    $field = _lc( $field );
+    my $self = shift;
+    my $field = _lc( shift );
     my $header = $self->{header};
-    ( $set{$field} || $set )->( $header, $field, $value ) if $field;
-    $value;
+    $field && ( $set{$field} || $set )->( $header, $field, @_ );
 }
 
 my $exists = sub { exists $_[0]->{$_[1]} };
@@ -462,7 +459,7 @@ array references. See also C<flatten()>.
 
 =over 4
 
-=item $header = CGI::Header->new({ -type => 'text/plain', ... }[, \%ENV])
+=item $header = CGI::Header->new( { -type => 'text/plain', ... }[, \%ENV] )
 
 Given a header hash reference, returns a CGI::Header object
 which holds a reference to the original given argument:
@@ -491,16 +488,18 @@ A shortcut for:
 
 =over 4
 
-=item $header->env
+=item $hashref = $header->env
 
 Returns the reference to the hash which contains your current environment.
 C<env()> defaults to C<\%ENV>.
 
-=item $header->header
+=item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
 
 =item $self = $header->rehash
+
+=item $self = $header->rehash( $force_overwrite )
 
 Rebuilds the header hash to normalize parameter names
 without changing the reference. Returns this object itself.
@@ -526,6 +525,15 @@ as you expect.
   #     '-target'         => 'ResultsWindow',
   #     '-content_length' => '3002'
   # }
+
+If a property name is duplicated, this method will throw an exception:
+
+  my $header = CGI::Header->new(
+      -Type        => 'text/plain',
+      Content_Type => 'text/html',
+  );
+
+  $header->rehash; # die "Property '-type' already exists"
 
 Normalized parameter names are:
 
@@ -615,7 +623,7 @@ Returns a copy of this CGI::Header object.
 It's identical to:
 
   my %copy = %{ $header->header }; # shallow copy
-  my $clone = CGI::Header->new( \%copy );
+  my $clone = CGI::Header->new( \%copy, $header->env );
 
 =item $filename = $header->attachment
 
@@ -737,11 +745,10 @@ references. For example,
   use CGI::Header;
   use Plack::Util;
 
-  # untested
   sub psgi_header {
       my $self   = shift;
       my %header = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-      my $header = CGI::Header->new(\%header, $self->env)->rehash;
+      my $header = CGI::Header->new( \%header, $self->env )->rehash;
 
       # breaks encapsulation
       $header{-charset} = $self->charset( $header{-charset} );
@@ -857,14 +864,14 @@ You can't assign to the Expires header directly:
   # wrong
   $header->set( 'Expires' => '+3d' );
 
-Use expires() instead:
-
-  $header->expires( '+3d' );
-
 because the following behavior will surprise us:
 
   my $value = $header->get( 'Expires' );
   # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
+
+Use expires() instead:
+
+  $header->expires( '+3d' );
 
 =item P3P
 

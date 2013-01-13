@@ -3,7 +3,7 @@ use warnings;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 11;
+use Test::More tests => 12;
 use Test::Exception;
 
 can_ok 'CGI::Header', qw(
@@ -106,6 +106,12 @@ subtest 'rehash()' => sub {
         -foo_bar => 'baz',
         -target  => 'ResultsWindow',
     };
+
+    $header = CGI::Header->new(
+        -Type        => 'text/plain',
+        Content_Type => 'text/html',
+    );
+    throws_ok { $header->rehash } qr{^Property '-type' already exists};
 };
 
 subtest 'clone()' => sub {
@@ -238,4 +244,19 @@ subtest 'each()' => sub {
     is_deeply \@got, \@expected;
 
     is $header->each(sub {}), $header, "should return current object itself";
+};
+
+subtest 'as_string()' => sub {
+    my $CRLF = "\015\012";
+    my $header = CGI::Header->new;
+    is $header->as_string, "Content-Type: text/html$CRLF";
+    is $header->as_string("\n"), "Content-Type: text/html\n";
+
+    $header->nph(1);
+    my $expected
+        = "HTTP/1.0 200 OK$CRLF"
+        . "Server: cmdline$CRLF"
+        . "Date: " . CGI::Util::expires() . $CRLF
+        . "Content-Type: text/html$CRLF";
+    is $header->as_string, $expected;
 };
