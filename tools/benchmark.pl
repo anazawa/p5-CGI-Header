@@ -49,7 +49,7 @@ cmpthese(-1, {
         my $header = CGI::header( @args );
     },
     'CGI::Header' => sub {
-        my $header = CGI::Header->new(@args)->rehash->as_string($CRLF);
+        my $header = CGI::Header->new(@args)->as_string($CRLF);
         $header.= $CRLF;
     },
 });
@@ -63,7 +63,7 @@ cmpthese(-1, {
             -charset      => 'utf-8',
             -target       => 'ResultsWindow',
             'Set-Cookie'  => [ $cookie1, $cookie2, $cookie3 ],
-        )->rehash;
+        );
 
         $header->expires( $now + 60 );
 
@@ -142,7 +142,7 @@ cmpthese(-1, {
         my ( $status_code, $headers_aref ) = $cgi_psgi->psgi_header( @args );
     },
     'CGI::Header' => sub {
-        my $header = CGI::Header->new( @args )->rehash;
+        my $header = CGI::Header->new( @args );
         my $status_code = $header->delete('Status') || '200 OK';
         $status_code =~ s/\D*$//;
         my @headers = $header->flatten;

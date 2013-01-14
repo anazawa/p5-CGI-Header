@@ -11,6 +11,23 @@ can_ok 'CGI::Header', qw(
     p3p_tags expires nph attachment field_names each flatten
 );
 
+subtest '_normalize()' => sub {
+    my @data = (
+        'Foo'      => '-foo',
+        'Foo-Bar'  => '-foo_bar',
+        '-foo'     => '-foo',
+        '-foo_bar' => '-foo_bar',
+        '-content_type'  => '-type',
+        '-cookies'       => '-cookie',
+        '-set_cookie'    => '-cookie',
+        '-window_target' => '-target',
+    );
+
+    while ( my ($input, $expected) = splice @data, 0, 2 ) {
+        is CGI::Header::_normalize($input), $expected;
+    }
+};
+
 subtest 'new()' => sub {
     my %header = ();
     my $header = CGI::Header->new( \%header );
@@ -30,20 +47,28 @@ subtest 'new()' => sub {
 
     $header = CGI::Header->new( -foo => 'bar' );
     is_deeply $header->header, { -foo => 'bar' };
-};
 
-subtest '_lc()' => sub {
-    my @data = (
-        'Foo'      => '-foo',
-        'Foo-Bar'  => '-foo_bar',
-        '-foo'     => '-foo',
-        '-foo_bar' => '-foo_bar',
+    $header = CGI::Header->new(
+        '-Charset'      => 'utf-8',
+        '-content_type' => 'text/plain',
+        'Set-Cookie'    => 'ID=123456; path=/',
+        '-expires'      => '+3d',
+        'foo'           => 'bar',
+        'foo-bar'       => 'baz',
+        'window_target' => 'ResultsWindow',
+        'charset'       => 'EUC-JP',
     );
-
-    while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is CGI::Header::_lc($input), $expected;
-    }
+    is_deeply $header->header, {
+        -type    => 'text/plain',
+        -charset => 'EUC-JP',
+        -cookie  => 'ID=123456; path=/',
+        -expires => '+3d',
+        -foo     => 'bar',
+        -foo_bar => 'baz',
+        -target  => 'ResultsWindow',
+    };
 };
+
 
 subtest 'basic' => sub {
     my %header;
@@ -84,14 +109,14 @@ subtest 'basic' => sub {
 };
 
 subtest 'rehash()' => sub {
-    my $header = CGI::Header->new(
+    my $header = CGI::Header->new({
         '-content_type' => 'text/plain',
         'Set-Cookie'    => 'ID=123456; path=/',
         '-expires'      => '+3d',
         'foo'           => 'bar',
         'foo-bar'       => 'baz',
         'window_target' => 'ResultsWindow',
-    );
+    });
 
     my $expected = $header->header;
 
@@ -107,10 +132,10 @@ subtest 'rehash()' => sub {
         -target  => 'ResultsWindow',
     };
 
-    $header = CGI::Header->new(
+    $header = CGI::Header->new({
         -Type        => 'text/plain',
         Content_Type => 'text/html',
-    );
+    });
     throws_ok { $header->rehash } qr{^Property '-type' already exists};
 };
 
