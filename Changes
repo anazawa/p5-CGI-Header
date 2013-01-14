@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.16  Jan 14th, 2013
+
   [INCOMPATIBLE CHANGES]
 
     - rehash() throws an exception when a property name is duplicated:
@@ -21,7 +23,7 @@ Revision history for Perl extension CGI::Header.
     - In addition to CGI.pm-compatible HTTP header properties,
       new() accepts '-env' property which represents your current environment:
 
-        my $h => CGI::Header->new(
+        my $h = CGI::Header->new(
             -type => 'text/plain',
             -env  => \%ENV,
         );
