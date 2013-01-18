@@ -1,5 +1,15 @@
 Revision history for Perl extension CGI::Header.
 
+0.17  Jan 18th, 2013
+
+  [DOCUMENTATION]
+
+    - Add "EXAMPLES" and "DEPENDENCIES"
+
+  [INTERNALS]
+
+    - Fix META.yml ("version" was broken)
+
 0.16  Jan 14th, 2013
 
   [INCOMPATIBLE CHANGES]

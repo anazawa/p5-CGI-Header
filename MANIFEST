@@ -24,8 +24,8 @@ t/24_p3p.t
 t/25_server.t
 t/26_set_cookie.t
 t/27_window_target.t
-t/30_as_string.t
-t/31_psgi_headers.t
+t/30_cgi_header.t
+t/31_psgi_header.t
 tools/benchmark.pl
 tools/profile.pl
 xt/pod.t

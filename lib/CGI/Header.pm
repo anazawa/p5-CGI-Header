@@ -6,9 +6,8 @@ use CGI::Util qw//;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
-# copied from Readonly.pm
 my $MODIFY = 'Modification of a read-only value attempted';
 
 sub new {
@@ -21,7 +20,7 @@ sub new {
     else {
         my %header;
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            $header{ _normalize($key) } = $value; # force overwrite
+            $header{ _lc($key) } = $value; # force overwrite
         }
 
         @{ $self }{qw/env header/} = ( delete $header{-env}, \%header );
@@ -32,23 +31,23 @@ sub new {
     $self;
 }
 
+sub header { $_[0]->{header} }
+
+sub env { $_[0]->{env} }
+
 sub rehash {
     my $self   = shift;
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $norm = _normalize( $key );
-        next if $key eq $norm; # $key is normalized
-        croak "Property '$norm' already exists" if exists $header->{ $norm };
-        $header->{ $norm } = delete $header->{ $key }; # rename $key to $norm
+        my $prop = _lc( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{ $prop };
+        $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
     }
 
     $self;
 }
-
-sub header { $_[0]->{header} }
-
-sub env { $_[0]->{env} }
 
 my $get = sub { $_[0]->{$_[1]} };
 
@@ -57,15 +56,8 @@ my %get = (
         my $filename = $_[0]->{-attachment};
         $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
     },
-    -date => sub {
-        my ( $h ) = @_;
-        $h->{-nph} || $h->{-cookie} || $h->{-expires}
-            ? CGI::Util::expires() : $get->( @_ );
-    },
-    -expires => sub {
-        my $expires = $get->( @_ );
-        $expires ? CGI::Util::expires( $expires ) : undef;
-    },
+    -date => sub { _date_is_fixed( @_ ) ? _expires() : $get->( @_ ) },
+    -expires => sub { my $v = $get->( @_ ); $v ? _expires( $v ) : undef },
     -p3p => sub {
         my $tags = $get->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
@@ -85,25 +77,17 @@ my %get = (
 
 sub get {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $key = _lc( shift );
     my ( $header, $env ) = @{ $self }{qw/header env/};
-    ( $get{$norm} || $get )->( $header, $norm, $env );
+    ( $get{$key} || $get )->( $header, $key, $env );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
 
 my %set = (
     -content_disposition => sub { delete $_[0]->{-attachment}; $set->( @_ ) },
-    -cookie => sub {
-        my ( $header, $value ) = @_[0, 2];
-        delete $header->{-date} if $value;
-        $header->{-cookie} = $value;
-    },
-    -date => sub {
-        my ( $h ) = @_;
-        croak $MODIFY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
-        $set->( @_ );
-    },
+    -cookie => sub { $_[2] and delete $_[0]->{-date}; $set->( @_ ) },
+    -date => sub { _date_is_fixed( @_ ) and croak $MODIFY; $set->( @_ ) },
     -expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
@@ -125,57 +109,50 @@ my %set = (
 
 sub set {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $key = _lc( shift );
     my $header = $self->{header};
-    $norm && ( $set{$norm} || $set )->( $header, $norm, @_ );
+    $key && ( $set{$key} || $set )->( $header, $key, @_ );
 }
 
 my $exists = sub { exists $_[0]->{$_[1]} };
 
 my %exists = (
     -content_disposition => sub { $exists->( @_ ) || $_[0]->{-attachment} },
-    -date => sub {
-        my ( $h ) = @_;
-        $h->{-nph} || $h->{-expires} || $h->{-cookie} || $exists->( @_ );
-    },
+    -date => sub { _date_is_fixed( @_ ) || $exists->( @_ ) },
     -server => sub { $_[0]->{-nph} || $exists->( @_ ) },
-    -type => sub { !defined $_[0]->{-type} || $_[0]->{-type} ne q{} },
+    -type => sub { my $v = $_[0]->{-type}; !defined $v || $v ne q{} },
 );
 
 sub exists {
     my $self = shift;
-    my $norm = _normalize( shift );
+    my $key = _lc( shift );
     my $header = $self->{header};
-    ( $exists{$norm} || $exists )->( $header, $norm );
+    ( $exists{$key} || $exists )->( $header, $key );
 }
 
 my $delete = sub { delete $_[0]->{$_[1]} };
 
 my %delete = (
     -content_disposition => sub { delete @{$_[0]}{$_[1], '-attachment'} },
-    -date => sub {
-        my ( $h ) = @_;
-        croak $MODIFY if $h->{-nph} or $h->{-cookie} or $h->{-expires};
-        $delete->( @_ );
-    },
+    -date => sub { _date_is_fixed( @_ ) and croak $MODIFY; $delete->( @_ ) },
     -expires => $delete,
     -p3p => $delete,
     -server => sub { $_[0]->{-nph} and croak $MODIFY; $delete->( @_ ) },
-    -type => sub { delete $_[0]->{-charset}; $_[0]->{-type} = q{} },
+    -type => sub { my ( $h ) = @_; delete $h->{-charset}; $h->{-type} = q{} },
 );
 
 sub delete {
     my $self   = shift;
-    my $norm   = _normalize( shift );
+    my $key    = _lc( shift );
     my $header = $self->{header};
 
-    if ( my $code = $delete{$norm} ) {
-        my $value = defined wantarray && $self->get( $norm );
-        $code->( $header, $norm );
+    if ( my $code = $delete{$key} ) {
+        my $value = defined wantarray && $self->get( $key );
+        $code->( $header, $key );
         return $value;
     }
 
-    delete $header->{ $norm };
+    delete $header->{ $key };
 }
 
 sub is_empty { !$_[0]->SCALAR }
@@ -234,18 +211,18 @@ sub p3p_tags {
 }
 
 sub flatten {
-    my $self  = shift;
-    my $level = defined $_[0] ? int shift : 1;
-    my $env   = $self->{env};
-    my %copy  = %{ $self->{header} };
+    my $self   = shift;
+    my $level  = defined $_[0] ? int shift : 1;
+    my $server = $self->{env}{SERVER_SOFTWARE} || 'cmdline';
+    my %copy   = %{ $self->{header} };
 
     my @headers;
 
     my ( $cookie, $expires, $nph, $status, $target )
         = delete @copy{qw/-cookie -expires -nph -status -target/};
 
-    push @headers, 'Server', $env->{SERVER_SOFTWARE} || 'cmdline' if $nph;
-    push @headers, 'Status',        $status if $status;
+    push @headers, 'Server', $server        if $nph;
+    push @headers, 'Status', $status        if $status;
     push @headers, 'Window-Target', $target if $target;
 
     if ( my $tags = delete $copy{-p3p} ) {
@@ -260,11 +237,8 @@ sub flatten {
         push @headers, 'Set-Cookie', $cookie;
     }
 
-    push @headers, 'Expires', CGI::Util::expires($expires) if $expires;
-
-    if ( $expires or $cookie or $nph ) {
-        push @headers, 'Date', CGI::Util::expires();
-    }
+    push @headers, 'Expires', _expires($expires) if $expires;
+    push @headers, 'Date', _expires() if $expires or $cookie or $nph;
 
     if ( my $fn = delete $copy{-attachment} ) {
         push @headers, 'Content-Disposition', qq{attachment; filename="$fn"};
@@ -273,8 +247,8 @@ sub flatten {
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
 
     # not ordered
-    while ( my ($field, $value) = each %copy ) {
-        push @headers, _ucfirst( $field ), $value;
+    while ( my ($field, $value) = CORE::each %copy ) {
+        push @headers, _ucfirst($field), $value;
     }
 
     if ( !defined $type or $type ne q{} ) {
@@ -346,18 +320,13 @@ sub FIRSTKEY {
     ( $self->{iterator} = sub { shift @fields } )->();
 }
 
-sub NEXTKEY { $_[0]->{iterator}->() }
+sub NEXTKEY { $_[0]->{iterator}() }
 
-my %alias_of = (
-    -content_type => '-type',   -window_target => '-target',
-    -cookies      => '-cookie', -set_cookie    => '-cookie',
-);
+BEGIN { *_expires = \&CGI::Util::expires }
 
-sub _normalize { # hash function
-    my $norm = lc shift;
-    $norm = "-$norm" if $norm !~ /^-/;
-    substr( $norm, 1 ) =~ tr/-/_/;
-    $alias_of{ $norm } || $norm;
+sub _date_is_fixed {
+    my $header = shift;
+    $header->{-nph} || $header->{-cookie} || $header->{-expires};
 }
 
 sub _ucfirst {
@@ -365,6 +334,18 @@ sub _ucfirst {
     $str =~ s/^-(\w)/\u$1/;
     $str =~ tr/_/-/;
     $str;
+}
+
+my %alias_of = (
+    -content_type => '-type',   -window_target => '-target',
+    -cookies      => '-cookie', -set_cookie    => '-cookie',
+);
+
+sub _lc {
+    my $str = lc shift;
+    $str = "-$str" if $str !~ /^-/;
+    substr( $str, 1 ) =~ tr/-/_/;
+    $alias_of{ $str } || $str;
 }
 
 1;
@@ -401,12 +382,15 @@ CGI::Header - Adapter for CGI::header() function
 
   $h->header; # same reference as $header
 
+=head1 VERSION
+
+This document referes to CGI::Header version 0.17.
+
 =head1 DESCRIPTION
 
 This module is a utility class to manipulate a hash reference
-which L<CGI>'s C<header()> function receives.
-This class is, so to speak, a subclass of Hash
-because the function behaves like a hash,
+received by the C<header()> function provided by CGI.pm.
+This class is, so to speak, a subclass of Hash,
 while Perl5 doesn't provide a built-in class called Hash.
 
 This module isn't the replacement of the function.
@@ -454,7 +438,7 @@ CGI::Header normalizes them automatically.
 
 C<header()> function just stringifies given header properties.
 This module can be used to generate L<PSGI>-compatible header
-array references. See also C<flatten()>.
+array references. See L<"EXAMPLES">.
 
 =back
 
@@ -534,7 +518,7 @@ elements of C<env()>:
 =item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
-You can always pass the reference to C<CGI::header()> function
+You can always pass the header hash to C<CGI::header()> function
 to generate CGI response headers:
 
   print CGI::header( $header->header );
@@ -566,16 +550,6 @@ as you expect.
   #     '-content_length' => '3002'
   # }
 
-If a property name is duplicated, throws an exception:
-
-  $header->header;
-  # => {
-  #     -Type        => 'text/plain',
-  #     Content_Type => 'text/html',
-  # }
-
-  $header->rehash; # die "Property '-type' already exists"
-
 Normalized parameter names are:
 
 =over 4
@@ -601,6 +575,16 @@ This module converts them as follows:
  '-set_cookie'    -> '-cookie'
  '-cookies'       -> '-cookie'
  '-window_target' -> '-target'
+
+If a property name is duplicated, throws an exception:
+
+  $header->header;
+  # => {
+  #     -Type        => 'text/plain',
+  #     Content_Type => 'text/html',
+  # }
+
+  $header->rehash; # die "Property '-type' already exists"
 
 =item $value = $header->get( $field )
 
@@ -774,36 +758,6 @@ whether to flatten them recursively.
   #     'Content-Type' => 'text/html'
   # )
 
-This method can be used to generate L<PSGI>-compatible header array
-references. For example,
-
-  use parent 'CGI::PSGI';
-  use CGI::Header;
-  use Plack::Util;
-
-  sub psgi_header {
-      my $self   = shift;
-      my @args   = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-      my $header = CGI::Header->new( @args, -env => $self->env );
-
-      # breaks encapsulation
-      $header->header->{-charset}
-          = $self->charset( $header->header->{-charset} );
-
-      $header->set( 'Pragma' => 'no-cache' ) if $self->cache;
-
-      my $status = $header->delete('Status') || '200 OK';
-      $status =~ s/\D*$//;
-
-      if ( Plack::Util::status_with_no_entity_body($status) ) {
-          $header->delete( $_ ) for qw( Content-Type Content-Length );
-      }
-
-      $status, [ $header->flatten ];
-  }
-
-See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
-
 =item $header->as_string
 
 =item $header->as_string( $eol )
@@ -831,7 +785,7 @@ the beginning of response headers automatically.
 
 =back
 
-=head2 CREATING A CASE-INSENSITIVE HASH
+=head2 TYING A HASH
 
   use CGI::Header;
 
@@ -863,7 +817,68 @@ You can also iterate through the tied hash:
 
 See also L<perltie>.
 
+=head1 EXAMPLES
+
+=head2 CONVERTING TO HTTP::Headers OBJECTS
+
+  use CGI::Header;
+  use HTTP::Headers;
+
+  my @header_props = ( -type => 'text/plain', ... );
+  my $h = HTTP::Headers->new( CGI::Header->new(@header_props)->flatten );
+  $h->header( 'Content-Type' ); # => "text/plain"
+
+=head2 CREATING PSGI-COMPATIBLE HEADER ARRAY REFERENCES
+
+  use parent 'CGI::PSGI';
+  use CGI::Header;
+  use Plack::Util;
+
+  sub psgi_header {
+      my $self = shift;
+      my @args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+
+      my $header = CGI::Header->new(
+          -charset => $self->charset,
+          @args,
+          -env => $self->env,
+      );
+
+      $header->set( 'Pragma' => 'no-cache' ) if $self->cache;
+
+      my $status = $header->delete('Status') || '200 OK';
+      $status =~ s/\D*$//;
+
+      if ( Plack::Util::status_with_no_entity_body($status) ) {
+          $header->delete( $_ ) for qw( Content-Type Content-Length );
+      }
+
+      my @headers = $header->flatten;
+
+      # remove the Server header
+      splice @headers, 0, 2 if $header->nph;
+
+      $status, \@headers;
+  }
+
+See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
+
+=head2 DEPENDENCIES
+
+This module is compatible with CGI.pm 3.51 or higher.
+
 =head1 LIMITATIONS
+
+Since the following strings conflict with property names,
+you can't use them as field names (C<$field>):
+
+  "Attachment"
+  "Charset"
+  "Cookie"
+  "Cookies"
+  "NPH"
+  "Target"
+  "Type"
 
 =over 4
 
@@ -882,13 +897,11 @@ Use delete() instead:
 =item Date
 
 If one of the following conditions is met, the Date header will be set
-automatically:
+automatically, and also the header field will become read-only:
 
   if ( $header->nph or $header->get('Set-Cookie') or $header->expires ) {
       my $date = $header->get( 'Date' ); # => HTTP-Date (current time)
   }
-
-and also the header field will become read-only: 
 
   # wrong
   $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' );
@@ -896,12 +909,11 @@ and also the header field will become read-only:
 
 =item Expires
 
-You can't assign to the Expires header directly:
+You can't assign to the Expires header directly
+because the following behavior will surprise us:
 
   # wrong
   $header->set( 'Expires' => '+3d' );
-
-because the following behavior will surprise us:
 
   my $value = $header->get( 'Expires' );
   # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
@@ -924,14 +936,12 @@ You're allowed to set P3P tags using C<p3p_tags()>.
 =item Server
 
 If the following condition is met, the Server header will be set
-automatically:
+automatically, and also the header field will become read-only: 
 
   if ( $header->nph ) {
       my $server = $header->get( 'Server' );
       # => $header->env->{SERVER_SOFTWARE}
   }
-
-and also the header field will become read-only: 
 
   # wrong
   $header->set( 'Server' => 'Apache/1.3.27 (Unix)' );

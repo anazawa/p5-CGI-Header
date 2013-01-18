@@ -14,20 +14,9 @@ use Storable qw/dclone/;
 
 my $CRLF = $CGI::CRLF;
 
-my $cookie1 = CGI::Cookie->new(
-    -name  => 'foo',
-    -value => 'bar',
-);
-
-my $cookie2 = CGI::Cookie->new(
-    -name  => 'bar',
-    -value => 'baz',
-);
-
-my $cookie3 = CGI::Cookie->new(
-    -name  => 'baz',
-    -value => 'qux',
-);
+my $cookie1 = CGI::Cookie->new( -name => 'foo', -value => 'bar' );
+my $cookie2 = CGI::Cookie->new( -name => 'bar', -value => 'baz' );
+my $cookie3 = CGI::Cookie->new( -name => 'baz', -value => 'qux' );
 
 my $now = time;
 
@@ -49,7 +38,7 @@ cmpthese(-1, {
         my $header = CGI::header( @args );
     },
     'CGI::Header' => sub {
-        my $header = CGI::Header->new(@args)->as_string($CRLF);
+        my $header = CGI::Header->new( @args )->as_string( $CRLF );
         $header.= $CRLF;
     },
 });
