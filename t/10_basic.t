@@ -67,6 +67,9 @@ subtest 'new()' => sub {
         -foo_bar => 'baz',
         -target  => 'ResultsWindow',
     };
+
+    $header = CGI::Header->new('text/plain');
+    is_deeply $header->header, { -type => 'text/plain' };
 };
 
 

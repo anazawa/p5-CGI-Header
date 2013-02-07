@@ -17,6 +17,9 @@ sub new {
     if ( ref $args[0] eq 'HASH' ) {
         @{ $self }{qw/header env/} = splice @args, 0, 2;
     }
+    elsif ( @args == 1 ) {
+        $self->{header}->{-type} = shift @args;
+    }
     else {
         my %header;
         while ( my ($key, $value) = splice @args, 0, 2 ) {
@@ -26,7 +29,7 @@ sub new {
         @{ $self }{qw/env header/} = ( delete $header{-env}, \%header );
     }
 
-    $self->{env} ||= \%ENV;
+    $self->{env} = \%ENV if ref $self->{env} ne 'HASH';
 
     $self;
 }
@@ -107,7 +110,7 @@ my %set = (
     },
 );
 
-sub set {
+sub set { # unstable
     my $self = shift;
     my $key = _lc( shift );
     my $header = $self->{header};
@@ -320,7 +323,7 @@ sub FIRSTKEY {
     ( $self->{iterator} = sub { shift @fields } )->();
 }
 
-sub NEXTKEY { $_[0]->{iterator}() }
+sub NEXTKEY { $_[0]->{iterator}->() }
 
 BEGIN { *_expires = \&CGI::Util::expires }
 
@@ -499,6 +502,12 @@ you can specify '-env' property which represents your current environment:
 
   $h->header; # => { -type => 'text/plain' }
   $h->env;    # => \%ENV
+
+=item $header = CGI::Header->new( $media_type )
+
+A shortcut for:
+
+  my $h = CGI::Header->new({ -type => $media_type });
 
 =back
 
@@ -863,7 +872,7 @@ See also L<perltie>.
 
 See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
 
-=head2 DEPENDENCIES
+=head1 DEPENDENCIES
 
 This module is compatible with CGI.pm 3.51 or higher.
 
