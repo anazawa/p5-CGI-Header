@@ -27,7 +27,7 @@ sub new {
         }
     }
     elsif ( @args == 1 ) {
-        $self->{header} = { -type => shift @args };
+        $self->{header}->{-type} = shift @args;
     }
     else {
         croak 'Odd number of elements in hash assignment';
