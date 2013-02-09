@@ -391,7 +391,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document referes to CGI::Header version 0.17.
+This document referes to CGI::Header version 0.19.
 
 =head1 DESCRIPTION
 
@@ -511,7 +511,7 @@ you can specify '-env' property which represents your current environment:
 
 A shortcut for:
 
-  my $h = CGI::Header->new({ -type => $media_type });
+  my $header = CGI::Header->new({ -type => $media_type });
 
 =back
 
