@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.18  Feb 9th, 2013
+
   - You can pass a media type to new() in the following situation:
 
       my $h = CGI::Header->new('text/plain');
