@@ -17,19 +17,23 @@ sub new {
     if ( ref $args[0] eq 'HASH' ) {
         @{ $self }{qw/header env/} = splice @args, 0, 2;
     }
+    elsif ( @args % 2 == 0 ) {
+        my $header = $self->{header} = {};
+        while ( my ($key, $value) = splice @args, 0, 2 ) {
+            $header->{ _lc($key) } = $value; # force overwrite
+        }
+        if ( ref $header->{-env} eq 'HASH' ) {
+            $self->{env} = delete $header->{-env};
+        }
+    }
     elsif ( @args == 1 ) {
-        $self->{header}->{-type} = shift @args;
+        $self->{header} = { -type => shift @args };
     }
     else {
-        my %header;
-        while ( my ($key, $value) = splice @args, 0, 2 ) {
-            $header{ _lc($key) } = $value; # force overwrite
-        }
-
-        @{ $self }{qw/env header/} = ( delete $header{-env}, \%header );
+        croak 'Odd number of elements in hash assignment';
     }
 
-    $self->{env} = \%ENV if ref $self->{env} ne 'HASH';
+    $self->{env} ||= \%ENV;
 
     $self;
 }
@@ -901,7 +905,7 @@ You can set the Content-Type header to neither undef nor an empty:
 
 Use delete() instead:
 
-  $header->delete( 'Content-Type' );
+  $header->delete('Content-Type');
 
 =item Date
 
@@ -909,12 +913,10 @@ If one of the following conditions is met, the Date header will be set
 automatically, and also the header field will become read-only:
 
   if ( $header->nph or $header->get('Set-Cookie') or $header->expires ) {
-      my $date = $header->get( 'Date' ); # => HTTP-Date (current time)
+      my $date = $header->get('Date'); # => HTTP-Date (current time)
+      $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' ); # wrong
+      $header->delete('Date'); # wrong
   }
-
-  # wrong
-  $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' );
-  $header->delete( 'Date' );
 
 =item Expires
 
@@ -924,12 +926,12 @@ because the following behavior will surprise us:
   # wrong
   $header->set( 'Expires' => '+3d' );
 
-  my $value = $header->get( 'Expires' );
+  my $value = $header->get('Expires');
   # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
 
 Use expires() instead:
 
-  $header->expires( '+3d' );
+  $header->expires('+3d');
 
 =item P3P
 
@@ -948,19 +950,19 @@ If the following condition is met, the Server header will be set
 automatically, and also the header field will become read-only: 
 
   if ( $header->nph ) {
-      my $server = $header->get( 'Server' );
+      my $server = $header->get('Server');
       # => $header->env->{SERVER_SOFTWARE}
+
+      $header->set( 'Server' => 'Apache/1.3.27 (Unix)' ); # wrong
+      $header->delete( 'Server' ); # wrong
   }
 
-  # wrong
-  $header->set( 'Server' => 'Apache/1.3.27 (Unix)' );
-  $header->delete( 'Server' );
 
 =back
 
 =head1 SEE ALSO
 
-L<CGI>, L<Plack::Util>, L<HTTP::Headers>
+L<CGI>, L<Plack::Util>::headers(), L<HTTP::Headers>
 
 =head1 BUGS
 

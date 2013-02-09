@@ -70,8 +70,15 @@ subtest 'new()' => sub {
 
     $header = CGI::Header->new('text/plain');
     is_deeply $header->header, { -type => 'text/plain' };
-};
 
+    throws_ok { CGI::Header->new( -foo => 'bar', '-baz' ) }
+        qr{^Odd number of elements in hash assignment};
+
+    # You can set the Env header,
+    # while I don't know what the Env header is ;)
+    $header = CGI::Header->new( -env => 'a plain string' );
+    is_deeply $header->header, { -env => 'a plain string' };
+};
 
 subtest 'basic' => sub {
     my %header;

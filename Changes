@@ -1,41 +1,24 @@
 Revision history for Perl extension CGI::Header.
 
-  You can pass a media type to new() in the following situation:
+  - You can pass a media type to new() in the following situation:
 
-    my $h = CGI::Header->new('text/plain');
-    $h->header; # => { -type => 'text/plain' }
+      my $h = CGI::Header->new('text/plain');
+      $h->header; # => { -type => 'text/plain' }
+
+  - new() throws an exception in the following situation:
+
+      my $h = CGI::Header->new( -foo => 'bar', '-baz' );
+      # die "Odd number of elements in hash assignment"
 
   [STATE OF THIS MODULE]
 
     The following methods are unstable:
-
-      - CGI::Header->new( -type => 'text/plain', -env => \%ENV )
-
-        You can't specify the Env header, while I don't know
-        what the Env header is ;) Since "-env" isn't supported
-        by CGI::header(), this feature will be removed.
-        Sorry for the inconvenience :(
-
-        NOTE: You could set env() even if "-env" property was removed:
-
-          my $h = CGI::Header->new( { -type => 'text/plain' }, \%ENV )
-          $h->env; # => \%ENV
 
       - $h->set( 'Content-Type => $value )
       - $h->set( 'P3P' => $value )
       - $h->set( 'Expires' => $value )
 
         I'm not sure about how to process these headers properly at this time.
-
-      - $h->clone
-
-        Should I use Storable::dclone() ?
-
-      - $h->field_names
-
-        Works fine but slow because this method depends on flatten().
-        CGI::Util::expires() will be called implicitly, for example.
-        You should use each() or flatten() when you iterate through $h.
 
 0.17  Jan 18th, 2013
 
