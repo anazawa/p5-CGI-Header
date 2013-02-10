@@ -1,12 +1,14 @@
 Revision history for Perl extension CGI::Header.
 
-  - Add CGI::Header::PSGI which exports two methods on demand: psgi_header()
-    and psgi_redirect().
+0.19  Feb 11th, 2013
 
-      use parent 'CGI';
-      use CGI::Header::PSGI qw(psgi_header psgi_redirect);
+  Add CGI::Header::PSGI which exports two methods on demand: psgi_header()
+  and psgi_redirect().
 
-    CGI::Header::PSGI helps you create your own CGI::PSGI-compatible class.
+    use parent 'CGI';
+    use CGI::Header::PSGI qw(psgi_header psgi_redirect);
+
+  CGI::Header::PSGI helps you create your own CGI::PSGI-compatible class.
 
   [INCOMPATIBLE CHANGES]
 
