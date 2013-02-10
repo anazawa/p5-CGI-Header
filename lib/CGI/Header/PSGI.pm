@@ -2,13 +2,15 @@ package CGI::Header::PSGI;
 use strict;
 use warnings;
 use CGI::Header;
+use Carp qw/croak/;
 use Exporter 'import';
 
-our @EXPORT_OK = qw(psgi_header psgi_redirect);
+our @EXPORT_OK = qw( psgi_header psgi_redirect );
 
 sub psgi_header {
     my $self = shift;
     my @args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $CRLF = $CGI::CRLF;
 
     unshift @args, '-type' if @args == 1;
 
@@ -17,12 +19,37 @@ sub psgi_header {
         @args,
     );
 
-    $header->set( 'Pragma' => 'no-cache' ) if $self->cache;
-
     my $status = $header->delete('Status') || '200';
     $status =~ s/\D*$//;
 
-    $status, [ $header->flatten ];
+    if ( _status_with_no_entity_body($status) ) {
+        $header->delete( $_ ) for qw( Content-Type Content-Length );
+    }
+
+    my @headers;
+    $header->each(sub {
+        my ( $field, $value ) = @_;
+
+        $value = $value->as_string if ref $value eq 'CGI::Cookie';
+
+        # From RFC 822:
+        # Unfolding is accomplished by regarding CRLF immediately
+        # followed by a LWSP-char as equivalent to the LWSP-char.
+        $value =~ s/$CRLF(\s)/$1/g;
+
+        # All other uses of newlines are invalid input.
+        if ( $value =~ /$CRLF|\015|\012/ ) {
+            # shorten very long values in the diagnostic
+            $value = substr($value, 0, 72) . '...' if length $value > 72;
+            croak "Invalid header value contains a newline not followed by whitespace: $value";
+        }
+
+        push @headers, $field, $value;
+    });
+
+    push @headers, 'Pragma', 'no-cache' if $self->cache;
+
+    return $status, \@headers;
 }
 
 sub psgi_redirect {
@@ -39,6 +66,12 @@ sub psgi_redirect {
     );
 }
 
+# copied from Plack::Util
+sub _status_with_no_entity_body {
+    my $status = shift;
+    return $status < 200 || $status == 204 || $status == 304;
+}
+
 1;
 
 __END__
@@ -50,7 +83,7 @@ CGI::Header::PSGI - Mixin to generate PSGI response headers
 =head1 SYNOPSIS
 
   use parent 'CGI';
-  use CGI::Header::PSGI qw(psgi_header psgi_redirect);
+  use CGI::Header::PSGI qw( psgi_header psgi_redirect );
 
 =head1 DESCRIPTION
 
@@ -60,9 +93,17 @@ This module is a mixin class to generate PSGI response headers.
 
 =over 4
 
-=item  ($status_code, $headers_aref) = $query->psgi_header
+=item  ($status_code, $headers_aref) = $query->psgi_header( %args )
 
-=item  ($status_code, $headers_aref) = $query->psgi_redirect
+Works like CGI.pm's C<header()>, but the return format is modified.
+It returns an array with the status code and arrayref of header pairs
+that PSGI requires.
+
+=item  ($status_code, $headers_aref) = $query->psgi_redirect( %args )
+
+Works like CGI.pm's C<redirect()>, but the return format is modified.
+It returns an array with the status code and arrayref of header pairs
+that PSGI requires.
 
 =back
 
