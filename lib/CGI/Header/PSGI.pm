@@ -84,6 +84,8 @@ This module is a mixin class to generate PSGI response headers.
 
 =head2 METHODS
 
+By using this module, your class is capable of following methods.
+
 =over 4
 
 =item  ($status_code, $headers_aref) = $query->psgi_header( %args )

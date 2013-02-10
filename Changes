@@ -1,5 +1,19 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add CGI::Header::PSGI which exports two methods on demand: psgi_header()
+    and psgi_redirect().
+
+      use parent 'CGI';
+      use CGI::Header::PSGI qw(psgi_header psgi_redirect);
+
+    CGI::Header::PSGI helps you create your own CGI::PSGI-compatible class.
+
+  [INCOMPATIBLE CHANGES]
+
+    - rehash() and new() rename '-uri' and '-url' to '-location'
+
+    - flatten() and each() stringify CGI::Cookie objects by default.
+
 0.18  Feb 9th, 2013
 
   - You can pass a media type to new() in the following situation:
