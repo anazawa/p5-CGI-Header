@@ -346,6 +346,7 @@ sub _ucfirst {
 my %alias_of = (
     -content_type => '-type',   -window_target => '-target',
     -cookies      => '-cookie', -set_cookie    => '-cookie',
+    -uri => '-location', -url => '-location', # for CGI::redirect()
 );
 
 sub _lc {
