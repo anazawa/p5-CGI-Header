@@ -219,7 +219,7 @@ sub p3p_tags {
 
 sub flatten {
     my $self   = shift;
-    my $level  = defined $_[0] ? int shift : 1;
+    my $level  = defined $_[0] ? int shift : 2;
     my $server = $self->{env}{SERVER_SOFTWARE} || 'cmdline';
     my %copy   = %{ $self->{header} };
 
@@ -237,11 +237,10 @@ sub flatten {
         push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
-    if ( ref $cookie eq 'ARRAY' and $level ) {
-        push @headers, map { ('Set-Cookie', $_) } @{ $cookie };
-    }
-    elsif ( $cookie ) {
-        push @headers, 'Set-Cookie', $cookie;
+    if ( $cookie ) {
+        my @cookies = $level && ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+           @cookies = map { "$_" } @cookies if $level > 1;
+        push @headers, map { ('Set-Cookie', $_) } @cookies;
     }
 
     push @headers, 'Expires', _expires($expires) if $expires;
@@ -301,7 +300,6 @@ sub as_string {
     # add response headers
     $self->each(sub {
         my ( $field, $value ) = @_;
-        $value = $value->as_string if ref $value eq 'CGI::Cookie';
         $value =~ s/$eol(\s)/$1/g;
         $value =~ s/$eol|\015|\012//g;
         push @lines, "$field: $value";

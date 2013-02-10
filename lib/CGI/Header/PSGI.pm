@@ -20,7 +20,7 @@ sub psgi_header {
     );
 
     my $status = $header->delete('Status') || '200';
-    $status =~ s/\D*$//;
+       $status =~ s/\D*$//;
 
     if ( _status_with_no_entity_body($status) ) {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
@@ -29,8 +29,6 @@ sub psgi_header {
     my @headers;
     $header->each(sub {
         my ( $field, $value ) = @_;
-
-        $value = $value->as_string if ref $value eq 'CGI::Cookie';
 
         # From RFC 822:
         # Unfolding is accomplished by regarding CRLF immediately

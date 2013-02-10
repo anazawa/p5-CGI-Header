@@ -12,6 +12,12 @@ use HTTP::Parser::XS qw/parse_http_response HEADERS_AS_ARRAYREF/;
 use HTTP::Response;
 use Storable qw/dclone/;
 
+package CGI::PSGI::Extended;
+use base 'CGI::PSGI';
+use CGI::Header::PSGI qw/psgi_header psgi_redirect/;
+
+package main;
+
 my $CRLF = $CGI::CRLF;
 
 my $cookie1 = CGI::Cookie->new( -name => 'foo', -value => 'bar' );
@@ -112,7 +118,8 @@ cmpthese(-1, {
     },
 });
 
-my $cgi_psgi = CGI::PSGI->new;
+my $cgi_psgi = CGI::PSGI->new({});
+my $extended = CGI::PSGI::Extended->new({});
 
 cmpthese(-1, {
     'HTTP::Parser::XS' => sub {
@@ -131,10 +138,11 @@ cmpthese(-1, {
         my ( $status_code, $headers_aref ) = $cgi_psgi->psgi_header( @args );
     },
     'CGI::Header' => sub {
-        my $header = CGI::Header->new( @args );
-        my $status_code = $header->delete('Status') || '200 OK';
-        $status_code =~ s/\D*$//;
-        my @headers = $header->flatten;
+        #my $header = CGI::Header->new( @args );
+        #my $status_code = $header->delete('Status') || '200 OK';
+        #$status_code =~ s/\D*$//;
+        #my @headers = $header->flatten;
+        my ( $status_code, $headers_aref ) = $extended->psgi_header( @args );
     },
 });
 
