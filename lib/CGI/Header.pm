@@ -746,28 +746,29 @@ Any return values of the callback routine are ignored.
 
 =item @headers = $header->flatten
 
-=item @headers = $header->flatten( $is_recursive )
-
 Returns pairs of fields and values. 
-This method flattens the Set-Cookie headers recursively by default.
-The optional C<$is_recursive> argument determines
-whether to flatten them recursively.
 
-  my $header = CGI::Header->new( -cookie => ['cookie1', 'cookie2'] );
+  # $cookie1 and $cookie2 are CGI::Cookie objects
+  my $header = CGI::Header->new( -cookie => [$cookie1, $cookie2] );
 
   $header->flatten;
   # => (
-  #     'Set-Cookie'   => 'cookie1',
-  #     'Set-Cookie'   => 'cookie2',
-  #     'Date'         => 'Thu, 25 Apr 1999 00:40:33 GMT',
-  #     'Content-Type' => 'text/html'
+  #     "Set-Cookie" => "$cookie1",
+  #     "Set-Cookie" => "$cookie2",
+  #     ...
+  # )
+
+  $header->flatten(1);
+  # => (
+  #     "Set-Cookie" => $cookie1,
+  #     "Set-Cookie" => $cookie2,
+  #     ...
   # )
 
   $header->flatten(0);
   # => (
-  #     'Set-Cookie'   => ['cookie1', 'cookie2'],
-  #     'Date'         => 'Thu, 25 Apr 1999 00:40:33 GMT',
-  #     'Content-Type' => 'text/html'
+  #     "Set-Cookie" => [$cookie1, $cookie2],
+  #     ...
   # )
 
 =item $header->as_string

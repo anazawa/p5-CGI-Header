@@ -22,7 +22,8 @@ sub psgi_header {
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
 
-    if ( _status_with_no_entity_body($status) ) {
+    # status with no entity body
+    if ( $status < 200 || $status == 204 || $status == 304 ) {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
     }
 
@@ -62,12 +63,6 @@ sub psgi_redirect {
         -type => q{},
         @args,
     );
-}
-
-# copied from Plack::Util
-sub _status_with_no_entity_body {
-    my $status = shift;
-    return $status < 200 || $status == 204 || $status == 304;
 }
 
 1;
