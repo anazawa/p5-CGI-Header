@@ -19,12 +19,15 @@ sub psgi_header {
         @args,
     );
 
-    $header->nph( 0 );
+    $self->charset( $header->header->{-charset} ); # "side effect"
 
+    $header->nph( 0 ); # NPH scripts don't depend on this method.
+
+    # Remove the Status header as per PSGI spec.
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
 
-    # status with no entity body
+    # See Plack::Util::status_with_no_entity_body()
     if ( $status < 200 || $status == 204 || $status == 304 ) {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
     }
@@ -94,7 +97,7 @@ Your class has to implement the following methods.
 
 =item $query->charset
 
-Returns the character set sent to the browser.
+Get or set the character set sent to the browser.
 
 =item $query->url
 
@@ -105,6 +108,9 @@ Returns the script's URL.
 =item $query->crlf
 
 Returns the system specific line ending sequence.
+If your class inherits from L<CGI>, you have to add this method by yourself.
+On the other hand, L<CGI::Simple> has this attribute by default,
+and so you don't have to do so.
 
 =back
 
