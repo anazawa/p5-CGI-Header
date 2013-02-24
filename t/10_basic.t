@@ -1,10 +1,13 @@
 use strict;
 use warnings;
+use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
 use Test::More tests => 12;
 use Test::Exception;
+
+set_fixed_time( 1341637509 );
 
 can_ok 'CGI::Header', qw(
     new header env rehash clone clear delete exists get set is_empty

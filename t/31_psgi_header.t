@@ -1,14 +1,16 @@
 use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
-use Test::More tests => 4;
+use Test::More tests => 5;
 
 my $now = 1349043453;
 set_fixed_time( $now );
 
 package CGI::PSGI::Extended;
 use base 'CGI::PSGI';
-use CGI::Header::PSGI qw( psgi_header psgi_redirect );
+use CGI::Header::PSGI qw(psgi_header psgi_redirect);
+
+sub crlf { $CGI::CRLF }
 
 package main;
 
@@ -17,31 +19,48 @@ my $env = {
     SERVER_SOFTWARE => 'Apache/1.3.27 (Unix)',
 };
 
-subtest 'default' => sub {
-    my $cgi_psgi = CGI::PSGI->new( $env );
-    my $extended = CGI::PSGI::Extended->new( $env );
-    is_deeply [ $extended->psgi_header ], [ $cgi_psgi->psgi_header ];
+subtest 'basic' => sub {
+    my $query = CGI::PSGI::Extended->new( $env );
+
+    my @expected = ( 'Content-Type', 'text/html; charset=ISO-8859-1' );
+    is_deeply [ $query->psgi_header ], [ 200, \@expected ];
+
+    my @got = $query->psgi_header(
+        -status => '304 Not Modified',
+        -etag   => 'Foo',
+    );
+    is_deeply \@got, [ 304, ['Etag', 'Foo'] ];
 };
 
-subtest 'NPH' => sub {
-    plan skip_all => 'not implemented yet';
-    my $cgi = CGI::PSGI::Extended->new( $env );
-    my @args = ( -nph => 1 );
-    my @got = $cgi->yet_another_psgi_header( @args );
-    my @expected = $cgi->psgi_header( @args );
-    is_deeply \@got, \@expected;
+subtest 'default' => sub {
+    my $got = CGI::PSGI::Extended->new( $env );
+    my $expected = CGI::PSGI->new( $env );
+    is_deeply [ $got->psgi_header ], [ $expected->psgi_header ];
 };
 
 subtest 'cache()' => sub {
-    plan skip_all => 'not implemented yet';
-    my $cgi = CGI::PSGI::Extended->new( $env );
-    $cgi->cache(1);
-    is_deeply [ $cgi->yet_another_psgi_header ], [ $cgi->psgi_header ];
+    my $query = CGI::PSGI::Extended->new( $env );
+    $query->cache(1);
+
+    my @expected = (
+        'Content-Type', 'text/html; charset=ISO-8859-1',
+        'Pragma',       'no-cache',
+    );
+
+    is_deeply [ $query->psgi_header ], [ 200, \@expected ];
 };
 
 subtest 'charset()' => sub {
-    plan skip_all => 'not implemented yet';
-    my $cgi = CGI::PSGI::Extended->new( $env );
-    $cgi->charset( 'utf-8' );
-    is_deeply [ $cgi->yet_another_psgi_header ], [ $cgi->psgi_header ];
+    my $expected = CGI::PSGI->new( $env );
+    my $got = CGI::PSGI::Extended->new( $env );
+    $expected->charset( 'utf-8' );
+    $got->charset( 'utf-8' );
+    is_deeply [ $got->psgi_header ], [ $expected->psgi_header ];
+};
+
+subtest 'psgi_redirect()' => sub {
+    my $query = CGI::PSGI::Extended->new( $env );
+    my $url = 'http://localhost/';
+    my @expected = ( 'Location', $url );
+    is_deeply [ $query->psgi_redirect($url) ], [ 302, \@expected ];
 };

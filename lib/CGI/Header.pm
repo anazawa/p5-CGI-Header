@@ -390,7 +390,11 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document referes to CGI::Header version 0.19.
+This document referes to CGI::Header version 0.20.
+
+=head1 DEPENDENCIES
+
+This module is compatible with CGI.pm 3.51 or higher.
 
 =head1 DESCRIPTION
 
@@ -444,7 +448,7 @@ CGI::Header normalizes them automatically.
 
 C<header()> function just stringifies given header properties.
 This module can be used to generate L<PSGI>-compatible header
-array references. See L<"EXAMPLES">.
+array references. See L<CGI::Header::PSGI>.
 
 =back
 
@@ -842,45 +846,6 @@ See also L<perltie>.
   my @header_props = ( -type => 'text/plain', ... );
   my $h = HTTP::Headers->new( CGI::Header->new(@header_props)->flatten );
   $h->header( 'Content-Type' ); # => "text/plain"
-
-=head2 CREATING PSGI-COMPATIBLE HEADER ARRAY REFERENCES
-
-  use parent 'CGI::PSGI';
-  use CGI::Header;
-  use Plack::Util;
-
-  sub psgi_header {
-      my $self = shift;
-      my @args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-
-      my $header = CGI::Header->new(
-          -charset => $self->charset,
-          @args,
-          -env => $self->env,
-      );
-
-      $header->set( 'Pragma' => 'no-cache' ) if $self->cache;
-
-      my $status = $header->delete('Status') || '200 OK';
-      $status =~ s/\D*$//;
-
-      if ( Plack::Util::status_with_no_entity_body($status) ) {
-          $header->delete( $_ ) for qw( Content-Type Content-Length );
-      }
-
-      my @headers = $header->flatten;
-
-      # remove the Server header
-      splice @headers, 0, 2 if $header->nph;
-
-      $status, \@headers;
-  }
-
-See also L<CGI::Emulate::PSGI>, L<CGI::PSGI>.
-
-=head1 DEPENDENCIES
-
-This module is compatible with CGI.pm 3.51 or higher.
 
 =head1 LIMITATIONS
 

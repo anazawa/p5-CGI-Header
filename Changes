@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add "REQUIRED METHODS" to CGI::Header::PSGI's POD
+
 0.19  Feb 11th, 2013
 
   Add CGI::Header::PSGI which exports two methods on demand: psgi_header()

@@ -10,7 +10,7 @@ our @EXPORT_OK = qw( psgi_header psgi_redirect );
 sub psgi_header {
     my $self = shift;
     my @args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $CRLF = $CGI::CRLF;
+    my $crlf = $self->crlf;
 
     unshift @args, '-type' if @args == 1;
 
@@ -18,6 +18,8 @@ sub psgi_header {
         -charset => $self->charset,
         @args,
     );
+
+    $header->nph( 0 );
 
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
@@ -34,10 +36,10 @@ sub psgi_header {
         # From RFC 822:
         # Unfolding is accomplished by regarding CRLF immediately
         # followed by a LWSP-char as equivalent to the LWSP-char.
-        $value =~ s/$CRLF(\s)/$1/g;
+        $value =~ s/$crlf(\s)/$1/g;
 
         # All other uses of newlines are invalid input.
-        if ( $value =~ /$CRLF|\015|\012/ ) {
+        if ( $value =~ /$crlf|\015|\012/ ) {
             # shorten very long values in the diagnostic
             $value = substr($value, 0, 72) . '...' if length $value > 72;
             croak "Invalid header value contains a newline not followed by whitespace: $value";
@@ -78,9 +80,33 @@ CGI::Header::PSGI - Mixin to generate PSGI response headers
   use parent 'CGI';
   use CGI::Header::PSGI qw( psgi_header psgi_redirect );
 
+  sub crlf { $CGI::CRLF }
+
 =head1 DESCRIPTION
 
 This module is a mixin class to generate PSGI response headers.
+
+=head2 REQUIRED METHODS
+
+Your class has to implement the following methods.
+
+=over 4
+
+=item $query->charset
+
+Returns the character set sent to the browser.
+
+=item $query->url
+
+Returns the script's URL.
+
+=item $query->cache
+
+=item $query->crlf
+
+Returns the system specific line ending sequence.
+
+=back
 
 =head2 METHODS
 
@@ -104,7 +130,7 @@ that PSGI requires.
 
 =head1 SEE ALSO
 
-L<CGI::PSGI>
+L<CGI::PSGI>, L<CGI::Emulate::PSGI>, L<CGI::Simple>
 
 =head1 AUTHOR
 
