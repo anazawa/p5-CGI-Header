@@ -20,10 +20,12 @@ sub psgi_header {
         @args,
     );
 
-    $self->charset( $header->header->{-charset} );
-
     $header->nph( 0 );
     $header->expires( 'now' ) if $no_cache;
+
+    if ( ($no_cache or $self->cache) and !$header->exists('Pragma') ) {
+        $header->set( 'Pragma' => 'no-cache' );
+    }
 
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
@@ -31,10 +33,6 @@ sub psgi_header {
     # See Plack::Util::status_with_no_entity_body()
     if ( $status < 200 or $status == 204 or $status == 304 ) {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
-    }
-
-    if ( ($no_cache or $self->cache) and !$header->exists('Pragma') ) {
-        $header->set( 'Pragma' => 'no-cache' );
     }
 
     my @headers;
