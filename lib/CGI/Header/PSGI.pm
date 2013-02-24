@@ -8,9 +8,10 @@ use Exporter 'import';
 our @EXPORT_OK = qw( psgi_header psgi_redirect );
 
 sub psgi_header {
-    my $self = shift;
-    my @args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $crlf = $self->crlf;
+    my $self     = shift;
+    my @args     = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $crlf     = $self->crlf;
+    my $no_cache = $self->can('no_cache') && $self->no_cache;
 
     unshift @args, '-type' if @args == 1;
 
@@ -19,18 +20,19 @@ sub psgi_header {
         @args,
     );
 
-    $self->charset( $header->header->{-charset} ); # "side effect"
+    $self->charset( $header->header->{-charset} );
 
-    $header->nph( 0 ); # NPH scripts don't depend on this method.
+    $header->nph( 0 );
 
-    # Remove the Status header as per PSGI spec.
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
 
     # See Plack::Util::status_with_no_entity_body()
-    if ( $status < 200 || $status == 204 || $status == 304 ) {
+    if ( $status < 200 or $status == 204 or $status == 304 ) {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
     }
+
+    $header->expires( 'now' ) if $no_cache;
 
     my @headers;
     $header->each(sub {
@@ -51,7 +53,7 @@ sub psgi_header {
         push @headers, $field, $value;
     });
 
-    push @headers, 'Pragma', 'no-cache' if $self->cache;
+    push @headers, 'Pragma', 'no-cache' if $no_cache or $self->cache;
 
     return $status, \@headers;
 }
