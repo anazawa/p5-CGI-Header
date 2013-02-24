@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.20  Feb 24th, 2013
+
   - Add "REQUIRED METHODS" to CGI::Header::PSGI's POD
 
 0.19  Feb 11th, 2013
