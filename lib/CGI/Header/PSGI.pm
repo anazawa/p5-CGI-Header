@@ -23,6 +23,7 @@ sub psgi_header {
     $self->charset( $header->header->{-charset} );
 
     $header->nph( 0 );
+    $header->expires( 'now' ) if $no_cache;
 
     my $status = $header->delete('Status') || '200';
        $status =~ s/\D*$//;
@@ -32,7 +33,9 @@ sub psgi_header {
         $header->delete( $_ ) for qw( Content-Type Content-Length );
     }
 
-    $header->expires( 'now' ) if $no_cache;
+    if ( ($no_cache or $self->cache) and !$header->exists('Pragma') ) {
+        $header->set( 'Pragma' => 'no-cache' );
+    }
 
     my @headers;
     $header->each(sub {
@@ -52,8 +55,6 @@ sub psgi_header {
 
         push @headers, $field, $value;
     });
-
-    push @headers, 'Pragma', 'no-cache' if $no_cache or $self->cache;
 
     return $status, \@headers;
 }
