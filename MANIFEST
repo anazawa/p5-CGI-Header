@@ -27,6 +27,8 @@ t/26_set_cookie.t
 t/27_window_target.t
 t/30_cgi_header.t
 t/31_psgi_header.t
+t/40_psgi_header.t
+t/41_psgi_redirect.t
 tools/benchmark.pl
 tools/profile.pl
 xt/pod.t
