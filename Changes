@@ -3,6 +3,21 @@ Revision history for Perl extension CGI::Header.
   This distribution doesn't contain CGI::Header::PSGI anymore,
   which was separated into another distribution, CGI-Header-PSGI.
 
+  The following files were removed:
+
+    - lib/CGI/Header/PSGI.pm
+    - t/31_psgi_header.t
+    - t/40_psgi_header.t
+    - t/41_psgi_redirect.t
+
+  This distribution doesn't require the following modules anymore:
+
+    - Exporter
+    - CGI::PSGI (for testing)
+
+  There are no code changes besides incrementing the version number
+  since CGI-Header-0.21.
+
 0.21  Feb 25th, 2013
 
   [CGI::Header::PSGI]
