@@ -6,7 +6,7 @@ use CGI::Util qw//;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 my $MODIFY = 'Modification of a read-only value attempted';
 
