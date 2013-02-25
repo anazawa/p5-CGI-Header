@@ -64,7 +64,7 @@ sub psgi_redirect {
     unshift @args, '-location' if @args == 1;
 
     return $self->psgi_header(
-        -location => $self->url,
+        -location => $self->self_url,
         -status => '302',
         -type => q{},
         @args,
@@ -100,9 +100,7 @@ Your class has to implement the following methods.
 
 Get or set the character set sent to the browser.
 
-=item $query->url
-
-Returns the script's URL.
+=item $query->self_url
 
 =item $query->cache
 

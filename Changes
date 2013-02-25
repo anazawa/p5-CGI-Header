@@ -1,5 +1,16 @@
 Revision history for Perl extension CGI::Header.
 
+  [CGI::Header::PSGI]
+
+    - psgi_header() is compatible with CGI::Simple's header() method.
+      Namely, psgi_header() can be configured by no_cache() method.
+      If no_cache() isn't available, that method will be ignored simply.
+      And so psgi_header() is compatible with CGI.pm as well.
+
+    - I'm not sure about whether to use Role::Tiny ;)
+
+    - [BUG FIX] psgi_redirect() invokes self_url(), not url()
+
 0.20  Feb 24th, 2013
 
   - Add "REQUIRED METHODS" to CGI::Header::PSGI's POD
