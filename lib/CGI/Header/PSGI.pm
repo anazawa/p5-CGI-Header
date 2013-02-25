@@ -21,7 +21,7 @@ sub psgi_header {
     );
 
     $header->nph( 0 );
-    $header->expires( 'now' ) if $no_cache;
+    $header->expires( 'now' ) if $no_cache and !$header->exists('Expires');
 
     if ( ($no_cache or $self->cache) and !$header->exists('Pragma') ) {
         $header->set( 'Pragma' => 'no-cache' );
@@ -103,6 +103,8 @@ Returns the character set sent to the browser.
 =item $query->self_url
 
 =item $query->cache
+
+=item $query->no_cache (optional)
 
 =item $query->crlf
 

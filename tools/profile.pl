@@ -1,24 +1,20 @@
 use strict;
 use warnings;
-use CGI::Cookie;
-use CGI::Header;
+use CGI::Simple::Cookie;
 
-my $cookie1 = CGI::Cookie->new(
-    -name  => 'foo',
-    -value => 'bar',
-);
+package CGI::Simple::PSGI;
+use parent 'CGI::Simple';
+use CGI::Header::PSGI qw( psgi_header psgi_redirect );
 
-my $cookie2 = CGI::Cookie->new(
-    -name  => 'bar',
-    -value => 'baz',
-);
+package main;
 
-my $cookie3 = CGI::Cookie->new(
-    -name  => 'baz',
-    -value => 'qux',
-);
+my $cgi = CGI::Simple::PSGI->new;
 
-my $header = CGI::Header->new(
+my $cookie1 = CGI::Simple::Cookie->new( -name => 'foo', -value => 'bar' );
+my $cookie2 = CGI::Simple::Cookie->new( -name => 'bar', -value => 'baz' );
+my $cookie3 = CGI::Simple::Cookie->new( -name => 'baz', -value => 'qux' );
+
+my @args = (
     -nph        => 1,
     -expires    => '+3M',
     -attachment => 'genome.jpg',
@@ -29,6 +25,6 @@ my $header = CGI::Header->new(
     -p3p        => [qw/CAO DSP LAW CURa/],
 );
 
-for (0..100) {
-    my @headers = $header->flatten;
+for ( 0..100 ) {
+    my ( $status, $headers ) = $cgi->psgi_header( @args );
 }
