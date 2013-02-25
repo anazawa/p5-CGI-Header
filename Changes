@@ -11,6 +11,8 @@ Revision history for Perl extension CGI::Header.
 
     - [BUG FIX] psgi_redirect() invokes self_url(), not url()
 
+    - Imports CGI::PSGI's psgi_headers.t and redirect.t
+
 0.20  Feb 24th, 2013
 
   - Add "REQUIRED METHODS" to CGI::Header::PSGI's POD

@@ -98,7 +98,7 @@ Your class has to implement the following methods.
 
 =item $query->charset
 
-Get or set the character set sent to the browser.
+Returns the character set sent to the browser.
 
 =item $query->self_url
 
@@ -107,9 +107,6 @@ Get or set the character set sent to the browser.
 =item $query->crlf
 
 Returns the system specific line ending sequence.
-If your class inherits from L<CGI>, you have to add this method by yourself.
-On the other hand, L<CGI::Simple> has this attribute by default,
-and so you don't have to do so.
 
 =back
 
