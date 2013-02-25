@@ -390,7 +390,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document referes to CGI::Header version 0.21.
+This document refers to CGI::Header version 0.21.
 
 =head1 DEPENDENCIES
 

@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+  This distribution doesn't contain CGI::Header::PSGI anymore,
+  which was separated into another distribution, CGI-Header-PSGI.
+
 0.21  Feb 25th, 2013
 
   [CGI::Header::PSGI]
