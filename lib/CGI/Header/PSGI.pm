@@ -3,9 +3,9 @@ use strict;
 use warnings;
 use CGI::Header;
 use Carp qw/croak/;
-use Exporter 'import';
+use Role::Tiny;
 
-our @EXPORT_OK = qw( psgi_header psgi_redirect );
+requires qw( crlf cache charset self_url );
 
 sub psgi_header {
     my $self     = shift;
