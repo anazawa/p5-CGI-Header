@@ -34,21 +34,17 @@ sub new {
         croak 'Odd number of elements in hash assignment';
     }
 
-    $self->{query} ||= CGI::self_or_default();
-
     $self;
 }
 
 sub header { $_[0]->{header} }
 
-sub query { $_[0]->{query} }
+sub query { $_[0]->{query} ||= CGI::self_or_default() }
 
 sub env {
     my $self = shift;
-    $self->{query}->can('env') ? $self->{query}->env : \%ENV;
+    $self->{env} ||= $self->query->can('env') ? $self->{query}->env : \%ENV;
 }
-
-sub query_class { 'CGI' }
 
 sub rehash {
     my $self   = shift;
@@ -64,27 +60,28 @@ sub rehash {
     $self;
 }
 
-my $get = sub { $_[0]->{$_[1]} };
+my $get = sub { $_[1]->{$_[2]} };
 
 my %get = (
     -content_disposition => sub {
-        my $filename = $_[0]->{-attachment};
+        my $filename = $_[1]->{-attachment};
         $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
     },
-    -date => sub { _date_is_fixed( @_ ) ? _expires() : $get->( @_ ) },
+    -date => sub { _date_is_fixed( $_[1] ) ? _expires() : $get->( @_ ) },
     -expires => sub { my $v = $get->( @_ ); $v ? _expires( $v ) : undef },
     -p3p => sub {
         my $tags = $get->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
+    -pragma => sub { $_[0]->query->cache ? 'no-cache' : $get->( @_ ) },
     -server => sub {
-        $_[0]->{-nph} ? $_[2]->env->{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
+        $_[1]{-nph} ? $_[0]->env->{SERVER_SOFTWARE} || 'cmdline' : $get->(@_);
     },
     -type => sub {
-        my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
+        my ( $type, $charset ) = @{ $_[1] }{qw/-type -charset/};
         return if defined $type and $type eq q{};
-        $charset = $_[2]->query->charset unless defined $charset;
+        $charset = $_[0]->query->charset unless defined $charset;
         $type ||= 'text/html';
         $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
         $type;
@@ -95,24 +92,25 @@ sub get {
     my $self = shift;
     my $key = _lc( shift );
     my $header = $self->{header};
-    ( $get{$key} || $get )->( $header, $key, $self );
+    ( $get{$key} || $get )->( $self, $header, $key );
 }
 
-my $set = sub { $_[0]->{$_[1]} = $_[2] };
+my $set = sub { $_[1]->{$_[2]} = $_[3] };
 
 my %set = (
-    -content_disposition => sub { delete $_[0]->{-attachment}; $set->( @_ ) },
-    -cookie => sub { $_[2] and delete $_[0]->{-date}; $set->( @_ ) },
-    -date => sub { _date_is_fixed( @_ ) and croak $MODIFY; $set->( @_ ) },
+    -content_disposition => sub { delete $_[1]->{-attachment}; $set->( @_ ) },
+    -cookie => sub { $_[3] and delete $_[1]->{-date}; $set->( @_ ) },
+    -date => sub { _date_is_fixed( $_[1] ) and croak $MODIFY; $set->( @_ ) },
     -expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
     -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    -server => sub { $_[0]->{-nph} and croak $MODIFY; $set->( @_ ) },
+    -pragma => sub { $_[0]->query->cache and croak $MODIFY; $set->( @_ ) },
+    -server => sub { $_[1]->{-nph} and croak $MODIFY; $set->( @_ ) },
     -type => sub {
-        my ( $header, $norm, $value ) = @_;
+        my ( $self, $header, $norm, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
             @{ $header }{qw/-charset -type/} = ( q{}, $value );
             return $value;
@@ -127,34 +125,36 @@ sub set { # unstable
     my $self = shift;
     my $key = _lc( shift );
     my $header = $self->{header};
-    $key && ( $set{$key} || $set )->( $header, $key, @_ );
+    $key && ( $set{$key} || $set )->( $self, $header, $key, @_ );
 }
 
-my $exists = sub { exists $_[0]->{$_[1]} };
+my $exists = sub { exists $_[1]->{$_[2]} };
 
 my %exists = (
-    -content_disposition => sub { $exists->( @_ ) || $_[0]->{-attachment} },
-    -date => sub { _date_is_fixed( @_ ) || $exists->( @_ ) },
-    -server => sub { $_[0]->{-nph} || $exists->( @_ ) },
-    -type => sub { my $v = $_[0]->{-type}; !defined $v || $v ne q{} },
+    -content_disposition => sub { $exists->( @_ ) || $_[1]->{-attachment} },
+    -date => sub { _date_is_fixed( $_[1] ) || $exists->( @_ ) },
+    -pragma => sub { $_[0]->query->cache || $exists->( @_ ) },
+    -server => sub { $_[1]->{-nph} || $exists->( @_ ) },
+    -type => sub { my $v = $_[1]->{-type}; !defined $v || $v ne q{} },
 );
 
 sub exists {
     my $self = shift;
     my $key = _lc( shift );
-    my $header = $self->{header};
-    ( $exists{$key} || $exists )->( $header, $key );
+    my $code = $exists{$key} || $exists;
+    $self->$code( $self->{header}, $key );
 }
 
-my $delete = sub { delete $_[0]->{$_[1]} };
+my $delete = sub { delete $_[1]->{$_[2]} };
 
 my %delete = (
-    -content_disposition => sub { delete @{$_[0]}{$_[1], '-attachment'} },
-    -date => sub { _date_is_fixed( @_ ) and croak $MODIFY; $delete->( @_ ) },
+    -content_disposition => sub { delete @{$_[1]}{$_[2], '-attachment'} },
+    -date => sub { _date_is_fixed($_[1]) and croak $MODIFY; $delete->( @_ ) },
     -expires => $delete,
     -p3p => $delete,
-    -server => sub { $_[0]->{-nph} and croak $MODIFY; $delete->( @_ ) },
-    -type => sub { my ( $h ) = @_; delete $h->{-charset}; $h->{-type} = q{} },
+    -pragma => sub { $_[0]->query->cache and croak $MODIFY; $delete->( @_ ) },
+    -server => sub { $_[1]->{-nph} and croak $MODIFY; $delete->( @_ ) },
+    -type => sub { my $h = $_[1]; delete $h->{-charset}; $h->{-type} = q{} },
 );
 
 sub delete {
@@ -164,7 +164,7 @@ sub delete {
 
     if ( my $code = $delete{$key} ) {
         my $value = defined wantarray && $self->get( $key );
-        $code->( $header, $key );
+        $self->$code( $header, $key );
         return $value;
     }
 
@@ -175,6 +175,7 @@ sub is_empty { !$_[0]->SCALAR }
 
 sub clear {
     my $self = shift;
+    $self->query->cache( 0 );
     %{ $self->{header} } = ( -type => q{} );
     $self;
 }
@@ -229,6 +230,7 @@ sub p3p_tags {
 sub flatten {
     my $self   = shift;
     my $level  = defined $_[0] ? int shift : 2;
+    my $query  = $self->query;
     my $server = $self->env->{SERVER_SOFTWARE} || 'cmdline';
     my %copy   = %{ $self->{header} };
 
@@ -254,13 +256,13 @@ sub flatten {
 
     push @headers, 'Expires', _expires($expires) if $expires;
     push @headers, 'Date', _expires() if $expires or $cookie or $nph;
+    push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( my $fn = delete $copy{-attachment} ) {
         push @headers, 'Content-Disposition', qq{attachment; filename="$fn"};
     }
 
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
-    $charset ||= $self->{query}->charset;
 
     # not ordered
     while ( my ($field, $value) = CORE::each %copy ) {
@@ -268,6 +270,7 @@ sub flatten {
     }
 
     if ( !defined $type or $type ne q{} ) {
+        $charset = $query->charset unless defined $charset;
         my $ct = $type || 'text/html';
         $ct .= "; charset=$charset" if $charset && $ct !~ /\bcharset\b/;
         push @headers, 'Content-Type', $ct;
@@ -326,7 +329,8 @@ BEGIN {
 sub SCALAR {
     my $self = shift;
     my $header = $self->{header};
-    !defined $header->{-type} || first { $_ } values %{ $header };
+    !defined $header->{-type} || (first { $_ } values %{ $header })
+        || $self->query->cache;
 }
 
 sub FIRSTKEY {
@@ -403,7 +407,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.22.
+This document refers to CGI::Header version 0.30.
 
 =head1 DEPENDENCIES
 
@@ -469,7 +473,7 @@ array references. See L<CGI::Header::PSGI>.
 
 =over 4
 
-=item $header = CGI::Header->new( { -type => 'text/plain', ... }[, \%ENV] )
+=item $header = CGI::Header->new( { -type => 'text/plain', ... }[, $query] )
 
 Given a header hash reference, returns a CGI::Header object
 which holds a reference to the original given argument:
@@ -486,11 +490,11 @@ C<delete()> or C<clear()>:
   $h->delete( 'Content-Disposition' );
   $h->clear;
 
-You can also pass the reference to the hash which contains your current
-environment, preceded by the header hash reference:
+You can also pass your query object, preceded by the header hash ref.:
 
-  my $h = CGI::Header->new( $header, \%ENV );
-  $h->env; # => \%ENV
+  my $query = CGI->new;
+  my $h = CGI::Header->new( $header, $query );
+  $h->query; # => $query
 
 NOTE: In this case, C<new()> doesn't check whether property names of C<$header>
 are normalized or not at all, and so you have to C<rehash()> the header hash
