@@ -2,9 +2,10 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use CGI::Util qw//;
+use CGI;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
+use Scalar::Util qw/blessed/;
 
 our $VERSION = '0.22';
 
@@ -15,15 +16,15 @@ sub new {
     my @args = @_;
 
     if ( ref $args[0] eq 'HASH' ) {
-        @{ $self }{qw/header env/} = splice @args, 0, 2;
+        @{ $self }{qw/header query/} = splice @args, 0, 2;
     }
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
             $header->{ _lc($key) } = $value; # force overwrite
         }
-        if ( ref $header->{-env} eq 'HASH' ) {
-            $self->{env} = delete $header->{-env};
+        if ( blessed $header->{-query} ) {
+            $self->{query} = delete $header->{-query};
         }
     }
     elsif ( @args == 1 ) {
@@ -33,14 +34,21 @@ sub new {
         croak 'Odd number of elements in hash assignment';
     }
 
-    $self->{env} ||= \%ENV;
+    $self->{query} ||= CGI::self_or_default();
 
     $self;
 }
 
 sub header { $_[0]->{header} }
 
-sub env { $_[0]->{env} }
+sub query { $_[0]->{query} }
+
+sub env {
+    my $self = shift;
+    $self->{query}->can('env') ? $self->{query}->env : \%ENV;
+}
+
+sub query_class { 'CGI' }
 
 sub rehash {
     my $self   = shift;
@@ -71,11 +79,12 @@ my %get = (
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
     -server => sub {
-        $_[0]->{-nph} ? $_[2]->{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
+        $_[0]->{-nph} ? $_[2]->env->{SERVER_SOFTWARE} || 'cmdline' : $get->( @_ );
     },
     -type => sub {
         my ( $type, $charset ) = @{ $_[0] }{qw/-type -charset/};
         return if defined $type and $type eq q{};
+        $charset = $_[2]->query->charset unless defined $charset;
         $type ||= 'text/html';
         $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
         $type;
@@ -85,8 +94,8 @@ my %get = (
 sub get {
     my $self = shift;
     my $key = _lc( shift );
-    my ( $header, $env ) = @{ $self }{qw/header env/};
-    ( $get{$key} || $get )->( $header, $key, $env );
+    my $header = $self->{header};
+    ( $get{$key} || $get )->( $header, $key, $self );
 }
 
 my $set = sub { $_[0]->{$_[1]} = $_[2] };
@@ -173,7 +182,7 @@ sub clear {
 sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
-    ref( $self )->new( \%copy, $self->{env} );
+    ref( $self )->new( \%copy, $self->{query} );
 }
 
 BEGIN {
@@ -220,7 +229,7 @@ sub p3p_tags {
 sub flatten {
     my $self   = shift;
     my $level  = defined $_[0] ? int shift : 2;
-    my $server = $self->{env}{SERVER_SOFTWARE} || 'cmdline';
+    my $server = $self->env->{SERVER_SOFTWARE} || 'cmdline';
     my %copy   = %{ $self->{header} };
 
     my @headers;
@@ -251,6 +260,7 @@ sub flatten {
     }
 
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
+    $charset ||= $self->{query}->charset;
 
     # not ordered
     while ( my ($field, $value) = CORE::each %copy ) {
@@ -327,7 +337,10 @@ sub FIRSTKEY {
 
 sub NEXTKEY { $_[0]->{iterator}->() }
 
-BEGIN { *_expires = \&CGI::Util::expires }
+BEGIN {
+    require CGI::Util;
+    *_expires = \&CGI::Util::expires;
+}
 
 sub _date_is_fixed {
     my $header = shift;
