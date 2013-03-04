@@ -861,8 +861,9 @@ to CGI response headers sent by blosxom.cgi:
 
   1;
 
-Blosxom depends on the procedural interface of CGI.pm,
-and so you don't have to pass C<$query> to C<new()> in this case.
+L<Blosxom|http://blosxom.sourceforge.net/> depends on the procedural
+interface of CGI.pm, and so you don't have to pass
+C<$query> to C<new()> in this case.
 
 =head2 CONVERTING TO HTTP::Headers OBJECTS
 

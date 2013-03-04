@@ -112,8 +112,10 @@ subtest 'basic' => sub {
     # is_empty()
     %header = ();
     ok !$header->is_empty;
+    ok $header;
     %header = ( -type => q{} );
     ok $header->is_empty;
+    ok !$header;
 
     # delete()
     %header = ();

@@ -36,7 +36,7 @@ subtest 'cache()' => sub {
     $header->query->cache(1);
     is $header{Pragma}, 'no-cache';
     ok exists $header{Pragma};
-    throws_ok { delete $header{Pragma} }
-        qr{^Modification of a read-only value attempted};
-    is_deeply $header->header, {};
+    my $expected = qr{^Modification of a read-only value attempted};
+    throws_ok { delete $header{Pragma} } $expected;
+    throws_ok { $header{Pragma} = 'no-cache' } $expected;
 };

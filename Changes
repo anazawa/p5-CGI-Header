@@ -5,7 +5,11 @@ Revision history for Perl extension CGI::Header.
       ""   -> as_string
       bool -> SCALAR
 
-  - env() is obsolete and will be removed in 0.31
+  - env() is obsolete and will be removed in 0.31.
+
+  [DOCUMENTATION]
+
+    Add "WRITING Blosxom PLUGINS" to "EXAMPLES"
 
   [INCOMPATIBLE CHANGES]
 
@@ -43,7 +47,7 @@ Revision history for Perl extension CGI::Header.
 
      CGI::Header is not compatible with CGI::Simple at this time.
      This module will be adapted to CGI::Simple gradually.
-     (no_cache() isn't supported by CGI.pm)
+     (no_cache() isn't supported by CGI.pm, for example)
 
 0.22  Feb 26th, 2013
 
