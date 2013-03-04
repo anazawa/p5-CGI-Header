@@ -4,7 +4,8 @@ use Test::MockTime qw/set_fixed_time/;
 use CGI;
 use CGI::Cookie;
 use CGI::Header;
-use Test::More tests => 4;
+#use Test::More tests => 4;
+use Test::More skip_all => 'obsolete';
 
 my $now = 1349043453;
 set_fixed_time( $now );

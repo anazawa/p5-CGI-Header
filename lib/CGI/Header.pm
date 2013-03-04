@@ -386,7 +386,10 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 SYNOPSIS
 
+  use CGI;
   use CGI::Header;
+
+  my $query = CGI->new;
 
   # CGI.pm-compatible HTTP header properties
   my $header = {
@@ -401,7 +404,7 @@ CGI::Header - Adapter for CGI::header() function
   };
 
   # create a CGI::Header object
-  my $h = CGI::Header->new( $header );
+  my $h = CGI::Header->new( $header, $query );
 
   # update $header
   $h->set( 'Content-Length' => 3002 );
@@ -522,15 +525,17 @@ that property will be overwritten silently:
   $h->header->{-type}; # => "text/html"
 
 In addition to CGI.pm-compatible HTTP header properties,
-you can specify '-env' property which represents your current environment:
+you can specify '-query' property which represents your query object:
+
+  my $query = CGI->new;
 
   my $h = CGI::Header->new(
-      -type => 'text/plain',
-      -env  => \%ENV,
+      -type  => 'text/plain',
+      -query => $query,
   );
 
   $h->header; # => { -type => 'text/plain' }
-  $h->env;    # => \%ENV
+  $h->query;  # => $query
 
 =item $header = CGI::Header->new( $media_type )
 
@@ -543,6 +548,11 @@ A shortcut for:
 =head2 INSTANCE METHODS
 
 =over 4
+
+=item $query = $header->query
+
+Returns your current query object. C<query()> defaults to the Singleton
+instance of CGI.pm (C<$CGI::Q>).
 
 =item $hashref = $header->env
 
@@ -801,28 +811,9 @@ Returns pairs of fields and values.
 
 =item $header->as_string
 
-=item $header->as_string( $eol )
+A shortcut for:
 
-Returns the header fields as a formatted MIME header.
-The optional C<$eol> parameter specifies the line ending sequence to use.
-The default is C<\015\012>.
-
-When valid multi-line headers are included, this method will always output
-them back as a single line, according to the folding rules of RFC 2616:
-the newlines will be removed, while the white space remains.
-
-Unlike CGI.pm, when invalid newlines are included,
-this module removes them instead of throwing exceptions.
-
-If C<< $header->nph >> is true, the Status-Line will be added to
-the beginning of response headers automatically.
-
-  $header->nph(1);
-
-  $header->as_string;
-  # HTTP/1.1 200 OK
-  # Server: Apache/1.3.27 (Unix)
-  # ...
+  $header->query->header( $header->header );
 
 =back
 
@@ -858,7 +849,36 @@ You can also iterate through the tied hash:
 
 See also L<perltie>.
 
+=head2 OVERLOADED OPERATORS
+
+The following operators are overloaded:
+
+ ""   -> as_string
+ bool -> SCALAR
+
 =head1 EXAMPLES
+
+=head2 WRITING Blosxom PLUGINS
+
+The following plugin just adds the Content-Length header
+to CGI response headers:
+
+  package content_length;
+  use CGI::Header;
+
+  sub start {
+      !$blosxom::static_entries;
+  }
+
+  sub last {
+      my $h = CGI::Header->new( $blosxom::header );
+      $h->set( 'Content-Length' => length $blosxom::output );
+  }
+
+  1;
+
+Blosxom depends on the procedural interface of CGI.pm,
+and so you don't have to pass C<$query> to C<new()>.
 
 =head2 CONVERTING TO HTTP::Headers OBJECTS
 

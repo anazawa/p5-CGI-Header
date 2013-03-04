@@ -1,5 +1,43 @@
 Revision history for Perl extension CGI::Header.
 
+  - The following operators are overloaded:
+
+      ""   -> as_string
+      bool -> SCALAR
+
+  [INCOMPATIBLE CHANGES]
+
+    - Add query() method which returns your query object.
+      You can't pass your current environment (\%ENV) to new() anymore.
+      Namely,
+
+        my $header = { -type => 'text/plain' };
+        my $h = CGI::Header->new( $header, \%ENV );
+
+      become
+
+        use CGI;
+        my $query = CGI->new;
+        my $h = CGI::Header->new( $header, $query );
+
+      query() defaults to $CGI::Q. Functions exported by CGI.pm
+      depends on this query object. In other words, when you choose
+      the procedural interface of CGI.pm, the module behaves like
+      a Singleton class.
+
+        my $h = CGI::Header->new( $header ); # procedural interface
+
+    - as_string() is a shortcut for:
+
+        $h->query->header( $h->header );
+
+      and so you can't pass $eol to as_string() anymore.
+
+   [NOTE]
+
+     CGI::Header is not compatible with CGI::Simple at this time.
+     I'm thinking about how to adapt CGI::Header to CGI::Simple.
+
 0.22  Feb 26th, 2013
 
   This distribution doesn't contain CGI::Header::PSGI anymore,

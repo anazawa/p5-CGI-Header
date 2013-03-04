@@ -286,6 +286,8 @@ subtest 'each()' => sub {
 };
 
 subtest 'as_string()' => sub {
+    plan skip_all => 'obsolete';
+
     my $CRLF = "\015\012";
     my $header = CGI::Header->new;
     is $header->as_string, "Content-Type: text/html; charset=ISO-8859-1$CRLF";
