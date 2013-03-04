@@ -2,7 +2,7 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use CGI;
+use overload q{""} => '_as_string', bool => 'SCALAR', fallback => 1;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
@@ -39,7 +39,7 @@ sub new {
 
 sub header { $_[0]->{header} }
 
-sub query { $_[0]->{query} ||= CGI::self_or_default() }
+sub query { $_[0]->{query} ||= do { require CGI; CGI::self_or_default() } }
 
 sub env {
     my $self = shift;
@@ -297,6 +297,11 @@ sub each {
 
 sub field_names { keys %{{ $_[0]->flatten(0) }} }
 
+sub _as_string {
+    my $self = shift;
+    $self->query->header( $self->{header} );
+}
+
 sub as_string {
     my $self = shift;
     my $eol  = defined $_[0] ? shift : "\015\012";
@@ -342,7 +347,7 @@ sub FIRSTKEY {
 sub NEXTKEY { $_[0]->{iterator}->() }
 
 BEGIN {
-    require CGI::Util;
+    require CGI::Util; # Why not CGI::Simple::Util?
     *_expires = \&CGI::Util::expires;
 }
 
