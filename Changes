@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.30  Mar 4th, 2013
+
   - The following operators are overloaded:
 
       ""   -> as_string
