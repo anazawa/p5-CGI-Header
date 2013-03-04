@@ -9,6 +9,8 @@ Revision history for Perl extension CGI::Header.
 
   [INCOMPATIBLE CHANGES]
 
+    Summary: env() was replaced with query()
+
     - Add query() method which returns your query object.
       You can't pass your current environment (\%ENV) to new() anymore.
       Namely,

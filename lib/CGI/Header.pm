@@ -77,7 +77,7 @@ my %GET = (
     },
     -pragma => sub { $_[0]->query->cache ? 'no-cache' : $GET->( @_ ) },
     -server => sub {
-        $_[1]->{-nph} ? $_[0]->query->server_software : $GET->( @_ )
+        $_[1]->{-nph} ? $_[0]->query->server_software : $GET->( @_ );
     },
     -type => sub {
         my ( $type, $charset ) = @{ $_[1] }{qw/-type -charset/};
@@ -835,7 +835,7 @@ See also L<perltie>.
 
 =head2 OVERLOADED OPERATORS
 
-The following operators are overloaded:
+The following operators are L<overload>ed:
 
  ""   -> as_string
  bool -> SCALAR
@@ -845,7 +845,7 @@ The following operators are overloaded:
 =head2 WRITING Blosxom PLUGINS
 
 The following plugin just adds the Content-Length header
-to CGI response headers:
+to CGI response headers sent by blosxom.cgi:
 
   package content_length;
   use CGI::Header;
@@ -862,7 +862,7 @@ to CGI response headers:
   1;
 
 Blosxom depends on the procedural interface of CGI.pm,
-and so you don't have to pass C<$query> to C<new()>.
+and so you don't have to pass C<$query> to C<new()> in this case.
 
 =head2 CONVERTING TO HTTP::Headers OBJECTS
 
