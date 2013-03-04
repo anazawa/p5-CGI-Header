@@ -41,6 +41,7 @@ sub header { $_[0]->{header} }
 
 sub query { $_[0]->{query} ||= do { require CGI; CGI::self_or_default() } }
 
+# This method is obsolete and will be removed in 0.31
 sub env {
     my $self = shift;
     $self->{env} ||= $self->query->can('env') ? $self->{query}->env : \%ENV;
@@ -76,7 +77,7 @@ my %GET = (
     },
     -pragma => sub { $_[0]->query->cache ? 'no-cache' : $GET->( @_ ) },
     -server => sub {
-        $_[1]{-nph} ? $_[0]->env->{SERVER_SOFTWARE} || 'cmdline' : $GET->(@_)
+        $_[1]->{-nph} ? $_[0]->query->server_software : $GET->( @_ )
     },
     -type => sub {
         my ( $type, $charset ) = @{ $_[1] }{qw/-type -charset/};
@@ -233,18 +234,17 @@ sub cache {
 }
 
 sub flatten {
-    my $self   = shift;
-    my $level  = defined $_[0] ? int shift : 2;
-    my $query  = $self->query;
-    my $server = $self->env->{SERVER_SOFTWARE} || 'cmdline';
-    my %copy   = %{ $self->{header} };
+    my $self  = shift;
+    my $level = defined $_[0] ? int shift : 2;
+    my $query = $self->query;
+    my %copy  = %{ $self->{header} };
 
     my @headers;
 
     my ( $cookie, $expires, $nph, $status, $target )
         = delete @copy{qw/-cookie -expires -nph -status -target/};
 
-    push @headers, 'Server', $server        if $nph;
+    push @headers, 'Server', $query->server_software if $nph;
     push @headers, 'Status', $status        if $status;
     push @headers, 'Window-Target', $target if $target;
 
@@ -315,8 +315,9 @@ BEGIN {
 sub SCALAR {
     my $self = shift;
     my $header = $self->{header};
-    !defined $header->{-type} || (first { $_ } values %{ $header })
-        || $self->query->cache;
+    !defined $header->{-type}
+        or first { $_ } values %{ $header }
+        or $self->query->cache;
 }
 
 sub FIRSTKEY {
@@ -328,7 +329,7 @@ sub FIRSTKEY {
 sub NEXTKEY { $_[0]->{iterator}->() }
 
 BEGIN {
-    require CGI::Util; # Why not CGI::Simple::Util?
+    require CGI::Util;
     *_expires = \&CGI::Util::expires;
 }
 
@@ -536,6 +537,8 @@ Returns your current query object. C<query()> defaults to the Singleton
 instance of CGI.pm (C<$CGI::Q>).
 
 =item $hashref = $header->env
+
+This method is obsolete and will be removed in 0.31.
 
 Returns the reference to the hash which contains your current environment.
 C<env()> defaults to C<\%ENV>. This module depends on the following

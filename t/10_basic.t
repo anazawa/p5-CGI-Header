@@ -37,6 +37,7 @@ subtest '_lc()' => sub {
 subtest 'new()' => sub {
     my %header = ();
     my $header = CGI::Header->new( \%header );
+    is $header->query, $CGI::Q;
     is $header->env, \%ENV;
     is $header->header, \%header;
     is_deeply $header->header, {};
@@ -80,8 +81,8 @@ subtest 'new()' => sub {
     throws_ok { CGI::Header->new( -foo => 'bar', '-baz' ) }
         qr{^Odd number of elements in hash assignment};
 
-    $header = CGI::Header->new( -context => 'a plain string' );
-    is_deeply $header->header, { -context => 'a plain string' };
+    $header = CGI::Header->new( -query => 'a plain string' );
+    is_deeply $header->header, { -query => 'a plain string' };
 };
 
 subtest 'basic' => sub {
@@ -286,18 +287,6 @@ subtest 'each()' => sub {
 };
 
 subtest 'as_string()' => sub {
-    plan skip_all => 'obsolete';
-
-    my $CRLF = "\015\012";
     my $header = CGI::Header->new;
-    is $header->as_string, "Content-Type: text/html; charset=ISO-8859-1$CRLF";
-    is $header->as_string("\n"), "Content-Type: text/html; charset=ISO-8859-1\n";
-
-    $header->nph(1);
-    my $expected
-        = "HTTP/1.0 200 OK$CRLF"
-        . "Server: cmdline$CRLF"
-        . "Date: " . CGI::Util::expires() . $CRLF
-        . "Content-Type: text/html; charset=ISO-8859-1$CRLF";
-    is $header->as_string, $expected;
+    is "$header", CGI::header();
 };

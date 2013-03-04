@@ -5,6 +5,8 @@ Revision history for Perl extension CGI::Header.
       ""   -> as_string
       bool -> SCALAR
 
+  - env() is obsolete and will be removed in 0.31
+
   [INCOMPATIBLE CHANGES]
 
     - Add query() method which returns your query object.
@@ -25,18 +27,21 @@ Revision history for Perl extension CGI::Header.
       the procedural interface of CGI.pm, the module behaves like
       a Singleton class.
 
-        my $h = CGI::Header->new( $header ); # procedural interface
+        # $query can be omitted when you choose the procedural
+        # interface of CGI.pm
+        my $h = CGI::Header->new( $header );
 
-    - as_string() is a shortcut for:
+    - as_string() become a shortcut for:
 
-        $h->query->header( $h->header );
+        $h->query->header( $h->header )
 
       and so you can't pass $eol to as_string() anymore.
 
-   [NOTE]
+   [ROADMAP]
 
      CGI::Header is not compatible with CGI::Simple at this time.
-     I'm thinking about how to adapt CGI::Header to CGI::Simple.
+     This module will be adapted to CGI::Simple gradually.
+     (no_cache() isn't supported by CGI.pm)
 
 0.22  Feb 26th, 2013
 
