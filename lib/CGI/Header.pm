@@ -2,7 +2,7 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use overload q{""} => '_as_string', bool => 'SCALAR', fallback => 1;
+use overload q{""} => 'as_string', bool => 'SCALAR', fallback => 1;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
@@ -60,23 +60,23 @@ sub rehash {
     $self;
 }
 
-my $get = sub { $_[1]->{$_[2]} };
+my $GET = sub { $_[1]->{$_[2]} };
 
-my %get = (
+my %GET = (
     -content_disposition => sub {
         my $filename = $_[1]->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $get->( @_ );
+        $filename ? qq{attachment; filename="$filename"} : $GET->( @_ );
     },
-    -date => sub { _date_is_fixed( $_[1] ) ? _expires() : $get->( @_ ) },
-    -expires => sub { my $v = $get->( @_ ); $v ? _expires( $v ) : undef },
+    -date => sub { _date_is_fixed( $_[1] ) ? _expires() : $GET->( @_ ) },
+    -expires => sub { my $v = $GET->( @_ ); $v ? _expires( $v ) : undef },
     -p3p => sub {
-        my $tags = $get->( @_ );
+        my $tags = $GET->( @_ );
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
-    -pragma => sub { $_[0]->query->cache ? 'no-cache' : $get->( @_ ) },
+    -pragma => sub { $_[0]->query->cache ? 'no-cache' : $GET->( @_ ) },
     -server => sub {
-        $_[1]{-nph} ? $_[0]->env->{SERVER_SOFTWARE} || 'cmdline' : $get->(@_);
+        $_[1]{-nph} ? $_[0]->env->{SERVER_SOFTWARE} || 'cmdline' : $GET->(@_)
     },
     -type => sub {
         my ( $type, $charset ) = @{ $_[1] }{qw/-type -charset/};
@@ -91,8 +91,8 @@ my %get = (
 sub get {
     my $self = shift;
     my $key = _lc( shift );
-    my $header = $self->{header};
-    ( $get{$key} || $get )->( $self, $header, $key );
+    my $get = $GET{$key} || $GET;
+    $self->$get( $self->{header}, $key );
 }
 
 my $set = sub { $_[1]->{$_[2]} = $_[3] };
@@ -128,32 +128,32 @@ sub set { # unstable
     $key && ( $set{$key} || $set )->( $self, $header, $key, @_ );
 }
 
-my $exists = sub { exists $_[1]->{$_[2]} };
+my $EXISTS = sub { exists $_[1]->{$_[2]} };
 
-my %exists = (
-    -content_disposition => sub { $exists->( @_ ) || $_[1]->{-attachment} },
-    -date => sub { _date_is_fixed( $_[1] ) || $exists->( @_ ) },
-    -pragma => sub { $_[0]->query->cache || $exists->( @_ ) },
-    -server => sub { $_[1]->{-nph} || $exists->( @_ ) },
+my %EXISTS = (
+    -content_disposition => sub { $EXISTS->( @_ ) || $_[1]->{-attachment} },
+    -date => sub { _date_is_fixed( $_[1] ) || $EXISTS->( @_ ) },
+    -pragma => sub { $_[0]->query->cache || $EXISTS->( @_ ) },
+    -server => sub { $_[1]->{-nph} || $EXISTS->( @_ ) },
     -type => sub { my $v = $_[1]->{-type}; !defined $v || $v ne q{} },
 );
 
 sub exists {
     my $self = shift;
     my $key = _lc( shift );
-    my $code = $exists{$key} || $exists;
-    $self->$code( $self->{header}, $key );
+    my $exists = $EXISTS{$key} || $EXISTS;
+    $self->$exists( $self->{header}, $key );
 }
 
-my $delete = sub { delete $_[1]->{$_[2]} };
+my $DELETE = sub { delete $_[1]->{$_[2]} };
 
-my %delete = (
+my %DELETE = (
     -content_disposition => sub { delete @{$_[1]}{$_[2], '-attachment'} },
-    -date => sub { _date_is_fixed($_[1]) and croak $MODIFY; $delete->( @_ ) },
-    -expires => $delete,
-    -p3p => $delete,
-    -pragma => sub { $_[0]->query->cache and croak $MODIFY; $delete->( @_ ) },
-    -server => sub { $_[1]->{-nph} and croak $MODIFY; $delete->( @_ ) },
+    -date => sub { _date_is_fixed($_[1]) and croak $MODIFY; $DELETE->( @_ ) },
+    -expires => $DELETE,
+    -p3p => $DELETE,
+    -pragma => sub { $_[0]->query->cache and croak $MODIFY; $DELETE->( @_ ) },
+    -server => sub { $_[1]->{-nph} and croak $MODIFY; $DELETE->( @_ ) },
     -type => sub { my $h = $_[1]; delete $h->{-charset}; $h->{-type} = q{} },
 );
 
@@ -162,9 +162,9 @@ sub delete {
     my $key    = _lc( shift );
     my $header = $self->{header};
 
-    if ( my $code = $delete{$key} ) {
+    if ( my $delete = $DELETE{$key} ) {
         my $value = defined wantarray && $self->get( $key );
-        $self->$code( $header, $key );
+        $self->$delete( $header, $key );
         return $value;
     }
 
@@ -175,8 +175,8 @@ sub is_empty { !$_[0]->SCALAR }
 
 sub clear {
     my $self = shift;
-    $self->query->cache( 0 );
     %{ $self->{header} } = ( -type => q{} );
+    $self->query->cache( 0 );
     $self;
 }
 
@@ -225,6 +225,11 @@ sub p3p_tags {
     }
 
     return;
+}
+
+sub cache {
+    my $self = shift;
+    $self->query->cache(@_);
 }
 
 sub flatten {
@@ -297,33 +302,9 @@ sub each {
 
 sub field_names { keys %{{ $_[0]->flatten(0) }} }
 
-sub _as_string {
-    my $self = shift;
-    $self->query->header( $self->{header} );
-}
-
 sub as_string {
     my $self = shift;
-    my $eol  = defined $_[0] ? shift : "\015\012";
-
-    my @lines;
-
-    # add Status-Line
-    if ( $self->nph ) {
-        my $protocol = $self->env->{SERVER_PROTOCOL} || 'HTTP/1.0';
-        my $status   = $self->get('Status')          || '200 OK';
-        push @lines, "$protocol $status";
-    }
-
-    # add response headers
-    $self->each(sub {
-        my ( $field, $value ) = @_;
-        $value =~ s/$eol(\s)/$1/g;
-        $value =~ s/$eol|\015|\012//g;
-        push @lines, "$field: $value";
-    });
-
-    join $eol, @lines, q{};
+    $self->query->header( $self->{header} );
 }
 
 BEGIN {
@@ -952,6 +933,17 @@ You can't assign to the P3P header directly:
 C<CGI::header()> restricts where the policy-reference file is located,
 and so you can't modify the location (C</w3c/p3p.xml>).
 You're allowed to set P3P tags using C<p3p_tags()>.
+
+=item Pragma
+
+If the following condition is met, the Pragma header will be set
+automatically, and also the header field will become read-only:
+
+  if ( $header->query->cache ) {
+      my $pragma = $header->get('Pragma'); # => 'no-cache'
+      $header->set( 'Pragma' => 'no-cache' ); # wrong
+      $header->delete('Pragma'); # wrong
+  }
 
 =item Server
 
