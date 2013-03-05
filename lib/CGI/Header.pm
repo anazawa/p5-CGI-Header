@@ -406,7 +406,7 @@ This module is compatible with CGI.pm 3.51 or higher.
 =head1 DESCRIPTION
 
 This module is a utility class to manipulate a hash reference
-received by the C<header()> function provided by CGI.pm.
+received by the C<header()> function of CGI.pm.
 This class is, so to speak, a subclass of Hash,
 while Perl5 doesn't provide a built-in class called Hash.
 
@@ -677,7 +677,7 @@ Returns a copy of this CGI::Header object.
 It's identical to:
 
   my %copy = %{ $header->header }; # shallow copy
-  my $clone = CGI::Header->new( \%copy, $header->env );
+  my $clone = CGI::Header->new( \%copy, $header->query );
 
 =item $filename = $header->attachment
 
@@ -861,9 +861,9 @@ to CGI response headers sent by blosxom.cgi:
 
   1;
 
-L<Blosxom|http://blosxom.sourceforge.net/> depends on the procedural
-interface of CGI.pm, and so you don't have to pass
-C<$query> to C<new()> in this case.
+Since L<Blosxom|http://blosxom.sourceforge.net/> depends on the procedural
+interface of CGI.pm, you don't have to pass C<$query> to C<new()>
+in this case.
 
 =head2 CONVERTING TO HTTP::Headers OBJECTS
 
