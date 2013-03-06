@@ -17,16 +17,16 @@ can_ok 'CGI::Header', qw(
 
 subtest '_lc()' => sub {
     my @data = (
-        'Foo'      => '-foo',
-        'Foo-Bar'  => '-foo_bar',
-        '-foo'     => '-foo',
-        '-foo_bar' => '-foo_bar',
-        '-content_type'  => '-type',
-        '-cookies'       => '-cookie',
-        '-set_cookie'    => '-cookie',
-        '-window_target' => '-target',
-        '-uri' => '-location',
-        '-url' => '-location',
+        'Foo'      => 'foo',
+        'Foo-Bar'  => 'foo_bar',
+        '-foo'     => 'foo',
+        '-foo_bar' => 'foo_bar',
+        '-content_type'  => 'type',
+        '-cookies'       => 'cookie',
+        '-set_cookie'    => 'cookie',
+        '-window_target' => 'target',
+        '-uri' => 'location',
+        '-url' => 'location',
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
