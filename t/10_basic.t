@@ -11,7 +11,7 @@ use Test::Exception;
 set_fixed_time( 1341637509 );
 
 can_ok 'CGI::Header', qw(
-    new header env rehash clone clear delete exists get set is_empty
+    new header query rehash clone clear delete exists get set is_empty
     p3p_tags expires nph attachment field_names each flatten
 );
 
@@ -38,7 +38,6 @@ subtest 'new()' => sub {
     my %header = ();
     my $header = CGI::Header->new( \%header );
     is $header->query, $CGI::Q;
-    is $header->env, \%ENV;
     is $header->header, \%header;
     is_deeply $header->header, {};
 

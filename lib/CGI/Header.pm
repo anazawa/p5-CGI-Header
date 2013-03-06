@@ -37,14 +37,18 @@ sub new {
     $self;
 }
 
-sub header { $_[0]->{header} }
+sub header {
+    $_[0]->{header};
+}
 
-sub query { $_[0]->{query} ||= do { require CGI; CGI::self_or_default() } }
-
-# This method is obsolete and will be removed in 0.31
-sub env {
+sub query {
     my $self = shift;
-    $self->{env} ||= $self->query->can('env') ? $self->{query}->env : \%ENV;
+    $self->{query} ||= $self->_build_query;
+}
+
+sub _build_query {
+    require CGI;
+    CGI::self_or_default();
 }
 
 sub rehash {
