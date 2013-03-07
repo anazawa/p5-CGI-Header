@@ -15,6 +15,11 @@ sub expires {
     croak $CGI::Header::MODIFY;
 }
 
+sub no_cache {
+    my $self = shift;
+    $self->query->no_cache(@_);
+}
+
 sub clear {
     my $self = shift;
     $self->qeury->no_cache( 0 );
@@ -37,4 +42,38 @@ sub flatten {
     $self->SUPER::flatten( @_ );
 }
 
+sub _flatten {
+    my $self = shift;
+    if ( $self->query->no_cache ) {
+        my $clone = $self->clone;
+        my $header = $clone->{header};
+        $header->{-expires} = 'now';
+        $header->{-pragma} = 'no-cache';
+        $self = $clone;
+    }
+    $self->SUPER::flatten( @_ );
+}
+
 1;
+
+__END__
+
+=head1 NAME
+
+CGI::Header::Simple -
+
+=head1 SYNOPSIS
+
+  use CGI::Simple;
+  use CGI::Header::Simple;
+
+  my $query = CGI::Simple->new;
+  my $header = { -type = 'text/plain' };
+  my $h = CGI::Header::Simple->new( $header, $query );
+
+=head1 DESCRIPTION
+
+This module is not the simplified version of L<CGI::Header>
+but an adapter for L<CGI::Simple>. 
+
+=cut
