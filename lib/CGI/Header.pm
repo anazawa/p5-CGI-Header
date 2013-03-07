@@ -9,7 +9,7 @@ use Scalar::Util qw/blessed/;
 
 our $VERSION = '0.30';
 
-my $MODIFY = 'Modification of a read-only value attempted';
+our $MODIFY = 'Modification of a read-only value attempted';
 
 sub new {
     my $self = bless {}, shift;
