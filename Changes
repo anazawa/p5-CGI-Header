@@ -1,5 +1,11 @@
 Revision history for Perl extension CGI::Header.
 
+0.31  Mar 8th, 2013
+
+  - add get_alias() which returns the alias of the given property name:
+
+      my $alias = CGI::Header->get_alias('content_type'); # => 'type'
+
 0.30  Mar 4th, 2013
 
   - The following operators are overloaded:
