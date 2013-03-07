@@ -8,6 +8,13 @@ sub _build_query {
     CGI::Simple::Standard->loader( '_cgi_object' );
 }
 
+sub expires {
+    my $self = shift;
+    return $self->SUPER::expires( @_ ) unless $self->query->no_cache;
+    return 'now' unless @_;
+    croak $CGI::Header::MODIFY;
+}
+
 sub clear {
     my $self = shift;
     $self->qeury->no_cache( 0 );
