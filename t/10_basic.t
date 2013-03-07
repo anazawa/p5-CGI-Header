@@ -29,8 +29,9 @@ subtest '_lc()' => sub {
         '-url' => 'location',
     );
 
+    my $class = 'CGI::Header';
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is CGI::Header::_lc($input), $expected;
+        is $class->normalize($input), $expected;
     }
 };
 

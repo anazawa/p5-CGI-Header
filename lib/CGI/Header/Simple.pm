@@ -36,7 +36,7 @@ sub flatten {
     if ( $self->query->no_cache ) {
         my $header = $self->{header};
         local $header->{-expires} = 'now';
-        local $header->{-pragma} = 'no-cache';
+        local $header->{-pragma} = 'no-cache' unless $self->query->cache;
         return $self->SUPER::flatten( @_ );
     }
     $self->SUPER::flatten( @_ );
@@ -48,7 +48,7 @@ sub _flatten {
         my $clone = $self->clone;
         my $header = $clone->{header};
         $header->{-expires} = 'now';
-        $header->{-pragma} = 'no-cache';
+        $header->{-pragma} = 'no-cache' unless $self->query->cache;
         $self = $clone;
     }
     $self->SUPER::flatten( @_ );

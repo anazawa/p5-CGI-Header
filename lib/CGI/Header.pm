@@ -11,6 +11,20 @@ our $VERSION = '0.30';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
+my %ALIAS = (
+    content_type => 'type',   window_target => 'target',
+    cookies      => 'cookie', set_cookie    => 'cookie',
+    uri => 'location', url => 'location', # for CGI::redirect()
+);
+
+sub normalize {
+    my $class = shift;
+    my $prop = lc shift;
+    $prop =~ s/^-//;
+    $prop =~ tr/-/_/;
+    $ALIAS{ $prop } || $prop;
+}
+
 sub new {
     my $self = bless {}, shift;
     my @args = @_;
@@ -21,7 +35,7 @@ sub new {
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            my $prop = _lc( $key );
+            my $prop = $self->normalize( $key );
             $header->{ "-$prop" } = $value; # force overwrite
         }
         if ( blessed $header->{-query} ) {
@@ -57,7 +71,7 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = '-' . _lc( $key );
+        my $prop = '-' . $self->normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{ $prop };
         $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
@@ -96,7 +110,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->normalize( shift );
     my $get = $GET{$key} || $GET;
     $self->$get( $self->{header}, "-$key" );
 }
@@ -129,7 +143,7 @@ my %set = (
 
 sub set { # unstable
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->normalize( shift );
     my $header = $self->{header};
     $key && ( $set{$key} || $set )->( $self, $header, "-$key", @_ );
 }
@@ -146,7 +160,7 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->normalize( shift );
     my $exists = $EXISTS{$key} || $EXISTS;
     $self->$exists( $self->{header}, "-$key" );
 }
@@ -165,7 +179,7 @@ my %DELETE = (
 
 sub delete {
     my $self   = shift;
-    my $key    = _lc( shift );
+    my $key    = $self->normalize( shift );
     my $header = $self->{header};
 
     if ( my $delete = $DELETE{$key} ) {
@@ -189,7 +203,7 @@ sub clear {
 sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
-    ref( $self )->new( \%copy, $self->{query} );
+    blessed( $self )->new( \%copy, $self->{query} );
 }
 
 BEGIN {
@@ -260,7 +274,14 @@ sub flatten {
 
     if ( $cookie ) {
         my @cookies = $level && ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-           @cookies = map { "$_" } @cookies if $level > 1;
+
+        if ( $level > 1 ) {
+            for my $c ( @cookies ) {
+                next unless blessed $c and $c->can('as_string');
+                $c = $c->as_string;
+            }
+        }
+
         push @headers, map { ('Set-Cookie', $_) } @cookies;
     }
 
@@ -350,18 +371,6 @@ sub _ucfirst {
     $str;
 }
 
-my %alias_of = (
-    content_type => 'type',   window_target => 'target',
-    cookies      => 'cookie', set_cookie    => 'cookie',
-    uri => 'location', url => 'location', # for CGI::redirect()
-);
-
-sub _lc {
-    my $str = lc shift;
-    $str =~ s/^-//;
-    $str =~ tr/-/_/;
-    $alias_of{ $str } || $str;
-}
 
 1;
 
