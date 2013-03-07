@@ -15,7 +15,7 @@ can_ok 'CGI::Header', qw(
     p3p_tags expires nph attachment field_names each flatten
 );
 
-subtest '_lc()' => sub {
+subtest '_normalize()' => sub {
     my @data = (
         'Foo'      => 'foo',
         'Foo-Bar'  => 'foo_bar',
@@ -30,7 +30,7 @@ subtest '_lc()' => sub {
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is CGI::Header::_lc($input), $expected;
+        is( CGI::Header->_normalize($input), $expected );
     }
 };
 

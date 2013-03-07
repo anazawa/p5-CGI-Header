@@ -11,6 +11,24 @@ our $VERSION = '0.30';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
+my %ALIAS = (
+    content_type => 'type',   window_target => 'target',
+    cookies      => 'cookie', set_cookie    => 'cookie',
+    uri => 'location', url => 'location', # for CGI::redirect()
+);
+
+sub get_alias {
+    $ALIAS{ $_[1] };
+}
+
+sub _normalize {
+    my $class = shift;
+    my $prop = lc shift;
+    $prop =~ s/^-//;
+    $prop =~ tr/-/_/;
+    $class->get_alias($prop) || $prop;
+}
+
 sub new {
     my $self = bless {}, shift;
     my @args = @_;
@@ -21,7 +39,7 @@ sub new {
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            my $prop = _lc( $key );
+            my $prop = $self->_normalize( $key );
             $header->{ "-$prop" } = $value; # force overwrite
         }
         if ( blessed $header->{-query} ) {
@@ -57,7 +75,7 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = '-' . _lc( $key );
+        my $prop = '-' . $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{ $prop };
         $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
@@ -96,7 +114,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->_normalize( shift );
     my $get = $GET{$key} || $GET;
     $self->$get( $self->{header}, "-$key" );
 }
@@ -129,7 +147,7 @@ my %set = (
 
 sub set { # unstable
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->_normalize( shift );
     my $header = $self->{header};
     $key && ( $set{$key} || $set )->( $self, $header, "-$key", @_ );
 }
@@ -146,7 +164,7 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = _lc( shift );
+    my $key = $self->_normalize( shift );
     my $exists = $EXISTS{$key} || $EXISTS;
     $self->$exists( $self->{header}, "-$key" );
 }
@@ -165,7 +183,7 @@ my %DELETE = (
 
 sub delete {
     my $self   = shift;
-    my $key    = _lc( shift );
+    my $key    = $self->_normalize( shift );
     my $header = $self->{header};
 
     if ( my $delete = $DELETE{$key} ) {
@@ -350,19 +368,6 @@ sub _ucfirst {
     $str;
 }
 
-my %alias_of = (
-    content_type => 'type',   window_target => 'target',
-    cookies      => 'cookie', set_cookie    => 'cookie',
-    uri => 'location', url => 'location', # for CGI::redirect()
-);
-
-sub _lc {
-    my $str = lc shift;
-    $str =~ s/^-//;
-    $str =~ tr/-/_/;
-    $alias_of{ $str } || $str;
-}
-
 1;
 
 __END__
@@ -464,7 +469,7 @@ array references. See L<CGI::Header::PSGI>.
 
 =back
 
-=head2 CLASS METHOD
+=head2 CLASS METHODS
 
 =over 4
 
@@ -529,6 +534,13 @@ you can specify '-query' property which represents your query object:
 A shortcut for:
 
   my $header = CGI::Header->new({ -type => $media_type });
+
+=item $alias = CGI::Header->get_alias( $prop )
+
+Returns the alias of the given property name.
+If the alias doesn't exist, then C<undef> is returned.
+
+  my $alias = CGI::Header->get_alias('content_type'); # => 'type'
 
 =back
 
