@@ -207,7 +207,7 @@ sub clear {
 sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
-    ref( $self )->new( \%copy, $self->{query} );
+    blessed( $self )->new( \%copy, $self->{query} );
 }
 
 BEGIN {
@@ -552,17 +552,6 @@ If the alias doesn't exist, then C<undef> is returned.
 
 Returns your current query object. C<query()> defaults to the Singleton
 instance of CGI.pm (C<$CGI::Q>).
-
-=item $hashref = $header->env
-
-This method is obsolete and will be removed in 0.31.
-
-Returns the reference to the hash which contains your current environment.
-C<env()> defaults to C<\%ENV>. This module depends on the following
-elements of C<env()>:
-
-  SERVER_PROTOCOL
-  SERVER_SOFTWARE
 
 =item $hashref = $header->header
 
