@@ -117,7 +117,7 @@ CGI::Header::Redirect object. The Location header always exists.
 
 =item $bool = $header->is_empty
 
-Always returns true.
+Always returns false.
 
 =item $header->as_string
 
