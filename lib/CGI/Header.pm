@@ -14,7 +14,6 @@ our $MODIFY = 'Modification of a read-only value attempted';
 my %ALIAS = (
     content_type => 'type',   window_target => 'target',
     cookies      => 'cookie', set_cookie    => 'cookie',
-    uri => 'location', url => 'location', # for CGI::redirect()
 );
 
 sub get_alias {
@@ -407,7 +406,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.31.
+This document refers to CGI::Header version 0.32.
 
 =head1 DEPENDENCIES
 

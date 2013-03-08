@@ -25,8 +25,6 @@ subtest '_normalize()' => sub {
         '-cookies'       => 'cookie',
         '-set_cookie'    => 'cookie',
         '-window_target' => 'target',
-        '-uri' => 'location',
-        '-url' => 'location',
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
