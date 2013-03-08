@@ -9,6 +9,7 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/CGI/Header.pm
+lib/CGI/Header/Redirect.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
@@ -26,6 +27,7 @@ t/26_set_cookie.t
 t/27_window_target.t
 t/28_pragma.t
 t/30_cgi_header.t
+t/31_cgi_redirect.t
 tools/benchmark.pl
 tools/profile.pl
 xt/pod.t
