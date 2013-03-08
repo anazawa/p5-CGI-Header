@@ -1,5 +1,9 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add CGI::Header::Redirect, an adapter for the CGI::redirect() function.
+    CGI::Header::Redirect inherits from CGI::Header, and also overrides
+    some methods.
+
 0.31  Mar 8th, 2013
 
   - add get_alias() which returns the alias of the given property name:

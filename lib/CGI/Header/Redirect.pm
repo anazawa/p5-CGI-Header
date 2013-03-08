@@ -2,7 +2,7 @@ package CGI::Header::Redirect;
 use strict;
 use warnings;
 use base 'CGI::Header';
-use Carp qw/carp/;
+use Carp qw/carp croak/;
 
 my %ALIAS = (
     content_type => 'type',     window_target => 'target',
@@ -21,25 +21,35 @@ sub new {
 }
 
 for my $method (qw/flatten get exists/) {
-    my $super = "SUPER::$method";
+    my $orig = "SUPER::$method";
     my $code = sub {
         my $self = shift;
         my $header = $self->{header};
         local $header->{-location} = $self->_self_url if !$header->{-location};
         local $header->{-status} = '302 Found' if !defined $header->{-status};
         local $header->{-type} = q{} if !exists $header->{-type};
-        $self->$super( @_ );
+        $self->$orig( @_ );
     };
 
     no strict 'refs';
     *{ $method } = $code;
 }
 
+my %DELETE = (
+    location => sub { croak $CGI::Header::MODIFY },
+    status => sub {
+        my ( $self, $prop ) = @_;
+        my $value = defined wantarray && $self->get( $prop );
+        $self->{header}->{$prop} = q{};
+        $value;
+    },
+);
+
 sub delete {
     my $self = shift;
     my $prop = $self->_normalize( shift );
-    return $self->SUPER::delete( $prop ) if $prop ne 'location';
-    croak $CGI::Header::MODIFY;
+    my $delete = $DELETE{$prop} || 'SUPER::delete';
+    $self->$delete( "-$prop" );
 }
 
 sub _self_url {

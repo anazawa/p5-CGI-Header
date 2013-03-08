@@ -612,8 +612,6 @@ This module converts them as follows:
  '-set_cookie'    -> '-cookie'
  '-cookies'       -> '-cookie'
  '-window_target' -> '-target'
- '-uri'           -> '-location'
- '-url'           -> '-location'
 
 If a property name is duplicated, throws an exception:
 
