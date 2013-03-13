@@ -20,15 +20,6 @@ sub new {
     $class->SUPER::new( @args );
 }
 
-sub flatten {
-    my $self = shift;
-    my $header = $self->{header};
-    local $header->{-location} = $self->_self_url if !$header->{-location};
-    local $header->{-status} = '302 Found' if !defined $header->{-status};
-    local $header->{-type} = q{} if !exists $header->{-type};
-    $self->SUPER::flatten( @_ );
-}
-
 my %GET = (
     location => sub {
         my ( $self, $prop ) = @_; 
@@ -37,8 +28,7 @@ my %GET = (
     status => sub {
         my ( $self, $prop ) = @_; 
         my $status = $self->{header}->{$prop};
-        return if defined $status and $status eq q{};
-        defined $status ? $status : '302 Found';
+        defined $status ? ( $status eq q{} ? undef : $status ) : '302 Found';
     },
     type => sub {
         my ( $self, $prop ) = @_; 
@@ -67,8 +57,8 @@ my %EXISTS = (
     type => sub {
         my ( $self, $prop ) = @_;
         my $header = $self->{header};
-        local $header->{-type} = q{} if !exists $header->{-type};
-        $self->SUPER::exists( $prop );
+        my $type = exists $header->{$prop} ? $header->{$prop} : q{};
+        !defined $type or $type ne q{};
     },
 );
 
@@ -117,6 +107,15 @@ sub clear {
     %{ $self->{header} } = ( -type => q{}, -status => q{} );
     $self->query->cache( 0 );
     $self;
+}
+
+sub flatten {
+    my $self = shift;
+    my $header = $self->{header};
+    local $header->{-location} = $self->_self_url if !$header->{-location};
+    local $header->{-status} = '302 Found' if !defined $header->{-status};
+    local $header->{-type} = q{} if !exists $header->{-type};
+    $self->SUPER::flatten( @_ );
 }
 
 sub as_string {

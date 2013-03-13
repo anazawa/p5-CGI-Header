@@ -59,9 +59,25 @@ subtest 'the Content-Type header' => sub {
 subtest 'the Location header' => sub {
     my $header = CGI::Header::Redirect->new;
     my $expected = qr{^Can't delete the Location header};
+    my $url = 'http://somewhere.else/in/movie/land';
 
     %{ $header->header } = ();
     is $header->get('Location'), $header->query->self_url;
+    ok $header->exists('Location');
+    throws_ok { $header->delete('Location') } $expected;
+
+    %{ $header->header } = ( -location => undef );
+    is $header->get('Location'), $header->query->self_url;
+    ok $header->exists('Location');
+    throws_ok { $header->delete('Location') } $expected;
+
+    %{ $header->header } = ( -location => q{} );
+    is $header->get('Location'), $header->query->self_url;
+    ok $header->exists('Location');
+    throws_ok { $header->delete('Location') } $expected;
+
+    %{ $header->header } = ( -location => $url );
+    is $header->get('Location'), $url;
     ok $header->exists('Location');
     throws_ok { $header->delete('Location') } $expected;
 };
