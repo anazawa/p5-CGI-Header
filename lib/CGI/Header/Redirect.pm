@@ -20,19 +20,63 @@ sub new {
     $class->SUPER::new( @args );
 }
 
-for my $method (qw/flatten get exists/) {
-    my $orig = "SUPER::$method";
-    my $code = sub {
-        my $self = shift;
-        my $header = $self->{header};
-        local $header->{-location} = $self->_self_url if !$header->{-location};
-        local $header->{-status} = '302 Found' if !defined $header->{-status};
-        local $header->{-type} = q{} if !exists $header->{-type};
-        $self->$orig( @_ );
-    };
+sub flatten {
+    my $self = shift;
+    my $header = $self->{header};
+    local $header->{-location} = $self->_self_url if !$header->{-location};
+    local $header->{-status} = '302 Found' if !defined $header->{-status};
+    local $header->{-type} = q{} if !exists $header->{-type};
+    $self->SUPER::flatten( @_ );
+}
 
-    no strict 'refs';
-    *{ $method } = $code;
+my %GET = (
+    location => sub {
+        my ( $self, $prop ) = @_; 
+        $self->{header}->{$prop} || $self->_self_url;
+    },
+    status => sub {
+        my ( $self, $prop ) = @_; 
+        my $status = $self->{header}->{$prop};
+        return if defined $status and $status eq q{};
+        defined $status ? $status : '302 Found';
+    },
+    type => sub {
+        my ( $self, $prop ) = @_; 
+        my $header = $self->{header};
+        local $header->{$prop} = q{} if !exists $header->{$prop};
+        $self->SUPER::get( $prop );
+    },
+);
+
+sub get {
+    my $self = shift;
+    my $prop = $self->normalize( shift );
+    my $get = $GET{$prop} || 'SUPER::get';
+    $self->$get( "-$prop" );
+}
+
+my %EXISTS = (
+    location => sub {
+        1;
+    },
+    status => sub {
+        my ( $self, $prop ) = @_;
+        my $status = $self->{header}->{$prop};
+        !defined $status or $status ne q{};
+    },
+    type => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        local $header->{-type} = q{} if !exists $header->{-type};
+        $self->SUPER::exists( $prop );
+    },
+);
+
+sub exists {
+    my $self = shift;
+    my $prop = $self->normalize( shift );
+    my $exists = $EXISTS{$prop} || 'SUPER::exists';
+    $self->$exists( "-$prop" );
 }
 
 my %DELETE = (
@@ -41,6 +85,12 @@ my %DELETE = (
         my ( $self, $prop ) = @_;
         my $value = defined wantarray && $self->get( $prop );
         $self->{header}->{$prop} = q{};
+        $value;
+    },
+    type => sub {
+        my ( $self, $prop ) = @_;
+        my $value = defined wantarray && $self->get( $prop );
+        delete $self->{header}->{$prop};
         $value;
     },
 );

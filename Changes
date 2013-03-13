@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add tests for CGI::Header::Redirect
+
 0.32  Mar 9th, 2013
 
   - Add CGI::Header::Redirect, an adapter for the CGI::redirect() function.
