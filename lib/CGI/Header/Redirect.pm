@@ -92,11 +92,6 @@ sub delete {
     $self->$delete( "-$prop" );
 }
 
-sub _self_url {
-    my $self = shift;
-    $self->{_self_url} ||= $self->query->self_url;
-}
-
 sub SCALAR {
     1;
 }
@@ -116,6 +111,11 @@ sub flatten {
     local $header->{-status} = '302 Found' if !defined $header->{-status};
     local $header->{-type} = q{} if !exists $header->{-type};
     $self->SUPER::flatten( @_ );
+}
+
+sub _self_url {
+    my $self = shift;
+    $self->{_self_url} ||= $self->query->self_url;
 }
 
 sub as_string {

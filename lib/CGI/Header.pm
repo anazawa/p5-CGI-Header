@@ -20,12 +20,26 @@ sub get_alias {
     $ALIAS{ $_[1] };
 }
 
+sub lc {
+    my $class = shift;
+    my $str = lc shift;
+    $str =~ s/^-//;
+    $str =~ tr/-/_/;
+    $str;
+}
+
 sub normalize {
     my $class = shift;
-    my $prop = lc shift;
-    $prop =~ s/^-//;
-    $prop =~ tr/-/_/;
+    my $prop = $class->lc( shift );
     $class->get_alias($prop) || $prop;
+}
+
+sub ucfirst {
+    my $class = shift;
+    my $str = shift;
+    $str =~ s/^-(\w)/\u$1/;
+    $str =~ tr/_/-/;
+    $str;
 }
 
 sub new {
@@ -83,28 +97,46 @@ sub rehash {
     $self;
 }
 
-my $GET = sub { $_[1]->{$_[2]} };
-
 my %GET = (
-    content_disposition => sub {
-        my $filename = $_[1]->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $GET->( @_ );
+    DEFAULT => sub {
+        my ( $self, $prop ) = @_;
+        $self->{header}->{$prop};
     },
-    date => sub { _date_is_fixed( $_[1] ) ? _expires() : $GET->( @_ ) },
-    expires => sub { my $v = $GET->( @_ ); $v ? _expires( $v ) : undef },
+    content_disposition => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        my $filename = $header->{-attachment};
+        $filename ? qq{attachment; filename="$filename"} : $header->{$prop};
+    },
+    date => sub {
+        my ( $self, $prop ) = @_;
+        $self->_has_date ? _expires() : $self->{header}->{$prop};
+    },
+    expires => sub {
+        my ( $self, $prop ) = @_;
+        my $expires = $self->{header}->{$prop};
+        $expires ? _expires( $expires ) : undef;
+    },
     p3p => sub {
-        my $tags = $GET->( @_ );
+        my ( $self, $prop ) = @_;
+        my $tags = $self->{header}->{$prop};
         $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
-    pragma => sub { $_[0]->query->cache ? 'no-cache' : $GET->( @_ ) },
+    pragma => sub {
+        my ( $self, $prop ) = @_;
+        $self->query->cache ? 'no-cache' : $self->{header}->{$prop};
+    },
     server => sub {
-        $_[1]->{-nph} ? $_[0]->query->server_software : $GET->( @_ );
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        $header->{-nph} ? $self->query->server_software : $header->{$prop};
     },
     type => sub {
-        my ( $type, $charset ) = @{ $_[1] }{qw/-type -charset/};
+        my ( $self, $prop ) = @_;
+        my ( $type, $charset ) = @{ $self->{header} }{ $prop, '-charset' };
         return if defined $type and $type eq q{};
-        $charset = $_[0]->query->charset unless defined $charset;
+        $charset = $self->query->charset unless defined $charset;
         $type ||= 'text/html';
         $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
         $type;
@@ -113,9 +145,9 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = $self->normalize( shift );
-    my $get = $GET{$key} || $GET;
-    $self->$get( $self->{header}, "-$key" );
+    my $prop = $self->normalize( shift );
+    my $get = $GET{$prop} || $GET{DEFAULT};
+    $self->$get( "-$prop" );
 }
 
 my $set = sub { $_[1]->{$_[2]} = $_[3] };
@@ -151,33 +183,81 @@ sub set { # unstable
     $key && ( $set{$key} || $set )->( $self, $header, "-$key", @_ );
 }
 
-my $EXISTS = sub { exists $_[1]->{$_[2]} };
-
 my %EXISTS = (
-    content_disposition => sub { $EXISTS->( @_ ) || $_[1]->{-attachment} },
-    date => sub { _date_is_fixed( $_[1] ) || $EXISTS->( @_ ) },
-    pragma => sub { $_[0]->query->cache || $EXISTS->( @_ ) },
-    server => sub { $_[1]->{-nph} || $EXISTS->( @_ ) },
-    type => sub { my $v = $_[1]->{-type}; !defined $v || $v ne q{} },
+    DEFAULT => sub {
+        my ( $self, $prop ) = @_;
+        exists $self->{header}->{$prop};
+    },
+    content_disposition => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        exists $header->{$prop} or $header->{-attachment};
+    },
+    content_type => sub {
+        my ( $self, $prop ) = @_;
+        my $type = $self->{header}->{-type};
+        !defined $type or $type ne q{}
+    },
+    date => sub {
+        my ( $self, $prop ) = @_;
+        $self->_has_date or exists $self->{header}->{$prop};
+    },
+    pragma => sub {
+        my ( $self, $prop ) = @_;
+        $self->query->cache or exists $self->{header}->{$prop};
+    },
+    server => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        $header->{-nph} or exists $header->{$prop};
+    },
+    set_cookie => sub {
+        my $self = shift;
+        exists $self->{header}->{-cookie};
+    },
+    window_target => sub {
+        my $self = shift;
+        exists $self->{header}->{-target};
+    },
 );
 
 sub exists {
     my $self = shift;
-    my $key = $self->normalize( shift );
-    my $exists = $EXISTS{$key} || $EXISTS;
-    $self->$exists( $self->{header}, "-$key" );
+    my $prop = $self->lc( shift );
+    my $exists = $EXISTS{$prop} || $EXISTS{DEFAULT};
+    $self->$exists( "-$prop" );
 }
 
-my $DELETE = sub { delete $_[1]->{$_[2]} };
-
 my %DELETE = (
-    content_disposition => sub { delete @{$_[1]}{$_[2], '-attachment'} },
-    date => sub { _date_is_fixed($_[1]) and croak $MODIFY; $DELETE->( @_ ) },
-    expires => $DELETE,
-    p3p => $DELETE,
-    pragma => sub { $_[0]->query->cache and croak $MODIFY; $DELETE->( @_ ) },
-    server => sub { $_[1]->{-nph} and croak $MODIFY; $DELETE->( @_ ) },
-    type => sub { my $h = $_[1]; delete $h->{-charset}; $h->{-type} = q{} },
+    content_disposition => sub {
+        my ( $self, $prop ) = @_;
+        delete @{ $self->{header} }{ $prop, '-attachment' };
+    },
+    date => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        croak $MODIFY if _date_is_fixed( $header );
+        delete $header->{$prop};
+    },
+    expires => '_delete',
+    p3p => '_delete',
+    pragma => sub {
+        my ( $self, $prop ) = @_;
+        croak $MODIFY if $self->query->cache;
+        delete $self->{header}->{$prop};
+    },
+    server => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        croak $MODIFY if $header->{-nph};
+        delete $header->{$prop};
+    },
+    type => sub {
+        my ( $self, $prop ) = @_;
+        my $header = $self->{header};
+        delete $header->{-charset};
+        $header->{-type} = q{};
+    },
 );
 
 sub delete {
@@ -187,14 +267,21 @@ sub delete {
 
     if ( my $delete = $DELETE{$key} ) {
         my $value = defined wantarray && $self->get( $key );
-        $self->$delete( $header, "-$key" );
+        $self->$delete( "-$key" );
         return $value;
     }
 
     delete $header->{ "-$key" };
 }
 
-sub is_empty { !$_[0]->SCALAR }
+sub _delete {
+    my ( $self, $prop ) = @_;
+    delete $self->{header}->{$prop};
+}
+
+sub is_empty {
+    !$_[0]->SCALAR;
+}
 
 sub clear {
     my $self = shift;
@@ -293,7 +380,7 @@ sub flatten {
 
     # not ordered
     while ( my ($field, $value) = CORE::each %copy ) {
-        push @headers, _ucfirst($field), $value;
+        push @headers, $self->ucfirst($field), $value;
     }
 
     if ( !defined $type or $type ne q{} ) {
@@ -360,11 +447,10 @@ sub _date_is_fixed {
     $header->{-nph} || $header->{-cookie} || $header->{-expires};
 }
 
-sub _ucfirst {
-    my $str = shift;
-    $str =~ s/^-(\w)/\u$1/;
-    $str =~ tr/_/-/;
-    $str;
+sub _has_date {
+    my $self = shift;
+    my $header = $self->{header};
+    $header->{-nph} or $header->{-cookie} or $header->{-expires};
 }
 
 1;
