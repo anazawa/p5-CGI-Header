@@ -36,7 +36,7 @@ for my $method (qw/flatten get exists/) {
 }
 
 my %DELETE = (
-    location => sub { croak $CGI::Header::MODIFY },
+    location => sub { croak "Can't delete the Location header" },
     status => sub {
         my ( $self, $prop ) = @_;
         my $value = defined wantarray && $self->get( $prop );
@@ -47,7 +47,7 @@ my %DELETE = (
 
 sub delete {
     my $self = shift;
-    my $prop = $self->_normalize( shift );
+    my $prop = $self->normalize( shift );
     my $delete = $DELETE{$prop} || 'SUPER::delete';
     $self->$delete( "-$prop" );
 }
@@ -102,6 +102,13 @@ CGI::Header::Redirect is a subclass of L<CGI::Header>.
 
 =over 4
 
+=item $alias = CGI::Header::Redirect->get_alias( $prop )
+
+C<uri> and C<url> are the alias of C<location>.
+
+  CGI::Header::Redirect->get_alias('uri'); # => 'location'
+  CGI::Header::Redirect->get_alias('url'); # => 'location'
+
 =item $header = CGI::Header::Redirect->new( $url )
 
 A shortcut for:
@@ -111,7 +118,7 @@ A shortcut for:
 =item $self = $header->clear
 
 Unlike L<CGI::Header> objects, you cannot C<clear()> your
-CGI::Header::Redirect object. The Location header always exists.
+CGI::Header::Redirect object completely. The Location header always exists.
 
   $header->clear; # warn "Can't delete the Location header"
 
@@ -124,6 +131,37 @@ Always returns false.
 A shortcut for:
 
   $header->query->redirect( $header->header );
+
+=back
+
+=head1 LIMITATIONS
+
+=over 4
+
+=item Location
+
+You can't delete the Location header. The header field always exists.
+
+  # wrong
+  $header->set( 'Location' => q{} );
+  $header->set( 'Location' => undef );
+  $header->delete('Location');
+
+  if ( $header->exists('Location') ) { # always true
+      ...
+  }
+
+=item Status
+
+You can set the Status header to neither C<undef> nor an empty string:
+
+  # wrong
+  $header->set( 'Status' => undef );
+  $header->set( 'Status' => q{} );
+
+Use C<delete()> instead:
+
+  $header->delete('Status');
 
 =back
 

@@ -16,7 +16,7 @@ subtest 'default' => sub {
     is $header->delete('Status'), '302 Found';
     is_deeply $header->header, { -status => q{} };
 
-    my $expected = qr{^Modification of a read-only value attempted};
+    my $expected = qr{^Can't delete the Location header};
 
     is $header->get('Location'), $header->query->self_url;
     ok $header->exists('Location');

@@ -28,7 +28,7 @@ subtest '_normalize()' => sub {
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is( CGI::Header->_normalize($input), $expected );
+        is( CGI::Header->normalize($input), $expected );
     }
 };
 

@@ -20,7 +20,7 @@ sub get_alias {
     $ALIAS{ $_[1] };
 }
 
-sub _normalize {
+sub normalize {
     my $class = shift;
     my $prop = lc shift;
     $prop =~ s/^-//;
@@ -38,7 +38,7 @@ sub new {
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            my $prop = $self->_normalize( $key );
+            my $prop = $self->normalize( $key );
             $header->{ "-$prop" } = $value; # force overwrite
         }
         if ( blessed $header->{-query} ) {
@@ -74,7 +74,7 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = '-' . $self->_normalize( $key );
+        my $prop = '-' . $self->normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{ $prop };
         $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
@@ -113,7 +113,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = $self->_normalize( shift );
+    my $key = $self->normalize( shift );
     my $get = $GET{$key} || $GET;
     $self->$get( $self->{header}, "-$key" );
 }
@@ -146,7 +146,7 @@ my %set = (
 
 sub set { # unstable
     my $self = shift;
-    my $key = $self->_normalize( shift );
+    my $key = $self->normalize( shift );
     my $header = $self->{header};
     $key && ( $set{$key} || $set )->( $self, $header, "-$key", @_ );
 }
@@ -163,7 +163,7 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = $self->_normalize( shift );
+    my $key = $self->normalize( shift );
     my $exists = $EXISTS{$key} || $EXISTS;
     $self->$exists( $self->{header}, "-$key" );
 }
@@ -182,7 +182,7 @@ my %DELETE = (
 
 sub delete {
     my $self   = shift;
-    my $key    = $self->_normalize( shift );
+    my $key    = $self->normalize( shift );
     my $header = $self->{header};
 
     if ( my $delete = $DELETE{$key} ) {
