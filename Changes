@@ -4,8 +4,6 @@ Revision history for Perl extension CGI::Header.
   - Fix POD: "CGI::Header::Redirect#is_empty always returns false"
   - Update dispatch tables to maintain this module more easily
   - Add the following class methods:
-      * lc
-      * ucfirst
       * time2str
       * normalize
 

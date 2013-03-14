@@ -34,14 +34,6 @@ sub normalize {
     $class->get_alias($prop) || $prop;
 }
 
-sub ucfirst {
-    my $class = shift;
-    my $str = shift;
-    $str =~ s/^-(\w)/\u$1/;
-    $str =~ tr/_/-/;
-    $str;
-}
-
 sub time2str {
     require CGI::Util;
     CGI::Util::expires( $_[1], 'http' );
@@ -257,9 +249,9 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $field = $self->lc( shift );
-    my $exists = $EXISTS{$field} || $EXISTS{DEFAULT};
-    $self->$exists( "-$field" );
+    my $key = $self->lc( shift );
+    my $exists = $EXISTS{$key} || $EXISTS{DEFAULT};
+    $self->$exists( "-$key" );
 }
 
 my %DELETE = (
@@ -418,8 +410,8 @@ sub flatten {
     my ( $type, $charset ) = delete @copy{qw/-type -charset/};
 
     # not ordered
-    while ( my ($field, $value) = CORE::each %copy ) {
-        push @headers, $self->ucfirst($field), $value;
+    while ( my ($key, $value) = CORE::each %copy ) {
+        push @headers, _ucfirst($key), $value;
     }
 
     if ( !defined $type or $type ne q{} ) {
@@ -480,6 +472,13 @@ sub _has_date {
     my $self = shift;
     my $header = $self->{header};
     $header->{-nph} or $header->{-cookie} or $header->{-expires};
+}
+
+sub _ucfirst {
+    my $str = shift;
+    $str =~ s/^-(\w)/\u$1/;
+    $str =~ tr/_/-/;
+    $str;
 }
 
 1;
@@ -663,14 +662,6 @@ Unlike C<CORE::lc>, this method gets rid of an initial dash,
 and also transliterates dashes into underscores in C<$str>.
 
   my $str = CGI::Header->lc( "Foo-Bar" ); # => "foo_bar"
-
-=item CGI::Header->ucfirst( $str )
-
-Returns the value of C<$str> with the first character in uppercase.
-Unlike C<CORE::ucfirst>, this method gets rid of an initial dash at first,
-and also transliterates underscore into dashes in C<$str>.
-
-  my $str = CGI::Header->ucfirst( "-foo_bar" ); # => "Foo-bar"
 
 =back
 

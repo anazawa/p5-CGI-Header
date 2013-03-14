@@ -21,6 +21,12 @@ sub new {
 }
 
 my %GET = (
+    content_type => sub {
+        my $self = shift; 
+        my $header = $self->{header};
+        local $header->{-type} = q{} if !exists $header->{-type};
+        $self->SUPER::get( @_ );
+    },
     location => sub {
         my ( $self, $prop ) = @_; 
         $self->{header}->{$prop} || $self->_self_url;
@@ -28,13 +34,7 @@ my %GET = (
     status => sub {
         my ( $self, $prop ) = @_; 
         my $status = $self->{header}->{$prop};
-        defined $status ? ( $status eq q{} ? undef : $status ) : '302 Found';
-    },
-    content_type => sub {
-        my ( $self, $prop ) = @_; 
-        my $header = $self->{header};
-        local $header->{-type} = q{} if !exists $header->{-type};
-        $self->SUPER::get( $prop );
+        defined $status ? ( $status ne q{} ? $status : undef ) : '302 Found';
     },
 );
 
@@ -46,6 +46,12 @@ sub get {
 }
 
 my %EXISTS = (
+    content_type => sub {
+        my $self = shift;
+        my $header = $self->{header};
+        my $type = exists $header->{-type} ? $header->{-type} : q{};
+        !defined $type or $type ne q{};
+    },
     location => sub {
         1;
     },
@@ -54,22 +60,22 @@ my %EXISTS = (
         my $status = $self->{header}->{$prop};
         !defined $status or $status ne q{};
     },
-    type => sub {
-        my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        my $type = exists $header->{$prop} ? $header->{$prop} : q{};
-        !defined $type or $type ne q{};
-    },
 );
 
 sub exists {
     my $self = shift;
-    my $prop = $self->normalize( shift );
-    my $exists = $EXISTS{$prop} || 'SUPER::exists';
-    $self->$exists( "-$prop" );
+    my $key = $self->lc( shift );
+    my $exists = $EXISTS{$key} || 'SUPER::exists';
+    $self->$exists( "-$key" );
 }
 
 my %DELETE = (
+    content_type => sub {
+        my ( $self, $prop ) = @_;
+        my $value = defined wantarray && $self->get( $prop );
+        delete $self->{header}->{-type};
+        $value;
+    },
     location => sub { croak "Can't delete the Location header" },
     status => sub {
         my ( $self, $prop ) = @_;
@@ -77,19 +83,13 @@ my %DELETE = (
         $self->{header}->{$prop} = q{};
         $value;
     },
-    type => sub {
-        my ( $self, $prop ) = @_;
-        my $value = defined wantarray && $self->get( 'content_type' );
-        delete $self->{header}->{$prop};
-        $value;
-    },
 );
 
 sub delete {
     my $self = shift;
-    my $prop = $self->normalize( shift );
-    my $delete = $DELETE{$prop} || 'SUPER::delete';
-    $self->$delete( "-$prop" );
+    my $key = $self->lc( shift );
+    my $delete = $DELETE{$key} || 'SUPER::delete';
+    $self->$delete( "-$key" );
 }
 
 sub SCALAR {
