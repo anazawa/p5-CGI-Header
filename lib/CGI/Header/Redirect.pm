@@ -30,17 +30,17 @@ my %GET = (
         my $status = $self->{header}->{$prop};
         defined $status ? ( $status eq q{} ? undef : $status ) : '302 Found';
     },
-    type => sub {
+    content_type => sub {
         my ( $self, $prop ) = @_; 
         my $header = $self->{header};
-        local $header->{$prop} = q{} if !exists $header->{$prop};
+        local $header->{-type} = q{} if !exists $header->{-type};
         $self->SUPER::get( $prop );
     },
 );
 
 sub get {
     my $self = shift;
-    my $prop = $self->normalize( shift );
+    my $prop = $self->lc( shift );
     my $get = $GET{$prop} || 'SUPER::get';
     $self->$get( "-$prop" );
 }
@@ -79,7 +79,7 @@ my %DELETE = (
     },
     type => sub {
         my ( $self, $prop ) = @_;
-        my $value = defined wantarray && $self->get( $prop );
+        my $value = defined wantarray && $self->get( 'content_type' );
         delete $self->{header}->{$prop};
         $value;
     },

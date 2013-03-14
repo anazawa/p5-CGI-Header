@@ -181,8 +181,9 @@ subtest 'nph()' => sub {
 };
 
 subtest '_ucfirst()' => sub {
-    is CGI::Header::_ucfirst( '-foo'     ), 'Foo';
-    is CGI::Header::_ucfirst( '-foo_bar' ), 'Foo-bar';
+    my $class = 'CGI::Header';
+    is $class->ucfirst( '-foo'     ), 'Foo';
+    is $class->ucfirst( '-foo_bar' ), 'Foo-bar';
 };
 
 subtest 'field_names()' => sub {

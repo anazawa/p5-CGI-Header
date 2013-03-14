@@ -42,6 +42,11 @@ sub ucfirst {
     $str;
 }
 
+sub time2str {
+    require CGI::Util;
+    CGI::Util::expires( $_[1], 'http' );
+}
+
 sub new {
     my $self = bless {}, shift;
     my @args = @_;
@@ -104,23 +109,30 @@ my %GET = (
     },
     content_disposition => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        my $filename = $header->{-attachment};
-        $filename ? qq{attachment; filename="$filename"} : $header->{$prop};
+        my $name = $self->attachment;
+        $name ? qq{attachment; filename="$name"} : $self->{header}->{$prop};
+    },
+    content_type => sub {
+        my $self = shift;
+        my ( $type, $charset ) = @{ $self->{header} }{qw/-type -charset/};
+        return if defined $type and $type eq q{};
+        $charset = $self->query->charset unless defined $charset;
+        $type ||= 'text/html';
+        $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
+        $type;
     },
     date => sub {
         my ( $self, $prop ) = @_;
-        $self->_has_date ? _expires() : $self->{header}->{$prop};
+        $self->_has_date ? $self->time2str : $self->{header}->{$prop};
     },
     expires => sub {
         my ( $self, $prop ) = @_;
         my $expires = $self->{header}->{$prop};
-        $expires ? _expires( $expires ) : undef;
+        $expires ? $self->time2str($expires) : undef;
     },
     p3p => sub {
-        my ( $self, $prop ) = @_;
-        my $tags = $self->{header}->{$prop};
-        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
+        my $self = shift;
+        my $tags = join ' ', $self->p3p_tags;
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
     pragma => sub {
@@ -129,58 +141,82 @@ my %GET = (
     },
     server => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        $header->{-nph} ? $self->query->server_software : $header->{$prop};
+        $self->nph ? $self->query->server_software : $self->{header}->{$prop};
     },
-    type => sub {
-        my ( $self, $prop ) = @_;
-        my ( $type, $charset ) = @{ $self->{header} }{ $prop, '-charset' };
-        return if defined $type and $type eq q{};
-        $charset = $self->query->charset unless defined $charset;
-        $type ||= 'text/html';
-        $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
-        $type;
+    set_cookie => sub {
+        my $self = shift;
+        $self->{header}->{-cookie};
+    },
+    window_target => sub {
+        my $self = shift;
+        $self->{header}->{-target};
     },
 );
 
 sub get {
     my $self = shift;
-    my $prop = $self->normalize( shift );
-    my $get = $GET{$prop} || $GET{DEFAULT};
-    $self->$get( "-$prop" );
+    my $key = $self->lc( shift );
+    my $get = $GET{$key} || $GET{DEFAULT};
+    $self->$get( "-$key" );
 }
 
-my $set = sub { $_[1]->{$_[2]} = $_[3] };
-
-my %set = (
-    content_disposition => sub { delete $_[1]->{-attachment}; $set->( @_ ) },
-    cookie => sub { $_[3] and delete $_[1]->{-date}; $set->( @_ ) },
-    date => sub { _date_is_fixed( $_[1] ) and croak $MODIFY; $set->( @_ ) },
-    expires => sub {
-        carp "Can't assign to '-expires' directly, use expires() instead";
+my %SET = (
+    DEFAULT => sub {
+        my ( $self, $prop, $value ) = @_;
+        $self->{header}->{$prop} = $value;
     },
-    p3p => sub {
-        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
+    content_disposition => sub {
+        my ( $self, $prop, $value ) = @_;
+        delete $self->{header}->{-attachment};
+        $self->{header}->{$prop} = $value;
     },
-    pragma => sub { $_[0]->query->cache and croak $MODIFY; $set->( @_ ) },
-    server => sub { $_[1]->{-nph} and croak $MODIFY; $set->( @_ ) },
-    type => sub {
-        my ( $self, $header, $norm, $value ) = @_;
+    content_type => sub {
+        my ( $self, $prop, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
-            @{ $header }{qw/-charset -type/} = ( q{}, $value );
+            @{ $self->{header} }{qw/-charset -type/} = ( q{}, $value );
             return $value;
         }
         else {
             carp "Can set '-content_type' to neither undef nor an empty string";
         }
     },
+    date => sub {
+        my ( $self, $prop, $value ) = @_;
+        croak $MODIFY if $self->_has_date;
+        $self->{header}->{$prop} = $value;
+    },
+    expires => sub {
+        carp "Can't assign to '-expires' directly, use expires() instead";
+    },
+    p3p => sub {
+        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
+    },
+    pragma => sub {
+        my ( $self, $prop, $value ) = @_;
+        croak $MODIFY if $self->query->cache;
+        $self->{header}->{$prop} = $value;
+    },
+    server => sub {
+        my ( $self, $prop, $value ) = @_;
+        croak $MODIFY if $self->nph;
+        $self->{header}->{$prop} = $value;
+    },
+    set_cookie => sub {
+        my ( $self, $prop, $value ) = @_;
+        delete $self->{header}->{-date} if $value;
+        $self->{header}->{-cookie} = $value;
+    },
+    window_target => sub {
+        my ( $self, $prop, $value ) = @_;
+        $self->{header}->{-target} = $value;
+    },
 );
 
 sub set { # unstable
     my $self = shift;
-    my $key = $self->normalize( shift );
-    my $header = $self->{header};
-    $key && ( $set{$key} || $set )->( $self, $header, "-$key", @_ );
+    my $key = $self->lc( shift );
+    my $set = $SET{$key} || $SET{DEFAULT};
+    $self->$set( "-$key", @_ );
 }
 
 my %EXISTS = (
@@ -190,13 +226,12 @@ my %EXISTS = (
     },
     content_disposition => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        exists $header->{$prop} or $header->{-attachment};
+        exists $self->{header}->{$prop} or $self->attachment;
     },
     content_type => sub {
-        my ( $self, $prop ) = @_;
+        my $self = shift;
         my $type = $self->{header}->{-type};
-        !defined $type or $type ne q{}
+        !defined $type or $type ne q{};
     },
     date => sub {
         my ( $self, $prop ) = @_;
@@ -208,8 +243,7 @@ my %EXISTS = (
     },
     server => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        $header->{-nph} or exists $header->{$prop};
+        $self->nph or exists $self->{header}->{$prop};
     },
     set_cookie => sub {
         my $self = shift;
@@ -223,9 +257,9 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $prop = $self->lc( shift );
-    my $exists = $EXISTS{$prop} || $EXISTS{DEFAULT};
-    $self->$exists( "-$prop" );
+    my $field = $self->lc( shift );
+    my $exists = $EXISTS{$field} || $EXISTS{DEFAULT};
+    $self->$exists( "-$field" );
 }
 
 my %DELETE = (
@@ -233,11 +267,15 @@ my %DELETE = (
         my ( $self, $prop ) = @_;
         delete @{ $self->{header} }{ $prop, '-attachment' };
     },
+    content_type => sub {
+        my ( $self, $prop ) = @_;
+        delete $self->{header}->{-charset};
+        $self->{header}->{-type} = q{};
+    },
     date => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        croak $MODIFY if _date_is_fixed( $header );
-        delete $header->{$prop};
+        croak $MODIFY if $self->_has_date;
+        delete $self->{header}->{$prop};
     },
     expires => '_delete',
     p3p => '_delete',
@@ -248,21 +286,22 @@ my %DELETE = (
     },
     server => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        croak $MODIFY if $header->{-nph};
-        delete $header->{$prop};
+        croak $MODIFY if $self->nph;
+        delete $self->{header}->{$prop};
     },
-    type => sub {
+    set_cookie => sub {
         my ( $self, $prop ) = @_;
-        my $header = $self->{header};
-        delete $header->{-charset};
-        $header->{-type} = q{};
+        delete $self->{header}->{-cookie};
+    },
+    window_target => sub {
+        my ( $self, $prop ) = @_;
+        delete $self->{header}->{-target};
     },
 );
 
 sub delete {
     my $self   = shift;
-    my $key    = $self->normalize( shift );
+    my $key    = $self->lc( shift );
     my $header = $self->{header};
 
     if ( my $delete = $DELETE{$key} ) {
@@ -293,7 +332,7 @@ sub clear {
 sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
-    blessed( $self )->new( \%copy, $self->{query} );
+    ref( $self )->new( \%copy, $self->{query} );
 }
 
 BEGIN {
@@ -368,8 +407,8 @@ sub flatten {
         push @headers, map { ('Set-Cookie', $_) } @cookies;
     }
 
-    push @headers, 'Expires', _expires($expires) if $expires;
-    push @headers, 'Date', _expires() if $expires or $cookie or $nph;
+    push @headers, 'Expires', $self->time2str($expires) if $expires;
+    push @headers, 'Date', $self->time2str if $expires or $cookie or $nph;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( my $fn = delete $copy{-attachment} ) {
@@ -416,7 +455,7 @@ sub as_string {
     $self->query->header( $self->{header} );
 }
 
-BEGIN {
+BEGIN { # TODO: These methods can't be overridden
     *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
     *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
 }
@@ -436,16 +475,6 @@ sub FIRSTKEY {
 }
 
 sub NEXTKEY { $_[0]->{iterator}->() }
-
-BEGIN {
-    require CGI::Util;
-    *_expires = \&CGI::Util::expires;
-}
-
-sub _date_is_fixed {
-    my $header = shift;
-    $header->{-nph} || $header->{-cookie} || $header->{-expires};
-}
 
 sub _has_date {
     my $self = shift;
@@ -505,9 +534,9 @@ received by the C<header()> function of CGI.pm.
 This class is, so to speak, a subclass of Hash,
 while Perl5 doesn't provide a built-in class called Hash.
 
-This module isn't the replacement of the function.
-Although this class implements C<as_string()> method,
-the function should stringify the reference in most cases.
+This module isn't the replacement of the C<CGI::header()> function.
+If you're allowed to replace the function with other modules
+like L<HTTP::Headers>, you should do so.
 
 This module can be used in the following situation:
 
@@ -626,6 +655,22 @@ Returns the alias of the given property name.
 If the alias doesn't exist, then C<undef> is returned.
 
   my $alias = CGI::Header->get_alias('content_type'); # => 'type'
+
+=item CGI::Header->lc( $str )
+
+Returns the lowercased version of C<$str>.
+Unlike C<CORE::lc>, this method gets rid of an initial dash,
+and also transliterates dashes into underscores in C<$str>.
+
+  my $str = CGI::Header->lc( "Foo-Bar" ); # => "foo_bar"
+
+=item CGI::Header->ucfirst( $str )
+
+Returns the value of C<$str> with the first character in uppercase.
+Unlike C<CORE::ucfirst>, this method gets rid of an initial dash at first,
+and also transliterates underscore into dashes in C<$str>.
+
+  my $str = CGI::Header->ucfirst( "-foo_bar" ); # => "Foo-bar"
 
 =back
 
