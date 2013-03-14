@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
