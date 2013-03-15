@@ -7,7 +7,7 @@ use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
@@ -356,7 +356,7 @@ BEGIN {
 sub nph {
     my $self   = shift;
     my $header = $self->{header};
-    my $NPH    = $self->query->nph;
+    my $NPH    = $self->query->nph; # => $CGI::NPH
 
     if ( @_ ) {
         my $nph = shift;
@@ -529,7 +529,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.32.
+This document refers to CGI::Header version 0.34.
 
 =head1 DEPENDENCIES
 
@@ -1089,7 +1089,7 @@ automatically, and also the header field will become read-only:
 
   if ( $header->nph ) {
       my $server = $header->get('Server');
-      # => $header->env->{SERVER_SOFTWARE}
+      # => $header->query->server_software
 
       $header->set( 'Server' => 'Apache/1.3.27 (Unix)' ); # wrong
       $header->delete( 'Server' ); # wrong

@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.34  Mar 16th, 2013
+
   - Add support for -nph pragma:
 
       use CGI qw(-nph);

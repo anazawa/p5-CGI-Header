@@ -28,6 +28,7 @@ t/27_window_target.t
 t/28_pragma.t
 t/30_cgi_header.t
 t/31_cgi_redirect.t
+t/32_nph.t
 tools/benchmark.pl
 tools/profile.pl
 xt/pod.t
