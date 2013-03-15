@@ -1,5 +1,24 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add support for -nph pragma:
+
+      use CGI qw(-nph);
+      my $h = CGI::Header->new;
+      $h->nph; # => true
+
+    If -nph pragma is enabled, you can't set nph() to FALSE:
+
+      $h->nph(0); # die "Modification of a read-only value attempted"
+
+    You can check whether the pragma is enabled or not as follows:
+
+      $h->query->nph; # <=> $CGI::NPH
+
+    You can also set $CGI::NPH to FALSE:
+
+      $h->query->nph(0);
+      $h->nph(0); # lives_ok
+
 0.33  Mar 15th, 2013
 
   - Add tests for CGI::Header::Redirect

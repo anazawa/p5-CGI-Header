@@ -330,7 +330,6 @@ sub clone {
 BEGIN {
     my @conflicts = (
         attachment => [ '-content_disposition' ],
-        nph        => [ '-date', '-server' ],
         expires    => [ '-date' ],
     );
 
@@ -352,6 +351,21 @@ BEGIN {
         no strict 'refs';
         *{ $method } = $code;
     }
+}
+
+sub nph {
+    my $self   = shift;
+    my $header = $self->{header};
+    my $NPH    = $self->query->nph;
+
+    if ( @_ ) {
+        my $nph = shift;
+        croak $MODIFY if !$nph and $NPH;
+        delete @{ $header }{qw/-date -server/} if $nph;
+        return $header->{-nph} = $nph;
+    }
+
+    $header->{-nph} or $NPH;
 }
 
 sub p3p_tags {
@@ -378,11 +392,12 @@ sub flatten {
     my $level = defined $_[0] ? int shift : 2;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
+    my $nph   = delete $copy{-nph} || $query->nph;
 
     my @headers;
 
-    my ( $cookie, $expires, $nph, $status, $target )
-        = delete @copy{qw/-cookie -expires -nph -status -target/};
+    my ( $charset, $cookie, $expires, $status, $target, $type )
+        = delete @copy{qw/-charset -cookie -expires -status -target -type/};
 
     push @headers, 'Server', $query->server_software if $nph;
     push @headers, 'Status', $status        if $status;
@@ -407,12 +422,7 @@ sub flatten {
         push @headers, 'Content-Disposition', qq{attachment; filename="$fn"};
     }
 
-    my ( $type, $charset ) = delete @copy{qw/-type -charset/};
-
-    # not ordered
-    while ( my ($key, $value) = CORE::each %copy ) {
-        push @headers, _ucfirst($key), $value;
-    }
+    push @headers, map { _ucfirst($_), $copy{$_} } keys %copy;
 
     if ( !defined $type or $type ne q{} ) {
         $charset = $query->charset unless defined $charset;
@@ -470,8 +480,7 @@ sub NEXTKEY { $_[0]->{iterator}->() }
 
 sub _has_date {
     my $self = shift;
-    my $header = $self->{header};
-    $header->{-nph} or $header->{-cookie} or $header->{-expires};
+    $self->{header}->{-cookie} or $self->expires or $self->nph;
 }
 
 sub _ucfirst {
@@ -861,7 +870,6 @@ If set to a true value, will issue the correct headers to work
 with a NPH (no-parse-header) script.
 
   $header->nph( 1 );
-  my $nph = $header->nph; # => 1
 
 =item @fields = $header->field_names
 
