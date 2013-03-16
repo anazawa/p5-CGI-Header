@@ -360,7 +360,7 @@ sub nph {
 
     if ( @_ ) {
         my $nph = shift;
-        croak $MODIFY if !$nph and $NPH;
+        croak "The '-nph' pragma is enabled" if !$nph and $NPH;
         delete @{ $header }{qw/-date -server/} if $nph;
         return $header->{-nph} = $nph;
     }
