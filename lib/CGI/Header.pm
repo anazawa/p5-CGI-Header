@@ -11,15 +11,24 @@ our $VERSION = '0.34';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
-my @PROPERTY_NAMES
-    = qw( attachment charset cookie expires nph p3p status target type );
+my @PROPERTY_NAMES = qw(
+    -attachment
+    -charset
+    -cookie
+    -expires
+    -nph
+    -p3p
+    -status
+    -target
+    -type
+);
 
 my %IS_PROPERTY_NAME = map { $_, 1 }
-    qw( attachment charset cookie cookies nph target type );
+    qw( -attachment -charset -cookie -cookies -nph -target -type );
 
 my %ALIASED_TO = (
-    content_type => 'type',   window_target => 'target',
-    cookies      => 'cookie', set_cookie    => 'cookie',
+    -content_type => '-type',   -window_target => '-target',
+    -cookies      => '-cookie', -set_cookie    => '-cookie',
 );
 
 sub get_property_names {
@@ -50,7 +59,10 @@ sub normalize_field_name {
 # This method is obsolete and will be removed in 0.36
 sub lc {
     my $class = shift;
-    $class->normalize_field_name(@_);
+    my $str = CORE::lc shift;
+    $str =~ s/^-//;
+    $str =~ tr/-/_/;
+    $str;
 }
 
 sub time2str {
@@ -69,7 +81,7 @@ sub new {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
             my $prop = $self->normalize_property_name( $key );
-            $header->{ "-$prop" } = $value; # force overwrite
+            $header->{ $prop } = $value; # force overwrite
         }
         if ( blessed $header->{-query} ) {
             $self->{query} = delete $header->{-query};
@@ -104,7 +116,7 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = '-' . $self->normalize_property_name($key);
+        my $prop = $self->normalize_property_name( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{ $prop };
         $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
@@ -118,12 +130,12 @@ my %GET = (
         my ( $self, $prop ) = @_;
         $self->{header}->{$prop};
     },
-    content_disposition => sub {
+    -content_disposition => sub {
         my ( $self, $prop ) = @_;
         my $name = $self->attachment;
         $name ? qq{attachment; filename="$name"} : $self->{header}->{$prop};
     },
-    content_type => sub {
+    -content_type => sub {
         my $self = shift;
         my ( $type, $charset ) = @{ $self->{header} }{qw/-type -charset/};
         return if defined $type and $type eq q{};
@@ -132,33 +144,33 @@ my %GET = (
         $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
         $type;
     },
-    date => sub {
+    -date => sub {
         my ( $self, $prop ) = @_;
         $self->_has_date ? $self->time2str : $self->{header}->{$prop};
     },
-    expires => sub {
+    -expires => sub {
         my ( $self, $prop ) = @_;
         my $expires = $self->{header}->{$prop};
         $expires ? $self->time2str($expires) : undef;
     },
-    p3p => sub {
+    -p3p => sub {
         my $self = shift;
         my $tags = join ' ', $self->p3p_tags;
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
-    pragma => sub {
+    -pragma => sub {
         my ( $self, $prop ) = @_;
         $self->query->cache ? 'no-cache' : $self->{header}->{$prop};
     },
-    server => sub {
+    -server => sub {
         my ( $self, $prop ) = @_;
         $self->nph ? $self->query->server_software : $self->{header}->{$prop};
     },
-    set_cookie => sub {
+    -set_cookie => sub {
         my $self = shift;
         $self->{header}->{-cookie};
     },
-    window_target => sub {
+    -window_target => sub {
         my $self = shift;
         $self->{header}->{-target};
     },
@@ -166,9 +178,9 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = $self->normalize_field_name( shift );
-    my $get = $GET{$key} || $GET{DEFAULT};
-    $self->$get( "-$key" );
+    my $field = $self->normalize_field_name( shift );
+    my $get = $GET{$field} || $GET{DEFAULT};
+    $self->$get( $field );
 }
 
 my %SET = (
@@ -176,12 +188,12 @@ my %SET = (
         my ( $self, $prop, $value ) = @_;
         $self->{header}->{$prop} = $value;
     },
-    content_disposition => sub {
+    -content_disposition => sub {
         my ( $self, $prop, $value ) = @_;
         delete $self->{header}->{-attachment};
         $self->{header}->{$prop} = $value;
     },
-    content_type => sub {
+    -content_type => sub {
         my ( $self, $prop, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
             @{ $self->{header} }{qw/-charset -type/} = ( q{}, $value );
@@ -191,33 +203,33 @@ my %SET = (
             carp "Can set '-content_type' to neither undef nor an empty string";
         }
     },
-    date => sub {
+    -date => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->_has_date;
         $self->{header}->{$prop} = $value;
     },
-    expires => sub {
+    -expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
-    p3p => sub {
+    -p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    pragma => sub {
+    -pragma => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->query->cache;
         $self->{header}->{$prop} = $value;
     },
-    server => sub {
+    -server => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->nph;
         $self->{header}->{$prop} = $value;
     },
-    set_cookie => sub {
+    -set_cookie => sub {
         my ( $self, $prop, $value ) = @_;
         delete $self->{header}->{-date} if $value;
         $self->{header}->{-cookie} = $value;
     },
-    window_target => sub {
+    -window_target => sub {
         my ( $self, $prop, $value ) = @_;
         $self->{header}->{-target} = $value;
     },
@@ -225,9 +237,9 @@ my %SET = (
 
 sub set { # unstable
     my $self = shift;
-    my $key = $self->normalize_field_name( shift );
-    my $set = $SET{$key} || $SET{DEFAULT};
-    $self->$set( "-$key", @_ );
+    my $field = $self->normalize_field_name( shift );
+    my $set = $SET{$field} || $SET{DEFAULT};
+    $self->$set( $field, @_ );
 }
 
 my %EXISTS = (
@@ -235,32 +247,32 @@ my %EXISTS = (
         my ( $self, $prop ) = @_;
         exists $self->{header}->{$prop};
     },
-    content_disposition => sub {
+    -content_disposition => sub {
         my ( $self, $prop ) = @_;
         exists $self->{header}->{$prop} or $self->attachment;
     },
-    content_type => sub {
+    -content_type => sub {
         my $self = shift;
         my $type = $self->{header}->{-type};
         !defined $type or $type ne q{};
     },
-    date => sub {
+    -date => sub {
         my ( $self, $prop ) = @_;
         $self->_has_date or exists $self->{header}->{$prop};
     },
-    pragma => sub {
+    -pragma => sub {
         my ( $self, $prop ) = @_;
         $self->query->cache or exists $self->{header}->{$prop};
     },
-    server => sub {
+    -server => sub {
         my ( $self, $prop ) = @_;
         $self->nph or exists $self->{header}->{$prop};
     },
-    set_cookie => sub {
+    -set_cookie => sub {
         my $self = shift;
         exists $self->{header}->{-cookie};
     },
-    window_target => sub {
+    -window_target => sub {
         my $self = shift;
         exists $self->{header}->{-target};
     },
@@ -268,43 +280,43 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = $self->normalize_field_name( shift );
-    my $exists = $EXISTS{$key} || $EXISTS{DEFAULT};
-    $self->$exists( "-$key" );
+    my $field = $self->normalize_field_name( shift );
+    my $exists = $EXISTS{$field} || $EXISTS{DEFAULT};
+    $self->$exists( $field );
 }
 
 my %DELETE = (
-    content_disposition => sub {
+    -content_disposition => sub {
         my ( $self, $prop ) = @_;
         delete @{ $self->{header} }{ $prop, '-attachment' };
     },
-    content_type => sub {
+    -content_type => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-charset};
         $self->{header}->{-type} = q{};
     },
-    date => sub {
+    -date => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->_has_date;
         delete $self->{header}->{$prop};
     },
-    expires => '_delete',
-    p3p => '_delete',
-    pragma => sub {
+    -expires => '_delete',
+    -p3p => '_delete',
+    -pragma => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->query->cache;
         delete $self->{header}->{$prop};
     },
-    server => sub {
+    -server => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->nph;
         delete $self->{header}->{$prop};
     },
-    set_cookie => sub {
+    -set_cookie => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-cookie};
     },
-    window_target => sub {
+    -window_target => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-target};
     },
@@ -312,16 +324,16 @@ my %DELETE = (
 
 sub delete {
     my $self   = shift;
-    my $key    = $self->normalize_field_name( shift );
+    my $field  = $self->normalize_field_name( shift );
     my $header = $self->{header};
 
-    if ( my $delete = $DELETE{$key} ) {
-        my $value = defined wantarray && $self->get( $key );
-        $self->$delete( "-$key" );
+    if ( my $delete = $DELETE{$field} ) {
+        my $value = defined wantarray && $self->get( $field );
+        $self->$delete( $field );
         return $value;
     }
 
-    delete $header->{ "-$key" };
+    delete $header->{ $field };
 }
 
 sub _delete {
@@ -400,7 +412,6 @@ sub p3p_tags {
 
     return;
 }
-
 
 sub flatten {
     my $self  = shift;
@@ -482,7 +493,7 @@ sub SCALAR {
     my $query = $self->query;
     my %header = %{ $self->{header} };
     !defined $header{-type} # the Content-Type header exists
-        or first { delete $header{"-$_"} } @PROPERTY_NAMES # has header props.
+        or first { delete $header{$_} } @PROPERTY_NAMES # has header props.
         or %header       # %header minus header props. isn't empty
         or $query->cache # the Pragma header exists
         or $query->nph;  # use CGI qw(-nph);
@@ -505,7 +516,7 @@ sub _lc {
     my $str = CORE::lc shift;
     $str =~ s/^-//;
     $str =~ tr/-/_/;
-    $str;
+    "-$str";
 }
 
 sub _ucfirst {

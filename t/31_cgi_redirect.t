@@ -11,8 +11,8 @@ subtest 'default' => sub {
     isa_ok $header, 'CGI::Header';
 
     my @data = (
-        '-url' => 'location',
-        '-uri' => 'location',
+        '-url' => '-location',
+        '-uri' => '-location',
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {

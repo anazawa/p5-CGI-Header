@@ -5,12 +5,12 @@ use base 'CGI::Header';
 use Carp qw/carp croak/;
 
 my %IS_PROPERTY_NAME = map { $_, 1 }
-    qw( attachment charset cookie cookies nph target type uri url );
+    qw( -attachment -charset -cookie -cookies -nph -target -type -uri -url );
 
 my %ALIASED_TO = (
-    content_type => 'type',     window_target => 'target',
-    cookies      => 'cookie',   set_cookie    => 'cookie',
-    uri          => 'location', url           => 'location',
+    -content_type => '-type',     -window_target => '-target',
+    -cookies      => '-cookie',   -set_cookie    => '-cookie',
+    -uri          => '-location', -url           => '-location',
 );
 
 sub get_alias {
@@ -28,17 +28,17 @@ sub new {
 }
 
 my %GET = (
-    content_type => sub {
+    -content_type => sub {
         my $self = shift; 
         my $header = $self->{header};
         local $header->{-type} = q{} if !exists $header->{-type};
         $self->SUPER::get( @_ );
     },
-    location => sub {
+    -location => sub {
         my ( $self, $prop ) = @_; 
         $self->{header}->{$prop} || $self->_self_url;
     },
-    status => sub {
+    -status => sub {
         my ( $self, $prop ) = @_; 
         my $status = $self->{header}->{$prop};
         defined $status ? ( $status ne q{} ? $status : undef ) : '302 Found';
@@ -47,22 +47,22 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $prop = $self->normalize_field_name( shift );
-    my $get = $GET{$prop} || 'SUPER::get';
-    $self->$get( "-$prop" );
+    my $field = $self->normalize_field_name( shift );
+    my $get = $GET{$field} || 'SUPER::get';
+    $self->$get( $field );
 }
 
 my %EXISTS = (
-    content_type => sub {
+    -content_type => sub {
         my $self = shift;
         my $header = $self->{header};
         my $type = exists $header->{-type} ? $header->{-type} : q{};
         !defined $type or $type ne q{};
     },
-    location => sub {
+    -location => sub {
         1;
     },
-    status => sub {
+    -status => sub {
         my ( $self, $prop ) = @_;
         my $status = $self->{header}->{$prop};
         !defined $status or $status ne q{};
@@ -71,20 +71,20 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = $self->normalize_field_name( shift );
-    my $exists = $EXISTS{$key} || 'SUPER::exists';
-    $self->$exists( "-$key" );
+    my $field = $self->normalize_field_name( shift );
+    my $exists = $EXISTS{$field} || 'SUPER::exists';
+    $self->$exists( $field );
 }
 
 my %DELETE = (
-    content_type => sub {
+    -content_type => sub {
         my ( $self, $prop ) = @_;
         my $value = defined wantarray && $self->get( $prop );
         delete $self->{header}->{-type};
         $value;
     },
-    location => sub { croak "Can't delete the Location header" },
-    status => sub {
+    -location => sub { croak "Can't delete the Location header" },
+    -status => sub {
         my ( $self, $prop ) = @_;
         my $value = defined wantarray && $self->get( $prop );
         $self->{header}->{$prop} = q{};
@@ -94,9 +94,9 @@ my %DELETE = (
 
 sub delete {
     my $self = shift;
-    my $key = $self->normalize_field_name( shift );
-    my $delete = $DELETE{$key} || 'SUPER::delete';
-    $self->$delete( "-$key" );
+    my $field = $self->normalize_field_name( shift );
+    my $delete = $DELETE{$field} || 'SUPER::delete';
+    $self->$delete( $field );
 }
 
 sub SCALAR {

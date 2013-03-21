@@ -17,14 +17,14 @@ can_ok 'CGI::Header', qw(
 
 subtest 'normalize_property_name()' => sub {
     my @data = (
-        'Foo'      => 'foo',
-        'Foo-Bar'  => 'foo_bar',
-        '-foo'     => 'foo',
-        '-foo_bar' => 'foo_bar',
-        '-content_type'  => 'type',
-        '-cookies'       => 'cookie',
-        '-set_cookie'    => 'cookie',
-        '-window_target' => 'target',
+        'Foo'      => '-foo',
+        'Foo-Bar'  => '-foo_bar',
+        '-foo'     => '-foo',
+        '-foo_bar' => '-foo_bar',
+        '-content_type'  => '-type',
+        '-cookies'       => '-cookie',
+        '-set_cookie'    => '-cookie',
+        '-window_target' => '-target',
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
