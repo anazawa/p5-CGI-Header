@@ -40,7 +40,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $prop = $self->lc( shift );
+    my $prop = $self->normalize_field_name( shift );
     my $get = $GET{$prop} || 'SUPER::get';
     $self->$get( "-$prop" );
 }
@@ -64,7 +64,7 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = $self->lc( shift );
+    my $key = $self->normalize_field_name( shift );
     my $exists = $EXISTS{$key} || 'SUPER::exists';
     $self->$exists( "-$key" );
 }
@@ -87,7 +87,7 @@ my %DELETE = (
 
 sub delete {
     my $self = shift;
-    my $key = $self->lc( shift );
+    my $key = $self->normalize_field_name( shift );
     my $delete = $DELETE{$key} || 'SUPER::delete';
     $self->$delete( "-$key" );
 }

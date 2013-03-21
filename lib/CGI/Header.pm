@@ -14,7 +14,8 @@ our $MODIFY = 'Modification of a read-only value attempted';
 my @PROPERTY_NAMES
     = qw( attachment charset cookie expires nph p3p status target type );
 
-my %IS_PROPERTY_NAME = map { $_, 1 } @PROPERTY_NAMES, 'cookies';
+my %IS_PROPERTY_NAME = map { $_, 1 }
+    qw( attachment charset cookie cookies nph target type );
 
 my %ALIASED_TO = (
     content_type => 'type',   window_target => 'target',
@@ -41,10 +42,17 @@ sub lc {
     $str;
 }
 
-sub normalize {
+sub normalize_property_name {
     my $class = shift;
-    my $prop = $class->lc( shift );
+    my $prop = _lc( shift );
     $class->get_alias($prop) || $prop;
+}
+
+sub normalize_field_name {
+    my $class = shift;
+    my $field = _lc( shift );
+    return $field unless $class->is_property_name($field);
+    croak "'-$field' can't be used as a field name";
 }
 
 sub time2str {
@@ -62,8 +70,7 @@ sub new {
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            #my $prop = $self->normalize( $key );
-            my $prop = $self->normalize( $key );
+            my $prop = $self->normalize_property_name( $key );
             $header->{ "-$prop" } = $value; # force overwrite
         }
         if ( blessed $header->{-query} ) {
@@ -99,7 +106,7 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = '-' . $self->normalize( $key );
+        my $prop = '-' . $self->normalize_property_name($key);
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{ $prop };
         $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
@@ -161,7 +168,7 @@ my %GET = (
 
 sub get {
     my $self = shift;
-    my $key = $self->lc( shift );
+    my $key = $self->normalize_field_name( shift );
     my $get = $GET{$key} || $GET{DEFAULT};
     $self->$get( "-$key" );
 }
@@ -220,7 +227,7 @@ my %SET = (
 
 sub set { # unstable
     my $self = shift;
-    my $key = $self->lc( shift );
+    my $key = $self->normalize_field_name( shift );
     my $set = $SET{$key} || $SET{DEFAULT};
     $self->$set( "-$key", @_ );
 }
@@ -263,7 +270,7 @@ my %EXISTS = (
 
 sub exists {
     my $self = shift;
-    my $key = $self->lc( shift );
+    my $key = $self->normalize_field_name( shift );
     my $exists = $EXISTS{$key} || $EXISTS{DEFAULT};
     $self->$exists( "-$key" );
 }
@@ -307,7 +314,7 @@ my %DELETE = (
 
 sub delete {
     my $self   = shift;
-    my $key    = $self->lc( shift );
+    my $key    = $self->normalize_field_name( shift );
     my $header = $self->{header};
 
     if ( my $delete = $DELETE{$key} ) {
@@ -494,6 +501,13 @@ sub NEXTKEY { $_[0]->{iterator}->() }
 sub _has_date {
     my $self = shift;
     $self->{header}->{-cookie} or $self->expires or $self->nph;
+}
+
+sub _lc {
+    my $str = CORE::lc shift;
+    $str =~ s/^-//;
+    $str =~ tr/-/_/;
+    $str;
 }
 
 sub _ucfirst {

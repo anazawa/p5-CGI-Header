@@ -5,7 +5,7 @@ use CGI;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 12;
+use Test::More tests => 13;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
@@ -15,7 +15,7 @@ can_ok 'CGI::Header', qw(
     p3p_tags expires nph attachment field_names each flatten
 );
 
-subtest '_normalize()' => sub {
+subtest 'normalize_property_name()' => sub {
     my @data = (
         'Foo'      => 'foo',
         'Foo-Bar'  => 'foo_bar',
@@ -28,8 +28,13 @@ subtest '_normalize()' => sub {
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is( CGI::Header->normalize($input), $expected );
+        is( CGI::Header->normalize_property_name($input), $expected );
     }
+};
+
+subtest 'normalize_field_name()' => sub {
+    throws_ok { CGI::Header->normalize_field_name('-type') }
+        qr{can't be used as a field name};
 };
 
 subtest 'new()' => sub {

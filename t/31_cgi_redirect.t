@@ -16,7 +16,7 @@ subtest 'default' => sub {
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is $header->normalize($input), $expected;
+        is $header->normalize_property_name($input), $expected;
     }
 
     is_deeply $header->header, { -location => $url };
