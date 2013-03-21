@@ -33,7 +33,7 @@ subtest 'normalize_property_name()' => sub {
 };
 
 subtest 'normalize_field_name()' => sub {
-    throws_ok { CGI::Header->normalize_field_name('-type') }
+    throws_ok { CGI::Header->normalize_field_name('Type') }
         qr{can't be used as a field name};
 };
 

@@ -45,14 +45,17 @@ sub is_property_name {
 
 sub normalize_property_name {
     my $class = shift;
-    my $prop = _lc( shift );
+    my $prop = lc shift;
+    $prop =~ s/^-//;
+    $prop =~ tr/-/_/;
+    $prop = "-$prop";
     $class->get_alias($prop) || $prop;
 }
 
 sub normalize_field_name {
     my $class = shift;
-    my $field = _lc( shift );
-    return $field unless $class->is_property_name($field);
+    ( my $field = lc shift ) =~ tr/-/_/;
+    return $field if !$class->is_property_name("-$field");
     croak "'-$field' can't be used as a field name";
 }
 
@@ -130,12 +133,12 @@ my %GET = (
         my ( $self, $prop ) = @_;
         $self->{header}->{$prop};
     },
-    -content_disposition => sub {
+    content_disposition => sub {
         my ( $self, $prop ) = @_;
         my $name = $self->attachment;
         $name ? qq{attachment; filename="$name"} : $self->{header}->{$prop};
     },
-    -content_type => sub {
+    content_type => sub {
         my $self = shift;
         my ( $type, $charset ) = @{ $self->{header} }{qw/-type -charset/};
         return if defined $type and $type eq q{};
@@ -144,33 +147,33 @@ my %GET = (
         $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
         $type;
     },
-    -date => sub {
+    date => sub {
         my ( $self, $prop ) = @_;
         $self->_has_date ? $self->time2str : $self->{header}->{$prop};
     },
-    -expires => sub {
+    expires => sub {
         my ( $self, $prop ) = @_;
         my $expires = $self->{header}->{$prop};
         $expires ? $self->time2str($expires) : undef;
     },
-    -p3p => sub {
+    p3p => sub {
         my $self = shift;
         my $tags = join ' ', $self->p3p_tags;
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
-    -pragma => sub {
+    pragma => sub {
         my ( $self, $prop ) = @_;
         $self->query->cache ? 'no-cache' : $self->{header}->{$prop};
     },
-    -server => sub {
+    server => sub {
         my ( $self, $prop ) = @_;
         $self->nph ? $self->query->server_software : $self->{header}->{$prop};
     },
-    -set_cookie => sub {
+    set_cookie => sub {
         my $self = shift;
         $self->{header}->{-cookie};
     },
-    -window_target => sub {
+    window_target => sub {
         my $self = shift;
         $self->{header}->{-target};
     },
@@ -180,7 +183,7 @@ sub get {
     my $self = shift;
     my $field = $self->normalize_field_name( shift );
     my $get = $GET{$field} || $GET{DEFAULT};
-    $self->$get( $field );
+    $self->$get( "-$field" );
 }
 
 my %SET = (
@@ -188,12 +191,12 @@ my %SET = (
         my ( $self, $prop, $value ) = @_;
         $self->{header}->{$prop} = $value;
     },
-    -content_disposition => sub {
+    content_disposition => sub {
         my ( $self, $prop, $value ) = @_;
         delete $self->{header}->{-attachment};
         $self->{header}->{$prop} = $value;
     },
-    -content_type => sub {
+    content_type => sub {
         my ( $self, $prop, $value ) = @_;
         if ( defined $value and $value ne q{} ) {
             @{ $self->{header} }{qw/-charset -type/} = ( q{}, $value );
@@ -203,33 +206,33 @@ my %SET = (
             carp "Can set '-content_type' to neither undef nor an empty string";
         }
     },
-    -date => sub {
+    date => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->_has_date;
         $self->{header}->{$prop} = $value;
     },
-    -expires => sub {
+    expires => sub {
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
-    -p3p => sub {
+    p3p => sub {
         carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
     },
-    -pragma => sub {
+    pragma => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->query->cache;
         $self->{header}->{$prop} = $value;
     },
-    -server => sub {
+    server => sub {
         my ( $self, $prop, $value ) = @_;
         croak $MODIFY if $self->nph;
         $self->{header}->{$prop} = $value;
     },
-    -set_cookie => sub {
+    set_cookie => sub {
         my ( $self, $prop, $value ) = @_;
         delete $self->{header}->{-date} if $value;
         $self->{header}->{-cookie} = $value;
     },
-    -window_target => sub {
+    window_target => sub {
         my ( $self, $prop, $value ) = @_;
         $self->{header}->{-target} = $value;
     },
@@ -239,7 +242,7 @@ sub set { # unstable
     my $self = shift;
     my $field = $self->normalize_field_name( shift );
     my $set = $SET{$field} || $SET{DEFAULT};
-    $self->$set( $field, @_ );
+    $self->$set( "-$field", @_ );
 }
 
 my %EXISTS = (
@@ -247,32 +250,32 @@ my %EXISTS = (
         my ( $self, $prop ) = @_;
         exists $self->{header}->{$prop};
     },
-    -content_disposition => sub {
+    content_disposition => sub {
         my ( $self, $prop ) = @_;
         exists $self->{header}->{$prop} or $self->attachment;
     },
-    -content_type => sub {
+    content_type => sub {
         my $self = shift;
         my $type = $self->{header}->{-type};
         !defined $type or $type ne q{};
     },
-    -date => sub {
+    date => sub {
         my ( $self, $prop ) = @_;
         $self->_has_date or exists $self->{header}->{$prop};
     },
-    -pragma => sub {
+    pragma => sub {
         my ( $self, $prop ) = @_;
         $self->query->cache or exists $self->{header}->{$prop};
     },
-    -server => sub {
+    server => sub {
         my ( $self, $prop ) = @_;
         $self->nph or exists $self->{header}->{$prop};
     },
-    -set_cookie => sub {
+    set_cookie => sub {
         my $self = shift;
         exists $self->{header}->{-cookie};
     },
-    -window_target => sub {
+    window_target => sub {
         my $self = shift;
         exists $self->{header}->{-target};
     },
@@ -282,58 +285,57 @@ sub exists {
     my $self = shift;
     my $field = $self->normalize_field_name( shift );
     my $exists = $EXISTS{$field} || $EXISTS{DEFAULT};
-    $self->$exists( $field );
+    $self->$exists( "-$field" );
 }
 
 my %DELETE = (
-    -content_disposition => sub {
+    content_disposition => sub {
         my ( $self, $prop ) = @_;
         delete @{ $self->{header} }{ $prop, '-attachment' };
     },
-    -content_type => sub {
+    content_type => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-charset};
         $self->{header}->{-type} = q{};
     },
-    -date => sub {
+    date => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->_has_date;
         delete $self->{header}->{$prop};
     },
-    -expires => '_delete',
-    -p3p => '_delete',
-    -pragma => sub {
+    expires => '_delete',
+    p3p => '_delete',
+    pragma => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->query->cache;
         delete $self->{header}->{$prop};
     },
-    -server => sub {
+    server => sub {
         my ( $self, $prop ) = @_;
         croak $MODIFY if $self->nph;
         delete $self->{header}->{$prop};
     },
-    -set_cookie => sub {
+    set_cookie => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-cookie};
     },
-    -window_target => sub {
+    window_target => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-target};
     },
 );
 
 sub delete {
-    my $self   = shift;
-    my $field  = $self->normalize_field_name( shift );
-    my $header = $self->{header};
+    my $self  = shift;
+    my $field = $self->normalize_field_name( shift );
 
     if ( my $delete = $DELETE{$field} ) {
         my $value = defined wantarray && $self->get( $field );
-        $self->$delete( $field );
+        $self->$delete( "-$field" );
         return $value;
     }
 
-    delete $header->{ $field };
+    delete $self->{header}->{"-$field"};
 }
 
 sub _delete {
@@ -396,7 +398,7 @@ sub nph {
         return $header->{-nph} = $nph;
     }
 
-    $header->{-nph} or $NPH;
+    $NPH or $header->{-nph};
 }
 
 sub p3p_tags {
@@ -510,13 +512,6 @@ sub NEXTKEY { $_[0]->{iterator}->() }
 sub _has_date {
     my $self = shift;
     $self->{header}->{-cookie} or $self->expires or $self->nph;
-}
-
-sub _lc {
-    my $str = CORE::lc shift;
-    $str =~ s/^-//;
-    $str =~ tr/-/_/;
-    "-$str";
 }
 
 sub _ucfirst {

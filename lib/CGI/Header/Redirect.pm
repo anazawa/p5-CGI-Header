@@ -28,17 +28,17 @@ sub new {
 }
 
 my %GET = (
-    -content_type => sub {
+    content_type => sub {
         my $self = shift; 
         my $header = $self->{header};
         local $header->{-type} = q{} if !exists $header->{-type};
-        $self->SUPER::get( @_ );
+        $self->SUPER::get('Content-Type');
     },
-    -location => sub {
+    location => sub {
         my ( $self, $prop ) = @_; 
         $self->{header}->{$prop} || $self->_self_url;
     },
-    -status => sub {
+    status => sub {
         my ( $self, $prop ) = @_; 
         my $status = $self->{header}->{$prop};
         defined $status ? ( $status ne q{} ? $status : undef ) : '302 Found';
@@ -49,20 +49,20 @@ sub get {
     my $self = shift;
     my $field = $self->normalize_field_name( shift );
     my $get = $GET{$field} || 'SUPER::get';
-    $self->$get( $field );
+    $self->$get( "-$field" );
 }
 
 my %EXISTS = (
-    -content_type => sub {
+    content_type => sub {
         my $self = shift;
         my $header = $self->{header};
         my $type = exists $header->{-type} ? $header->{-type} : q{};
         !defined $type or $type ne q{};
     },
-    -location => sub {
+    location => sub {
         1;
     },
-    -status => sub {
+    status => sub {
         my ( $self, $prop ) = @_;
         my $status = $self->{header}->{$prop};
         !defined $status or $status ne q{};
@@ -73,30 +73,32 @@ sub exists {
     my $self = shift;
     my $field = $self->normalize_field_name( shift );
     my $exists = $EXISTS{$field} || 'SUPER::exists';
-    $self->$exists( $field );
+    $self->$exists( "-$field" );
 }
 
 my %DELETE = (
-    -content_type => sub {
+    content_type => sub {
         my ( $self, $prop ) = @_;
-        my $value = defined wantarray && $self->get( $prop );
         delete $self->{header}->{-type};
-        $value;
     },
-    -location => sub { croak "Can't delete the Location header" },
-    -status => sub {
+    location => sub { croak "Can't delete the Location header" },
+    status => sub {
         my ( $self, $prop ) = @_;
-        my $value = defined wantarray && $self->get( $prop );
         $self->{header}->{$prop} = q{};
-        $value;
     },
 );
 
 sub delete {
-    my $self = shift;
+    my $self  = shift;
     my $field = $self->normalize_field_name( shift );
-    my $delete = $DELETE{$field} || 'SUPER::delete';
-    $self->$delete( $field );
+
+    if ( my $delete = $DELETE{$field} ) {
+        my $value = defined wantarray && $self->get( $field );
+        $self->$delete( "-$field" );
+        return $value;
+    }
+
+    $self->SUPER::delete( $field );
 }
 
 sub SCALAR {
