@@ -34,14 +34,6 @@ sub is_property_name {
     $IS_PROPERTY_NAME{ $_[1] };
 }
 
-sub lc {
-    my $class = shift;
-    my $str = lc shift;
-    $str =~ s/^-//;
-    $str =~ tr/-/_/;
-    $str;
-}
-
 sub normalize_property_name {
     my $class = shift;
     my $prop = _lc( shift );
@@ -53,6 +45,12 @@ sub normalize_field_name {
     my $field = _lc( shift );
     return $field unless $class->is_property_name($field);
     croak "'-$field' can't be used as a field name";
+}
+
+# This method is obsolete and will be removed in 0.36
+sub lc {
+    my $class = shift;
+    $class->normalize_field_name(@_);
 }
 
 sub time2str {
@@ -556,7 +554,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.34.
+This document refers to CGI::Header version 0.35.
 
 =head1 DEPENDENCIES
 
