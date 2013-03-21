@@ -4,21 +4,21 @@ use warnings;
 use base 'CGI::Header';
 use Carp qw/carp croak/;
 
-my %IS_PROPERTY_NAME = map { $_, 1 }
+my %IS_RESERVED_NAME = map { $_, 1 }
     qw( -attachment -charset -cookie -cookies -nph -target -type -uri -url );
 
-my %ALIASED_TO = (
-    -content_type => '-type',     -window_target => '-target',
-    -cookies      => '-cookie',   -set_cookie    => '-cookie',
-    -uri          => '-location', -url           => '-location',
+our %ALIASED_TO = (
+    %CGI::Header::ALIASED_TO,
+    -uri => '-location',
+    -url => '-location',
 );
 
 sub get_alias {
     $ALIASED_TO{ $_[1] };
 }
 
-sub is_property_name {
-    $IS_PROPERTY_NAME{ $_[1] };
+sub is_reserved_name {
+    $IS_RESERVED_NAME{ $_[1] };
 }
 
 sub new {

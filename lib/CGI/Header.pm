@@ -23,12 +23,14 @@ my @PROPERTY_NAMES = qw(
     -type
 );
 
-my %IS_PROPERTY_NAME = map { $_, 1 }
+my %IS_RESERVED_NAME = map { $_, 1 }
     qw( -attachment -charset -cookie -cookies -nph -target -type );
 
-my %ALIASED_TO = (
-    -content_type => '-type',   -window_target => '-target',
-    -cookies      => '-cookie', -set_cookie    => '-cookie',
+our %ALIASED_TO = (
+    -content_type  => '-type',
+    -cookies       => '-cookie',
+    -set_cookie    => '-cookie',
+    -window_target => '-target',
 );
 
 sub get_property_names {
@@ -39,8 +41,8 @@ sub get_alias {
     $ALIASED_TO{ $_[1] };
 }
 
-sub is_property_name {
-    $IS_PROPERTY_NAME{ $_[1] };
+sub is_reserved_name {
+    $IS_RESERVED_NAME{ $_[1] };
 }
 
 sub normalize_property_name {
@@ -55,7 +57,7 @@ sub normalize_property_name {
 sub normalize_field_name {
     my $class = shift;
     ( my $field = lc shift ) =~ tr/-/_/;
-    return $field if !$class->is_property_name("-$field");
+    return $field if !$class->is_reserved_name("-$field");
     croak "'-$field' can't be used as a field name";
 }
 
@@ -167,7 +169,7 @@ my %GET = (
     },
     server => sub {
         my ( $self, $prop ) = @_;
-        $self->nph ? $self->query->server_software : $self->{header}->{$prop};
+        $self->nph ? $self->{query}->server_software : $self->{header}{$prop};
     },
     set_cookie => sub {
         my $self = shift;
