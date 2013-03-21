@@ -11,13 +11,26 @@ our $VERSION = '0.34';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
-my %ALIAS = (
+my @PROPERTY_NAMES
+    = qw( attachment charset cookie expires nph p3p status target type );
+
+my %IS_PROPERTY_NAME = map { $_, 1 } @PROPERTY_NAMES, 'cookies';
+
+my %ALIASED_TO = (
     content_type => 'type',   window_target => 'target',
     cookies      => 'cookie', set_cookie    => 'cookie',
 );
 
+sub get_property_names {
+    @PROPERTY_NAMES;
+}
+
 sub get_alias {
-    $ALIAS{ $_[1] };
+    $ALIASED_TO{ $_[1] };
+}
+
+sub is_property_name {
+    $IS_PROPERTY_NAME{ $_[1] };
 }
 
 sub lc {
@@ -49,6 +62,7 @@ sub new {
     elsif ( @args % 2 == 0 ) {
         my $header = $self->{header} = {};
         while ( my ($key, $value) = splice @args, 0, 2 ) {
+            #my $prop = $self->normalize( $key );
             my $prop = $self->normalize( $key );
             $header->{ "-$prop" } = $value; # force overwrite
         }
@@ -382,10 +396,6 @@ sub p3p_tags {
     return;
 }
 
-sub cache {
-    my $self = shift;
-    $self->query->cache(@_);
-}
 
 sub flatten {
     my $self  = shift;
@@ -464,10 +474,13 @@ BEGIN { # TODO: These methods can't be overridden
 
 sub SCALAR {
     my $self = shift;
-    my $header = $self->{header};
-    !defined $header->{-type}
-        or first { $_ } values %{ $header }
-        or $self->query->cache;
+    my $query = $self->query;
+    my %header = %{ $self->{header} };
+    !defined $header{-type} # the Content-Type header exists
+        or first { delete $header{"-$_"} } @PROPERTY_NAMES # has header props.
+        or %header       # %header minus header props. isn't empty
+        or $query->cache # the Pragma header exists
+        or $query->nph;  # use CGI qw(-nph);
 }
 
 sub FIRSTKEY {
