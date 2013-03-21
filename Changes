@@ -1,5 +1,22 @@
 Revision history for Perl extension CGI::Header.
 
+  - lc() is obsolete and will be removed in 0.36
+  - get(), set(), exists() or delete() throws an exception
+    in the following situation:
+
+      $header->set( 'Type' => 'text/plain' );
+      # die "'-type' can't be used as a field name"
+
+  - SCALAR returns true if the -nph pragma is enabled
+  - Since the following class methods are unstable,
+    they are not documented:
+
+      * normalize_field_name
+      * normalize_property_name
+      * get_property_names
+      * is_reserved_name
+      * get_alias
+
 0.34  Mar 16th, 2013
 
   - Add support for -nph pragma:

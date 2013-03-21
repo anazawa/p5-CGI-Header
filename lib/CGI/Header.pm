@@ -27,8 +27,8 @@ my %IS_RESERVED_NAME = map { $_, 1 }
     qw( -attachment -charset -cookie -cookies -nph -target -type );
 
 our %ALIASED_TO = (
-    -content_type  => '-type',
     -cookies       => '-cookie',
+    -content_type  => '-type',
     -set_cookie    => '-cookie',
     -window_target => '-target',
 );
@@ -61,8 +61,8 @@ sub normalize_field_name {
     croak "'-$field' can't be used as a field name";
 }
 
-# This method is obsolete and will be removed in 0.36
 sub lc {
+    carp "The lc() method is obsolete and will be removed in 0.36";
     my $class = shift;
     my $str = CORE::lc shift;
     $str =~ s/^-//;
@@ -169,7 +169,7 @@ my %GET = (
     },
     server => sub {
         my ( $self, $prop ) = @_;
-        $self->nph ? $self->{query}->server_software : $self->{header}{$prop};
+        $self->nph ? $self->query->server_software : $self->{header}->{$prop};
     },
     set_cookie => sub {
         my $self = shift;
@@ -690,14 +690,9 @@ A shortcut for:
 
   my $header = CGI::Header->new({ -type => $media_type });
 
-=item $alias = CGI::Header->get_alias( $prop )
-
-Returns the alias of the given property name.
-If the alias doesn't exist, then C<undef> is returned.
-
-  my $alias = CGI::Header->get_alias('content_type'); # => 'type'
-
 =item CGI::Header->lc( $str )
+
+This method is obsolete and will be removed in 0.36.
 
 Returns the lowercased version of C<$str>.
 Unlike C<CORE::lc>, this method gets rid of an initial dash,
