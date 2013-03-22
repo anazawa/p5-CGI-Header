@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.35  Mar 22nd, 2013
+
   - lc() is obsolete and will be removed in 0.36
   - get(), set(), exists() or delete() throws an exception
     in the following situation:
