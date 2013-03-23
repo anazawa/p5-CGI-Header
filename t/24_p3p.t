@@ -15,7 +15,7 @@ subtest 'default' => sub {
 subtest 'an empty string' => sub {
     my $header = tie my %header, 'CGI::Header', ( -p3p => q{} );
     is $header{P3P}, undef;
-    ok exists $header{P3P};
+    ok !exists $header{P3P};
     is delete $header{P3P}, undef;
     is_deeply $header->header, {};
 };

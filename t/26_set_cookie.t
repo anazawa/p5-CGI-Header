@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use CGI::Cookie;
 use CGI::Header;
-use Test::More tests => 4;
+use Test::More tests => 5;
 
 my $cookie1 = CGI::Cookie->new(
     -name  => 'foo',
@@ -16,6 +16,14 @@ my $cookie2 = CGI::Cookie->new(
 
 subtest 'default' => sub {
     my $header = tie my %header, 'CGI::Header';
+    is $header{Set_Cookie}, undef;
+    ok !exists $header{Set_Cookie};
+    is delete $header{Set_Cookie}, undef;
+    is_deeply $header->header, {};
+};
+
+subtest 'an empty string' => sub {
+    my $header = tie my %header, 'CGI::Header', ( -cookie => q{} );
     is $header{Set_Cookie}, undef;
     ok !exists $header{Set_Cookie};
     is delete $header{Set_Cookie}, undef;

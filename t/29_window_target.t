@@ -13,9 +13,9 @@ subtest 'default' => sub {
 
 subtest 'an empty string' => sub {
     my $header = tie my %header, 'CGI::Header', ( -target => q{} );
-    is $header{Window_Target}, q{};
-    ok exists $header{Window_Target};
-    is delete $header{Window_Target}, q{};
+    is $header{Window_Target}, undef;
+    ok !exists $header{Window_Target};
+    is delete $header{Window_Target}, undef; 
     is_deeply $header->header, {};
 };
 

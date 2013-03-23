@@ -32,7 +32,7 @@ is_deeply $header->header, {};
 #warning_is { $header{Date} = 'foo' } 'The Date header is fixed';
 
 %{ $header->header } = ( -expires => q{} );
-ok exists $header{Expires};
+ok !exists $header{Expires};
 ok !exists $header{Date};
 is $header{Expires}, undef;
 is $header{Date}, undef;

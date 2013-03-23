@@ -173,11 +173,15 @@ my %GET = (
     },
     set_cookie => sub {
         my $self = shift;
-        $self->{header}->{-cookie};
+        $self->{header}->{-cookie} || undef;
+    },
+    status => sub {
+        my ( $self, $prop ) = @_;
+        $self->{header}->{$prop} || undef;
     },
     window_target => sub {
         my $self = shift;
-        $self->{header}->{-target};
+        $self->{header}->{-target} || undef;
     },
 );
 
@@ -265,6 +269,14 @@ my %EXISTS = (
         my ( $self, $prop ) = @_;
         $self->_has_date or exists $self->{header}->{$prop};
     },
+    expires => sub {
+        my ( $self, $prop ) = @_;
+        $self->{header}->{$prop};
+    },
+    p3p => sub {
+        my ( $self, $prop ) = @_;
+        $self->{header}->{$prop};
+    },
     pragma => sub {
         my ( $self, $prop ) = @_;
         $self->query->cache or exists $self->{header}->{$prop};
@@ -275,11 +287,15 @@ my %EXISTS = (
     },
     set_cookie => sub {
         my $self = shift;
-        exists $self->{header}->{-cookie};
+        $self->{header}->{-cookie};
+    },
+    status => sub {
+        my ( $self, $prop ) = @_;
+        $self->{header}->{$prop};
     },
     window_target => sub {
         my $self = shift;
-        exists $self->{header}->{-target};
+        $self->{header}->{-target};
     },
 );
 
@@ -321,6 +337,7 @@ my %DELETE = (
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-cookie};
     },
+    status => '_delete',
     window_target => sub {
         my ( $self, $prop ) = @_;
         delete $self->{header}->{-target};
