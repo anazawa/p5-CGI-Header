@@ -61,15 +61,6 @@ sub normalize_field_name {
     croak "'-$field' can't be used as a field name";
 }
 
-sub lc {
-    carp "The lc() method is obsolete and will be removed in 0.36";
-    my $class = shift;
-    my $str = CORE::lc shift;
-    $str =~ s/^-//;
-    $str =~ tr/-/_/;
-    $str;
-}
-
 sub time2str {
     require CGI::Util;
     CGI::Util::expires( $_[1], 'http' );
@@ -579,7 +570,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.35.
+This document refers to CGI::Header version 0.36.
 
 =head1 DEPENDENCIES
 
