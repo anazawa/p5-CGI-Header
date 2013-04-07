@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.41  Apr 8th, 2013
+
   - CGI::Header::Redirect is obsolete and will be removed in 0.42
 
   [INCOMPATIBLE CHANGES]

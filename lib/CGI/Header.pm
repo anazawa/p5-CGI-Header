@@ -6,7 +6,7 @@ use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '0.40';
+our $VERSION = '0.41';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
@@ -659,8 +659,8 @@ Normalized property names are:
 C<CGI::header()> also accepts aliases of parameter names.
 This module converts them as follows:
 
- 'content_type'  -> 'type'
- 'set_cookie'    -> 'cookie'
+ 'content-type'  -> 'type'
+ 'set-cookie'    -> 'cookie'
  'cookies'       -> 'cookie'
  'window-target' -> 'target'
 
