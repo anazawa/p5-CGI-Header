@@ -15,13 +15,13 @@ subtest 'default' => sub {
 subtest '-type' => sub {
     my $header = tie my %header, 'CGI::Header';
 
-    %{ $header->header } = ( -type => q{} );
-    is $header{Content_Type}, undef;
-    ok !exists $header{Content_Type};
-    is delete $header{Content_Type}, undef;
-    is_deeply $header->header, { -type => q{} };
+    %{ $header->header } = ( type => q{} );
+    is $header{'Content-Type'}, undef;
+    ok !exists $header{'Content-Type'};
+    is delete $header{'Content-Type'}, undef;
+    is_deeply $header->header, { type => q{} };
 
-    %{ $header->header } = ( -type => 'text/plain' );
+    %{ $header->header } = ( type => 'text/plain' );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=ISO-8859-1';
     ok exists $header->as_hashref->{'Content-Type'};
 
@@ -30,13 +30,13 @@ subtest '-type' => sub {
     ok exists $header->as_hashref->{'Content-Type'};
     ok %header;
 
-    %{ $header->header } = ( -type => 'text/plain; charset=EUC-JP' );
+    %{ $header->header } = ( type => 'text/plain; charset=EUC-JP' );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=EUC-JP';
 
     # feature
     %{ $header->header } = (
-        -type => 'text/plain; charSet=utf-8',
-        -charset => 'ISO-8859-1',
+        type => 'text/plain; charSet=utf-8',
+        charset => 'ISO-8859-1',
     );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charSet=utf-8; charset=ISO-8859-1';
 };
@@ -44,17 +44,17 @@ subtest '-type' => sub {
 subtest '-charset' => sub {
     my $header = tie my %header, 'CGI::Header';
 
-    %{ $header->header } = ( -charset => 'utf-8' );
+    %{ $header->header } = ( charset => 'utf-8' );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=utf-8';
 
-    %{ $header->header } = ( -charset => q{} );
+    %{ $header->header } = ( charset => q{} );
     is $header->as_hashref->{'Content-Type'}, 'text/html';
 };
 
 subtest '-type and -charset' => sub {
     my $header = tie my %header, 'CGI::Header';
 
-    %{ $header->header } = ( -type => undef, -charset => 'utf-8' );
+    %{ $header->header } = ( type => undef, charset => 'utf-8' );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=utf-8';
 
     #%{ $header->header } = ( -type => 'text/plain', -charset => 'utf-8' );
@@ -65,14 +65,14 @@ subtest '-type and -charset' => sub {
     is $header{Content_Type}, undef;
 
     %{ $header->header } = (
-        -type    => 'text/plain; charset=euc-jp',
-        -charset => 'utf-8',
+        type    => 'text/plain; charset=euc-jp',
+        charset => 'utf-8',
     );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=euc-jp';
 
     %{ $header->header } = (
-        -type    => 'text/plain; Foo=1',
-        -charset => 'utf-8',
+        type    => 'text/plain; Foo=1',
+        charset => 'utf-8',
     );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; Foo=1; charset=utf-8';
 };
@@ -82,22 +82,22 @@ subtest 'STORE()' => sub {
 
     %{ $header->header } = ();
     my $value = 'text/plain; charset=utf-8';
-    is $header->set( Content_Type => $value ), $value;
+    is $header->set( 'Content-Type' => $value ), $value;
     is_deeply $header->header, {
-        -type    => 'text/plain; charset=utf-8',
-        -charset => q{}
+        type    => 'text/plain; charset=utf-8',
+        charset => q{}
     };
 
     %{ $header->header } = ();
-    is $header->set( Content_Type => 'text/plain' ), 'text/plain';
-    is_deeply $header->header, { -type => 'text/plain', -charset => q{} };
+    is $header->set( 'Content-Type' => 'text/plain' ), 'text/plain';
+    is_deeply $header->header, { type => 'text/plain', charset => q{} };
 
-    %{ $header->header } = ( -charset => 'euc-jp' );
+    %{ $header->header } = ( charset => 'euc-jp' );
     $value = 'text/plain; charset=utf-8';
-    is $header->set( Content_Type => $value ), $value;
+    is $header->set( 'Content-Type' => $value ), $value;
     is_deeply $header->header, {
-        -type    => 'text/plain; charset=utf-8',
-        -charset => q{},
+        type    => 'text/plain; charset=utf-8',
+        charset => q{},
     };
 
     %{ $header->header } = ();

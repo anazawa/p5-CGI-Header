@@ -19,7 +19,7 @@ is $header->expires, undef;
 is delete $header{Expires}, undef;
 is_deeply $header->header, {};
 
-%{ $header->header } = ( -expires => '+1d' );
+%{ $header->header } = ( expires => '+1d' );
 ok exists $header{Expires};
 ok exists $header->as_hashref->{Date};
 is $header->as_hashref->{Expires}, $tomorrow;
@@ -31,7 +31,7 @@ is $header->expires, '+1d';
 #warning_is { delete $header{Date} } 'The Date header is fixed';
 #warning_is { $header{Date} = 'foo' } 'The Date header is fixed';
 
-%{ $header->header } = ( -expires => q{} );
+%{ $header->header } = ( expires => q{} );
 ok !exists $header->as_hashref->{Expires};
 ok !exists $header{Date};
 is $header->as_hashref->{Expires}, undef;
@@ -54,9 +54,9 @@ warning_is { $header{Expires} = '+3d' }
 
 %{ $header->header } = ();
 $header->expires( '+3d' );
-is_deeply $header->header, { -expires => '+3d' };
+is_deeply $header->header, { expires => '+3d' };
 
-%{ $header->header } = ( -date => $today );
+%{ $header->header } = ( date => $today );
 $header->expires( '+3d' );
-is_deeply $header->header, { -expires => '+3d' };
+is_deeply $header->header, { expires => '+3d' };
 

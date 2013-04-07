@@ -2,7 +2,8 @@ use strict;
 use CGI;
 use CGI::Header::Redirect;
 use Test::Exception;
-use Test::More tests => 4;
+#use Test::More tests => 4;
+use Test::More skip_all => 'CGI::Header::Redirect is obsolete';
 
 subtest 'default' => sub {
     my $url = 'http://somewhere.else/in/movie/land';

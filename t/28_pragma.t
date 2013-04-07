@@ -14,7 +14,7 @@ subtest 'default' => sub {
 };
 
 subtest 'an empty string' => sub {
-    tie my %header, 'CGI::Header', ( -pragma => q{} );
+    tie my %header, 'CGI::Header', ( pragma => q{} );
     is $header{Pragma}, q{};
     ok exists $header{Pragma};
     is delete $header{Pragma}, q{};
@@ -24,7 +24,7 @@ subtest 'an empty string' => sub {
 subtest 'a plain string' => sub {
     my $header = tie my %header, 'CGI::Header';
     is $header->set( Pragma => 'no-cache' ), 'no-cache';
-    is_deeply $header->header, { -pragma => 'no-cache' };
+    is_deeply $header->header, { pragma => 'no-cache' };
     is $header{Pragma}, 'no-cache';
     ok exists $header{Pragma};
     is delete $header{Pragma}, 'no-cache';

@@ -22,7 +22,7 @@ subtest 'an empty string' => sub {
 subtest 'a plain string' => sub {
     my $header = tie my %header, 'CGI::Header';
     is $header->set( Status => '304 Not Modified' ), '304 Not Modified';
-    is_deeply $header->header, { -status => '304 Not Modified' };
+    is_deeply $header->header, { status => '304 Not Modified' };
     is $header{Status}, '304 Not Modified';
     ok exists $header{Status};
     is delete $header{Status}, '304 Not Modified';

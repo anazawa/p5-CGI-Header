@@ -1,11 +1,36 @@
 Revision history for Perl extension CGI::Header.
 
+  - CGI::Header::Redirect is obsolete and will be removed in 0.42
+
+  [INCOMPATIBLE CHANGES]
+
+  - Simplify get() and exists(). Namely,
+
+      $h->get('Content-Type');
+      $h->exists('Content-Type');
+
+    become:
+
+      $h->as_hashref->{'Conetent-Type'};
+      exists $h->as_hashref->{'Content-Type'};
+
   - Remove the following methods:
       * is_empty
       * field_names
       * is_empty
       * SCALAR
       * p3p_tags
+
+  - Normalized property names doesn't start with a dash,
+    and also use dashes instead of underscores:
+
+      "-Content_Length" -> "content-length"
+
+  [ROADMAP]
+
+    Dispatch tables used by get(), set(), exists() and delete() will be
+    removed gradually, and so ver. 0.4x will be quite unstable.
+    Sorry for your inconvenience.
 
 0.40  Apr 7th, 2013
 

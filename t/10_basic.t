@@ -5,7 +5,7 @@ use CGI;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 11;
+use Test::More tests => 9;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
@@ -17,24 +17,19 @@ can_ok 'CGI::Header', qw(
 
 subtest 'normalize_property_name()' => sub {
     my @data = (
-        'Foo'      => '-foo',
-        'Foo-Bar'  => '-foo_bar',
-        '-foo'     => '-foo',
-        '-foo_bar' => '-foo_bar',
-        '-content_type'  => '-type',
-        '-cookies'       => '-cookie',
-        '-set_cookie'    => '-cookie',
-        '-window_target' => '-target',
+        'Foo'      => 'foo',
+        'Foo-Bar'  => 'foo-bar',
+        '-foo'     => 'foo',
+        '-foo_bar' => 'foo-bar',
+        '-content_type'  => 'type',
+        '-cookies'       => 'cookie',
+        '-set_cookie'    => 'cookie',
+        '-window_target' => 'target',
     );
 
     while ( my ($input, $expected) = splice @data, 0, 2 ) {
         is( CGI::Header->normalize_property_name($input), $expected );
     }
-};
-
-subtest 'normalize_field_name()' => sub {
-    throws_ok { CGI::Header->normalize_field_name('Type') }
-        qr{can't be used as a field name};
 };
 
 subtest 'new()' => sub {
@@ -55,7 +50,7 @@ subtest 'new()' => sub {
     is_deeply $header->header, { -foo => 'bar' };
 
     $header = CGI::Header->new( -foo => 'bar' );
-    is_deeply $header->header, { -foo => 'bar' };
+    is_deeply $header->header, { foo => 'bar' };
 
     $header = CGI::Header->new(
         '-Charset'      => 'utf-8',
@@ -68,13 +63,13 @@ subtest 'new()' => sub {
         'charset'       => 'EUC-JP',
     );
     is_deeply $header->header, {
-        -type    => 'text/plain',
-        -charset => 'EUC-JP',
-        -cookie  => 'ID=123456; path=/',
-        -expires => '+3d',
-        -foo     => 'bar',
-        -foo_bar => 'baz',
-        -target  => 'ResultsWindow',
+        type    => 'text/plain',
+        charset => 'EUC-JP',
+        cookie  => 'ID=123456; path=/',
+        expires => '+3d',
+        foo     => 'bar',
+        'foo-bar' => 'baz',
+        target  => 'ResultsWindow',
     };
 
     $header = CGI::Header->new('text/plain');
@@ -84,7 +79,7 @@ subtest 'new()' => sub {
         qr{^Odd number of elements in hash assignment};
 
     $header = CGI::Header->new( -query => 'a plain string' );
-    is_deeply $header->header, { -query => 'a plain string' };
+    is_deeply $header->header, { query => 'a plain string' };
 };
 
 subtest 'basic' => sub {
@@ -92,29 +87,29 @@ subtest 'basic' => sub {
     my $header = CGI::Header->new( \%header );
 
     # exists()
-    %header = ( -foo => 'bar' );
+    %header = ( foo => 'bar' );
     ok $header->exists('Foo'), 'should return true';
     ok !$header->exists('Bar'), 'should return false';
 
     # get()
-    %header = ( -foo => 'bar' );
+    %header = ( foo => 'bar' );
     is $header->get('Foo'), 'bar';
     is $header->get('Bar'), undef;
 
     # clear()
-    %header = ( -foo => 'bar' );
+    %header = ( foo => 'bar' );
     is $header->clear, $header, "should return current object itself";
-    is_deeply \%header, { -type => q{} }, 'should be empty';
+    is_deeply \%header, { type => q{} }, 'should be empty';
 
     # set()
     %header = ();
     is $header->set( Foo => 'bar' ), 'bar';
-    is_deeply \%header, { -foo => 'bar' };
+    is_deeply \%header, { foo => 'bar' };
 
     # delete()
     %header = ();
     is $header->delete('Foo'), undef;
-    %header = ( -foo => 'bar' );
+    %header = ( foo => 'bar' );
     is $header->delete('Foo'), 'bar';
     is_deeply \%header, {};
 };
@@ -135,19 +130,19 @@ subtest 'rehash()' => sub {
     is $header->header, $expected, 'should return the same reference';
 
     is_deeply $expected, {
-        -type    => 'text/plain',
-        -cookie  => 'ID=123456; path=/',
-        -expires => '+3d',
-        -foo     => 'bar',
-        -foo_bar => 'baz',
-        -target  => 'ResultsWindow',
+        type    => 'text/plain',
+        cookie  => 'ID=123456; path=/',
+        expires => '+3d',
+        foo     => 'bar',
+        'foo-bar' => 'baz',
+        target  => 'ResultsWindow',
     };
 
     $header = CGI::Header->new({
         -Type        => 'text/plain',
         Content_Type => 'text/html',
     });
-    throws_ok { $header->rehash } qr{^Property '-type' already exists};
+    throws_ok { $header->rehash } qr{^Property 'type' already exists};
 };
 
 subtest 'clone()' => sub {
@@ -166,20 +161,15 @@ subtest 'nph()' => sub {
 
     $header->nph( 1 );
     ok $header->nph;
-    ok $header->header->{-nph} == 1;
+    ok $header->header->{nph} == 1;
 
     $header->nph( 0 );
     ok !$header->nph;
-    ok $header->header->{-nph} == 0;
+    ok $header->header->{nph} == 0;
 
-    %{ $header->header } = ( -date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
+    %{ $header->header } = ( date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
     $header->nph( 1 );
-    is_deeply $header->header, { -nph => 1 }, '-date should be deleted';
-};
-
-subtest '_ucfirst()' => sub {
-    is CGI::Header::_ucfirst( '-foo'     ), 'Foo';
-    is CGI::Header::_ucfirst( '-foo_bar' ), 'Foo-bar';
+    is_deeply $header->header, { nph => 1 }, '-date should be deleted';
 };
 
 subtest 'flatten()' => sub {
