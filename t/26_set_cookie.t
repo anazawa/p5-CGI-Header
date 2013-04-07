@@ -35,7 +35,7 @@ subtest 'a CGI::Cookie object' => sub {
     $header{Set_Cookie} = $cookie1;
     is $header->header->{-cookie}, $cookie1;
     is $header->as_hashref->{'Set-Cookie'}, $cookie1; 
-    ok exists $header{Set_Cookie};
+    ok exists $header->as_hashref->{'Set-Cookie'};
     #is_deeply [ each %header ], [ 'Set-Cookie', $cookie1 ];
     #is delete $header{Set_Cookie}, $cookie1;
     #is_deeply $header->header, {};
@@ -48,7 +48,7 @@ subtest 'CGI::Cookie objects' => sub {
     $header{Set_Cookie} = \@cookies;
     is_deeply $header->header, { -cookie => \@cookies };
     #is $header->as_hashref->{'Set-Cookie'}, \@cookies;
-    ok exists $header{Set_Cookie};
+    ok exists $header->as_hashref->{'Set-Cookie'};
 
     #is_deeply [ each %header ], [ 'Set-Cookie', \@cookies ];
 

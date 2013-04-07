@@ -14,7 +14,7 @@ subtest 'default' => sub {
 subtest 'an empty string' => sub {
     my $header = tie my %header, 'CGI::Header', ( -status => q{} );
     is $header->as_hashref->{Status}, undef;
-    ok !exists $header{Status};
+    ok !exists $header->as_hashref->{Status};
     #is delete $header{Status}, undef; 
     #is_deeply $header->header, {};
 };

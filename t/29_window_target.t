@@ -24,7 +24,7 @@ subtest 'a plain string' => sub {
     is $header->set( Window_Target => 'ResultsWindow' ), 'ResultsWindow';
     is_deeply $header->header, { -target => 'ResultsWindow' };
     is $header->as_hashref->{'Window-Target'}, 'ResultsWindow';
-    ok exists $header{Window_Target};
+    ok exists $header->as_hashref->{'Window-Target'};
     #is delete $header{Window_Target}, 'ResultsWindow';
     #is_deeply $header->header, {};
 };

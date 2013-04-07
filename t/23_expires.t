@@ -21,7 +21,7 @@ is_deeply $header->header, {};
 
 %{ $header->header } = ( -expires => '+1d' );
 ok exists $header{Expires};
-ok exists $header{Date};
+ok exists $header->as_hashref->{Date};
 is $header->as_hashref->{Expires}, $tomorrow;
 is $header->as_hashref->{Date}, $today;
 is $header->expires, '+1d';
@@ -32,7 +32,7 @@ is $header->expires, '+1d';
 #warning_is { $header{Date} = 'foo' } 'The Date header is fixed';
 
 %{ $header->header } = ( -expires => q{} );
-ok !exists $header{Expires};
+ok !exists $header->as_hashref->{Expires};
 ok !exists $header{Date};
 is $header->as_hashref->{Expires}, undef;
 is $header{Date}, undef;

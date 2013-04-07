@@ -7,7 +7,7 @@ use Test::Warn;
 subtest 'default' => sub {
     my $header = tie my %header, 'CGI::Header';
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=ISO-8859-1';
-    ok exists $header{Content_Type};
+    ok exists $header->as_hashref->{'Content-Type'};
     #is delete $header{Content_Type}, 'text/html; charset=ISO-8859-1';
     #is_deeply $header->header, { -type => q{} };
 };
@@ -23,11 +23,11 @@ subtest '-type' => sub {
 
     %{ $header->header } = ( -type => 'text/plain' );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=ISO-8859-1';
-    ok exists $header{Content_Type};
+    ok exists $header->as_hashref->{'Content-Type'};
 
     %{ $header->header } = ( -type => undef );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=ISO-8859-1';
-    ok exists $header{Content_Type};
+    ok exists $header->as_hashref->{'Content-Type'};
     ok %header;
 
     %{ $header->header } = ( -type => 'text/plain; charset=EUC-JP' );

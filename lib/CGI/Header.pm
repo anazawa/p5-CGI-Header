@@ -185,59 +185,10 @@ sub set { # unstable
     $self->$set( "-$field", @_ );
 }
 
-my %EXISTS = (
-    DEFAULT => sub {
-        my ( $self, $prop ) = @_;
-        exists $self->{header}->{$prop};
-    },
-    content_disposition => sub {
-        my ( $self, $prop ) = @_;
-        exists $self->{header}->{$prop} or $self->attachment;
-    },
-    content_type => sub {
-        my $self = shift;
-        my $type = $self->{header}->{-type};
-        !defined $type or $type ne q{};
-    },
-    date => sub {
-        my ( $self, $prop ) = @_;
-        $self->_has_date or exists $self->{header}->{$prop};
-    },
-    expires => sub {
-        my ( $self, $prop ) = @_;
-        $self->{header}->{$prop};
-    },
-    p3p => sub {
-        my ( $self, $prop ) = @_;
-        $self->{header}->{$prop};
-    },
-    pragma => sub {
-        my ( $self, $prop ) = @_;
-        $self->query->cache or exists $self->{header}->{$prop};
-    },
-    server => sub {
-        my ( $self, $prop ) = @_;
-        $self->nph or exists $self->{header}->{$prop};
-    },
-    set_cookie => sub {
-        my $self = shift;
-        $self->{header}->{-cookie};
-    },
-    status => sub {
-        my ( $self, $prop ) = @_;
-        $self->{header}->{$prop};
-    },
-    window_target => sub {
-        my $self = shift;
-        $self->{header}->{-target};
-    },
-);
-
 sub exists {
     my $self = shift;
-    my $field = $self->normalize_field_name( shift );
-    my $exists = $EXISTS{$field} || $EXISTS{DEFAULT};
-    $self->$exists( "-$field" );
+    my $field = lc shift;
+    exists $self->{header}->{"-$field"};
 }
 
 my %DELETE = (
