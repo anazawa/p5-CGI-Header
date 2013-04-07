@@ -46,5 +46,5 @@ subtest 'a plain string' => sub {
 subtest 'exceptions' => sub {
     my $header = tie my %header, 'CGI::Header';
     warning_is { $header{P3P} = '/path/to/p3p.xml' }
-        "Can't assign to '-p3p' directly, use p3p_tags() instead";
+        "Can't assign to '-p3p' directly, use p3p() instead";
 };

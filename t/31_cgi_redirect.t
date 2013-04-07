@@ -20,7 +20,7 @@ subtest 'default' => sub {
     }
 
     is_deeply $header->header, { -location => $url };
-    is $header, CGI::redirect($url);
+    is $header->as_string, CGI::redirect($url);
 
     is_deeply [ $header->flatten ], [
         'Status',  '302 Found',

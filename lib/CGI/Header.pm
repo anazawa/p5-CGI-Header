@@ -2,7 +2,6 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use overload q{""} => 'as_string', bool => 'SCALAR', fallback => 1;
 use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
@@ -151,7 +150,7 @@ my %GET = (
     },
     p3p => sub {
         my $self = shift;
-        my $tags = join ' ', $self->p3p_tags;
+        my $tags = join ' ', $self->p3p;
         $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
     },
     pragma => sub {
@@ -212,7 +211,7 @@ my %SET = (
         carp "Can't assign to '-expires' directly, use expires() instead";
     },
     p3p => sub {
-        carp "Can't assign to '-p3p' directly, use p3p_tags() instead";
+        carp "Can't assign to '-p3p' directly, use p3p() instead";
     },
     pragma => sub {
         my ( $self, $prop, $value ) = @_;
@@ -354,6 +353,7 @@ sub _delete {
 }
 
 sub is_empty {
+    carp "'is_empty' is obsolete and will be removed in 0.41";
     !$_[0]->SCALAR;
 }
 
@@ -368,6 +368,29 @@ sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
     ref( $self )->new( \%copy, $self->{query} );
+}
+
+sub _push {
+    my ( $self, $prop, @values ) = @_;
+
+    if ( my $value = $self->{header}->{$prop} ) {
+        return push @{$value}, @values if ref $value eq 'ARRAY';
+        unshift @values, $value;
+    }
+
+    $self->{header}->{$prop} = @values > 1 ? \@values : $values[0];
+
+    scalar @values;
+}
+
+sub push_p3p {
+    my $self = shift;
+    $self->_push( '-p3p', @_ );
+}
+
+sub push_cookie {
+    my $self = shift;
+    $self->_push( '-cookie', @_ );
 }
 
 BEGIN {
@@ -396,6 +419,28 @@ BEGIN {
     }
 }
 
+BEGIN {
+    my @props = qw(
+        charset
+        location
+        status
+        target
+        type
+    );
+
+    for my $prop ( @props ) {
+        my $code = sub {
+            my $self = shift;
+            return $self->{header}->{$prop} unless @_;
+            $self->{header}->{$prop} = shift;
+            $self;
+        };
+
+        no strict 'refs';
+        *{$prop} = $code;
+    }
+}
+
 sub nph {
     my $self   = shift;
     my $header = $self->{header};
@@ -411,23 +456,52 @@ sub nph {
     $NPH or $header->{-nph};
 }
 
-sub p3p_tags {
+sub cookie {
+    my $self = shift;
+
+    if ( @_ ) {
+        $self->{header}->{-cookie} = @_ > 1 ? [ @_ ] : shift;
+    }
+    elsif ( my $cookie = $self->{header}->{cookie} ) {
+        return ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+    }
+    else {
+        return;
+    }
+
+    $self;
+}
+
+sub p3p {
     my $self   = shift;
     my $header = $self->{header};
 
     if ( @_ ) {
         $header->{-p3p} = @_ > 1 ? [ @_ ] : shift;
     }
-    elsif ( my $tags = $header->{-p3p} ) {
-        return ref $tags eq 'ARRAY' ? @{$tags} : split ' ', $tags;
+    elsif ( my $p3p = $header->{-p3p} ) {
+        my @tags = ref $p3p eq 'ARRAY' ? @{$p3p} : $p3p;
+        return map { split ' ', $_ } @tags;
+    }
+    else {
+        return;
     }
 
-    return;
+    $self;
+}
+
+sub p3p_tags {
+    carp "p3p_tags() is obsolete and will be removed in 0.41";
+    my $self = shift;
+    $self->p3p( @_ );
+}
+
+sub as_hashref {
+    +{ $_[0]->flatten };
 }
 
 sub flatten {
     my $self  = shift;
-    my $level = defined $_[0] ? int shift : 2;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
     my $nph   = delete $copy{-nph} || $query->nph;
@@ -447,9 +521,8 @@ sub flatten {
     }
 
     if ( $cookie ) {
-        my @cookies = $level && ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-           @cookies = map { "$_" } @cookies if $level > 1;
-        push @headers, map { ('Set-Cookie', $_) } @cookies;
+        my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+        push @headers, map { ('Set-Cookie', "$_") } @cookies;
     }
 
     push @headers, 'Expires', $self->time2str($expires) if $expires;
@@ -475,6 +548,8 @@ sub flatten {
 sub each {
     my ( $self, $callback ) = @_;
 
+    carp "'each' is obsolete and will be removed in 0.41";
+
     if ( ref $callback eq 'CODE' ) {
         my @headers = $self->flatten;
         while ( my ($field, $value) = splice @headers, 0, 2 ) {
@@ -488,7 +563,10 @@ sub each {
     $self;
 }
 
-sub field_names { keys %{{ $_[0]->flatten(0) }} }
+sub field_names {
+    carp "'field_names' is obsolete and will be removed in 0.41";
+    keys %{{ $_[0]->flatten }};
+}
 
 sub as_string {
     my $self = shift;
@@ -513,7 +591,7 @@ sub SCALAR {
 
 sub FIRSTKEY {
     my $self = shift;
-    my @fields = $self->field_names;
+    my @fields = keys %{ $self->as_hashref };
     ( $self->{iterator} = sub { shift @fields } )->();
 }
 
@@ -833,6 +911,8 @@ This will remove all header fields.
 
 =item $bool = $header->is_empty
 
+This method is obsolete and will be removed in 0.41.
+
 Returns true if the header contains no key-value pairs.
 
   $header->clear;
@@ -866,6 +946,8 @@ In this case, the outgoing header will be formatted as:
 =item @tags = $header->p3p_tags
 
 =item $header->p3p_tags( @tags )
+
+This method will be renamed to C<p3p> in 0.41.
 
 Represents P3P tags. The parameter can be an array or a space-delimited
 string. Returns a list of P3P tags. (In scalar context,
@@ -909,6 +991,8 @@ with a NPH (no-parse-header) script.
 
 =item @fields = $header->field_names
 
+This method is obsolete and will be removed in 0.41.
+
 Returns the list of distinct field names present in the header
 in a random order.
 The field names have case as returned by C<CGI::header()>.
@@ -917,6 +1001,8 @@ The field names have case as returned by C<CGI::header()>.
   # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
 
 =item $self = $header->each( \&callback )
+
+This method is obsolete and will be removed in 0.41.
 
 Apply a subroutine to each header field in turn.
 The callback routine is called with two parameters;
@@ -949,18 +1035,7 @@ Returns pairs of fields and values.
   #     ...
   # )
 
-  $header->flatten(1);
-  # => (
-  #     "Set-Cookie" => $cookie1,
-  #     "Set-Cookie" => $cookie2,
-  #     ...
-  # )
-
-  $header->flatten(0);
-  # => (
-  #     "Set-Cookie" => [$cookie1, $cookie2],
-  #     ...
-  # )
+=item $header->as_hashrefs
 
 =item $header->as_string
 
@@ -1001,13 +1076,6 @@ You can also iterate through the tied hash:
   my ( $field, $value ) = each %header;
 
 See also L<perltie>.
-
-=head2 OVERLOADED OPERATORS
-
-The following operators are L<overload>ed:
-
- ""   -> as_string
- bool -> SCALAR
 
 =head1 EXAMPLES
 
@@ -1105,7 +1173,7 @@ You can't assign to the P3P header directly:
 
 C<CGI::header()> restricts where the policy-reference file is located,
 and so you can't modify the location (C</w3c/p3p.xml>).
-You're allowed to set P3P tags using C<p3p_tags()>.
+You're allowed to set P3P tags using C<p3p()>.
 
 =item Pragma
 

@@ -1,5 +1,29 @@
 Revision history for Perl extension CGI::Header.
 
+  - field_names() is obsolete and will be removed in 0.41
+  - Add as_hashref(). get() and exists() will be replaced with this method:
+     
+      $h->get('Content-Type'); # <=> $h->as_hashref->{'Content-Type'}
+      $h->exists('Content-Type'); # <=> exists $h->as_hashref->{'Content-Type'}
+
+  - p3p_tags() is obsolete and will be renamed to p3p() in 0.41
+  - each() is obsolete and will be removed in 0.41
+  - is_empty() is obsolete and will be removed in 0.41
+  - Add the following methods:
+        * charset
+        * cookie
+        * location
+        * push_cookie
+        * push_p3p
+        * status
+        * target
+        * type
+
+  [INCOMPATIBLE CHANGES]
+
+    - Doesn't overload '""' and 'bool' anymore
+    - flatten() doesn't accept any argument
+
 0.35  Mar 22nd, 2013
 
   - lc() is obsolete and will be removed in 0.36

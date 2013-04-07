@@ -114,10 +114,8 @@ subtest 'basic' => sub {
     # is_empty()
     %header = ();
     ok !$header->is_empty;
-    ok $header;
     %header = ( -type => q{} );
     ok $header->is_empty;
-    ok !$header;
 
     # delete()
     %header = ();
@@ -252,16 +250,6 @@ subtest 'flatten()' => sub {
         'Content-Type',   'text/html; charset=ISO-8859-1',
     );
     is_deeply \@got, \@expected, 'default';
-
-    @got = $header->flatten(0);
-    @expected = (
-        'Status',         '304 Not Modified',
-        'Set-Cookie',     [ $cookie1, $cookie2 ],
-        'Date',           CGI::Util::expires(),
-        'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
-    );
-    is_deeply \@got, \@expected, 'not recursive';
 };
 
 subtest 'each()' => sub {
@@ -292,5 +280,5 @@ subtest 'each()' => sub {
 
 subtest 'as_string()' => sub {
     my $header = CGI::Header->new;
-    is "$header", CGI::header();
+    is $header->as_string, CGI::header();
 };
