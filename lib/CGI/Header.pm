@@ -352,11 +352,6 @@ sub _delete {
     delete $self->{header}->{$prop};
 }
 
-sub is_empty {
-    carp "'is_empty' is obsolete and will be removed in 0.41";
-    !$_[0]->SCALAR;
-}
-
 sub clear {
     my $self = shift;
     %{ $self->{header} } = ( -type => q{} );
@@ -462,7 +457,7 @@ sub cookie {
     if ( @_ ) {
         $self->{header}->{-cookie} = @_ > 1 ? [ @_ ] : shift;
     }
-    elsif ( my $cookie = $self->{header}->{cookie} ) {
+    elsif ( my $cookie = $self->{header}->{-cookie} ) {
         return ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
     }
     else {
@@ -488,12 +483,6 @@ sub p3p {
     }
 
     $self;
-}
-
-sub p3p_tags {
-    carp "p3p_tags() is obsolete and will be removed in 0.41";
-    my $self = shift;
-    $self->p3p( @_ );
 }
 
 sub as_hashref {
@@ -545,29 +534,6 @@ sub flatten {
     @headers;
 }
 
-sub each {
-    my ( $self, $callback ) = @_;
-
-    carp "'each' is obsolete and will be removed in 0.41";
-
-    if ( ref $callback eq 'CODE' ) {
-        my @headers = $self->flatten;
-        while ( my ($field, $value) = splice @headers, 0, 2 ) {
-            $callback->( $field, $value );
-        }
-    }
-    else {
-        croak 'Must provide a code reference to each()';
-    }
-
-    $self;
-}
-
-sub field_names {
-    carp "'field_names' is obsolete and will be removed in 0.41";
-    keys %{{ $_[0]->flatten }};
-}
-
 sub as_string {
     my $self = shift;
     $self->query->header( $self->{header} );
@@ -576,17 +542,6 @@ sub as_string {
 BEGIN { # TODO: These methods can't be overridden
     *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
     *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
-}
-
-sub SCALAR {
-    my $self = shift;
-    my $query = $self->query;
-    my %header = %{ $self->{header} };
-    !defined $header{-type} # the Content-Type header exists
-        or first { delete $header{$_} } @PROPERTY_NAMES # has header props.
-        or %header       # %header minus header props. isn't empty
-        or $query->cache # the Pragma header exists
-        or $query->nph;  # use CGI qw(-nph);
 }
 
 sub FIRSTKEY {
@@ -909,18 +864,6 @@ Returns the value of the deleted field.
 
 This will remove all header fields.
 
-=item $bool = $header->is_empty
-
-This method is obsolete and will be removed in 0.41.
-
-Returns true if the header contains no key-value pairs.
-
-  $header->clear;
-
-  if ( $header->is_empty ) { # true
-      ...
-  }
-
 =item $clone = $header->clone
 
 Returns a copy of this CGI::Header object.
@@ -989,38 +932,6 @@ with a NPH (no-parse-header) script.
 
   $header->nph( 1 );
 
-=item @fields = $header->field_names
-
-This method is obsolete and will be removed in 0.41.
-
-Returns the list of distinct field names present in the header
-in a random order.
-The field names have case as returned by C<CGI::header()>.
-
-  my @fields = $header->field_names;
-  # => ( 'Set-Cookie', 'Content-length', 'Content-Type' )
-
-=item $self = $header->each( \&callback )
-
-This method is obsolete and will be removed in 0.41.
-
-Apply a subroutine to each header field in turn.
-The callback routine is called with two parameters;
-the name of the field and a value.
-If the Set-Cookie header is multi-valued, then the routine is called
-once for each value.
-Any return values of the callback routine are ignored.
-
-  my @lines;
-  $header->each(sub {
-      my ( $field, $value ) = @_;
-      push @lines, "$field: $value";
-  });
-
-  print join @lines, "\n";
-  # Content-length: 3002
-  # Content-Type: text/plain
-
 =item @headers = $header->flatten
 
 Returns pairs of fields and values. 
@@ -1067,7 +978,6 @@ Above methods are aliased as follows:
   DELETE  -> delete
   CLEAR   -> clear
   EXISTS  -> exists
-  SCALAR  -> !is_empty
 
 You can also iterate through the tied hash:
 

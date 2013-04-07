@@ -12,7 +12,7 @@ my %alias = (
     'CLEAR'   => 'clear',
 );
 
-can_ok 'CGI::Header', ( keys %alias, 'SCALAR', 'FIRSTKEY', 'NEXTKEY' );
+can_ok 'CGI::Header', ( keys %alias, 'FIRSTKEY', 'NEXTKEY' );
 
 my $class = 'CGI::Header';
 while ( my ($got, $expected) = each %alias ) {

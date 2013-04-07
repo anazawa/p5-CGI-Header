@@ -1,5 +1,12 @@
 Revision history for Perl extension CGI::Header.
 
+  - Remove the following methods:
+      * is_empty
+      * field_names
+      * is_empty
+      * SCALAR
+      * p3p_tags
+
 0.40  Apr 7th, 2013
 
   - field_names() is obsolete and will be removed in 0.41

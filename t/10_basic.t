@@ -5,14 +5,14 @@ use CGI;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 13;
+use Test::More tests => 11;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
 
 can_ok 'CGI::Header', qw(
-    new header query rehash clone clear delete exists get set is_empty
-    p3p_tags expires nph attachment field_names each flatten
+    new header query rehash clone clear delete exists get set
+    p3p expires nph attachment flatten
 );
 
 subtest 'normalize_property_name()' => sub {
@@ -111,12 +111,6 @@ subtest 'basic' => sub {
     is $header->set( Foo => 'bar' ), 'bar';
     is_deeply \%header, { -foo => 'bar' };
 
-    # is_empty()
-    %header = ();
-    ok !$header->is_empty;
-    %header = ( -type => q{} );
-    ok $header->is_empty;
-
     # delete()
     %header = ();
     is $header->delete('Foo'), undef;
@@ -188,41 +182,6 @@ subtest '_ucfirst()' => sub {
     is CGI::Header::_ucfirst( '-foo_bar' ), 'Foo-bar';
 };
 
-subtest 'field_names()' => sub {
-    my $header = CGI::Header->new;
-
-    %{ $header->header } = ( -type => q{} );
-    is_deeply [ $header->field_names ], [], 'should return null array';
-
-    %{ $header->header } = (
-        -nph        => 1,
-        -status     => 1,
-        -target     => 1,
-        -p3p        => 1,
-        -cookie     => 1,
-        -expires    => 1,
-        -attachment => 1,
-        -foo_bar    => 1,
-    );
-
-    my @got = $header->field_names;
-
-    my @expected = qw(
-        Server
-        Status
-        Window-Target
-        P3P
-        Set-Cookie
-        Expires
-        Date
-        Content-Disposition
-        Foo-bar
-        Content-Type
-    );
-
-    is_deeply [ sort @got ], [ sort @expected ];
-};
-
 subtest 'flatten()' => sub {
     my $cookie1 = CGI::Cookie->new(
         -name  => 'foo',
@@ -250,32 +209,6 @@ subtest 'flatten()' => sub {
         'Content-Type',   'text/html; charset=ISO-8859-1',
     );
     is_deeply \@got, \@expected, 'default';
-};
-
-subtest 'each()' => sub {
-    my $header = CGI::Header->new(
-        -status         => '304 Not Modified',
-        -content_length => 12345,
-    );
-
-    throws_ok { $header->each }
-        qr{^Must provide a code reference to each\(\)};
-
-    my @got;
-    $header->each(sub {
-        my ( $field, $value ) = @_;
-        push @got, $field, $value;
-    });
-
-    my @expected = (
-        'Status',         '304 Not Modified',
-        'Content-length', '12345',
-        'Content-Type',   'text/html; charset=ISO-8859-1',
-    );
-
-    is_deeply \@got, \@expected;
-
-    is $header->each(sub {}), $header, "should return current object itself";
 };
 
 subtest 'as_string()' => sub {
