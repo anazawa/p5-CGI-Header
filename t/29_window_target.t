@@ -23,8 +23,8 @@ subtest 'a plain string' => sub {
     my $header = tie my %header, 'CGI::Header';
     is $header->set( Window_Target => 'ResultsWindow' ), 'ResultsWindow';
     is_deeply $header->header, { -target => 'ResultsWindow' };
-    is $header{Window_Target}, 'ResultsWindow';
+    is $header->as_hashref->{'Window-Target'}, 'ResultsWindow';
     ok exists $header{Window_Target};
-    is delete $header{Window_Target}, 'ResultsWindow';
-    is_deeply $header->header, {};
+    #is delete $header{Window_Target}, 'ResultsWindow';
+    #is_deeply $header->header, {};
 };

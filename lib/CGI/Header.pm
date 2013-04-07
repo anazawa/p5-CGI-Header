@@ -120,66 +120,10 @@ sub rehash {
     $self;
 }
 
-my %GET = (
-    DEFAULT => sub {
-        my ( $self, $prop ) = @_;
-        $self->{header}->{$prop};
-    },
-    content_disposition => sub {
-        my ( $self, $prop ) = @_;
-        my $name = $self->attachment;
-        $name ? qq{attachment; filename="$name"} : $self->{header}->{$prop};
-    },
-    content_type => sub {
-        my $self = shift;
-        my ( $type, $charset ) = @{ $self->{header} }{qw/-type -charset/};
-        return if defined $type and $type eq q{};
-        $charset = $self->query->charset unless defined $charset;
-        $type ||= 'text/html';
-        $type .= "; charset=$charset" if $charset && $type !~ /\bcharset\b/;
-        $type;
-    },
-    date => sub {
-        my ( $self, $prop ) = @_;
-        $self->_has_date ? $self->time2str : $self->{header}->{$prop};
-    },
-    expires => sub {
-        my ( $self, $prop ) = @_;
-        my $expires = $self->{header}->{$prop};
-        $expires ? $self->time2str($expires) : undef;
-    },
-    p3p => sub {
-        my $self = shift;
-        my $tags = join ' ', $self->p3p;
-        $tags ? qq{policyref="/w3c/p3p.xml", CP="$tags"} : undef;
-    },
-    pragma => sub {
-        my ( $self, $prop ) = @_;
-        $self->query->cache ? 'no-cache' : $self->{header}->{$prop};
-    },
-    server => sub {
-        my ( $self, $prop ) = @_;
-        $self->nph ? $self->query->server_software : $self->{header}->{$prop};
-    },
-    set_cookie => sub {
-        my $self = shift;
-        $self->{header}->{-cookie} || undef;
-    },
-    status => sub {
-        my ( $self, $prop ) = @_;
-        $self->{header}->{$prop} || undef;
-    },
-    window_target => sub {
-        my $self = shift;
-        $self->{header}->{-target} || undef;
-    },
-);
-
 sub get {
     my $self = shift;
-    my $field = $self->normalize_field_name( shift );
-    my $get = $GET{$field} || $GET{DEFAULT};
-    $self->$get( "-$field" );
+    my $field = lc shift;
+    $self->{header}->{"-$field"};
 }
 
 my %SET = (

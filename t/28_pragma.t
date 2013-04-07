@@ -34,7 +34,7 @@ subtest 'a plain string' => sub {
 subtest 'cache()' => sub {
     my $header = tie my %header, 'CGI::Header', {}, CGI->new;;
     $header->query->cache(1);
-    is $header{Pragma}, 'no-cache';
+    is $header->as_hashref->{Pragma}, 'no-cache';
     ok exists $header{Pragma};
     my $expected = qr{^Modification of a read-only value attempted};
     throws_ok { delete $header{Pragma} } $expected;

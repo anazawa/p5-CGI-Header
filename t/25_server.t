@@ -23,11 +23,11 @@ is_deeply $header->header, { -nph => 1 }, '-server should be deleted';
 %{ $header->header } = ( -nph => 1 );
 
 local %ENV;
-is $header{Server}, 'cmdline';
+is $header->as_hashref->{Server}, 'cmdline';
 ok exists $header{Server};
 
 $ENV{SERVER_SOFTWARE} = 'Apache/1.3.27 (Unix)';
-is $header{Server}, 'Apache/1.3.27 (Unix)';
+is $header->as_hashref->{Server}, 'Apache/1.3.27 (Unix)';
 ok exists $header{Server};
 
 my $expected = qr{^Modification of a read-only value attempted};
