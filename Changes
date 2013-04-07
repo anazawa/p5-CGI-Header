@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.40  Apr 7th, 2013
+
   - field_names() is obsolete and will be removed in 0.41
   - Add as_hashref(). get() and exists() will be replaced with this method:
      

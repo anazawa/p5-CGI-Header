@@ -23,8 +23,9 @@ t/23_expires.t
 t/24_p3p.t
 t/25_server.t
 t/26_set_cookie.t
-t/27_window_target.t
+t/27_status.t
 t/28_pragma.t
+t/29_window_target.t
 t/30_cgi_header.t
 t/31_cgi_redirect.t
 t/32_nph_pragma.t

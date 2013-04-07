@@ -6,7 +6,7 @@ use Carp qw/carp croak/;
 use List::Util qw/first/;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '0.35';
+our $VERSION = '0.40';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
@@ -648,7 +648,7 @@ CGI::Header - Adapter for CGI::header() function
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.36.
+This document refers to CGI::Header version 0.40.
 
 =head1 DEPENDENCIES
 
@@ -1035,7 +1035,7 @@ Returns pairs of fields and values.
   #     ...
   # )
 
-=item $header->as_hashrefs
+=item $header->as_hashref
 
 =item $header->as_string
 
