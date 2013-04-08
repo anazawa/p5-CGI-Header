@@ -114,63 +114,10 @@ sub get {
     $self->{header}->{$field};
 }
 
-my %SET = (
-    DEFAULT => sub {
-        my ( $self, $prop, $value ) = @_;
-        $self->{header}->{$prop} = $value;
-    },
-    'content-disposition' => sub {
-        my ( $self, $prop, $value ) = @_;
-        delete $self->{header}->{attachment};
-        $self->{header}->{$prop} = $value;
-    },
-    'content-type' => sub {
-        my ( $self, $prop, $value ) = @_;
-        if ( defined $value and $value ne q{} ) {
-            @{ $self->{header} }{qw/charset type/} = ( q{}, $value );
-            return $value;
-        }
-        else {
-            carp "Can set '-content_type' to neither undef nor an empty string";
-        }
-    },
-    date => sub {
-        my ( $self, $prop, $value ) = @_;
-        croak $MODIFY if $self->_has_date;
-        $self->{header}->{$prop} = $value;
-    },
-    expires => sub {
-        carp "Can't assign to '-expires' directly, use expires() instead";
-    },
-    p3p => sub {
-        carp "Can't assign to '-p3p' directly, use p3p() instead";
-    },
-    pragma => sub {
-        my ( $self, $prop, $value ) = @_;
-        croak $MODIFY if $self->query->cache;
-        $self->{header}->{$prop} = $value;
-    },
-    server => sub {
-        my ( $self, $prop, $value ) = @_;
-        croak $MODIFY if $self->nph;
-        $self->{header}->{$prop} = $value;
-    },
-    'set-cookie' => sub {
-        my ( $self, $prop, $value ) = @_;
-        delete $self->{header}->{date} if $value;
-        $self->{header}->{cookie} = $value;
-    },
-    'window-target' => sub {
-        my ( $self, $prop, $value ) = @_;
-        $self->{header}->{target} = $value;
-    },
-);
-
-sub set { # unstable
+sub set {
     my $self = shift;
-    my $field = $self->normalize_field_name( shift );
-    my $set = $SET{$field} || $SET{DEFAULT};
-    $self->$set( $field, @_ );
+    my $field = lc shift;
+    $self->{header}->{$field} = shift;
 }
 
 sub exists {

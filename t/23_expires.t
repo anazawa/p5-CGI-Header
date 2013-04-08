@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
-use Test::More tests => 17;
+use Test::More tests => 16;
 use Test::Warn;
 
 set_fixed_time '1341637509';
@@ -49,8 +49,8 @@ is $header->expires, q{};
 #   my $value = $header{Expires}; # => "Tue, 10 Jul 2012 05:05:09 GMT"
 #
 
-warning_is { $header{Expires} = '+3d' }
-    "Can't assign to '-expires' directly, use expires() instead";
+#warning_is { $header{Expires} = '+3d' }
+#    "Can't assign to '-expires' directly, use expires() instead";
 
 %{ $header->header } = ();
 $header->expires( '+3d' );

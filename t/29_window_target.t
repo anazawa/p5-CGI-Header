@@ -21,7 +21,7 @@ subtest 'an empty string' => sub {
 
 subtest 'a plain string' => sub {
     my $header = tie my %header, 'CGI::Header';
-    is $header->set( 'Window-Target' => 'ResultsWindow' ), 'ResultsWindow';
+    is $header->target( 'ResultsWindow' ), $header;
     is_deeply $header->header, { target => 'ResultsWindow' };
     is $header->as_hashref->{'Window-Target'}, 'ResultsWindow';
     ok exists $header->as_hashref->{'Window-Target'};

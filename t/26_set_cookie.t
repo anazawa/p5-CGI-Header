@@ -32,7 +32,7 @@ subtest 'an empty string' => sub {
 
 subtest 'a CGI::Cookie object' => sub {
     my $header = tie my %header, 'CGI::Header';
-    $header{Set_Cookie} = $cookie1;
+    $header->cookie( $cookie1 );
     is $header->header->{cookie}, $cookie1;
     is $header->as_hashref->{'Set-Cookie'}->[0], $cookie1; 
     ok exists $header->as_hashref->{'Set-Cookie'};
@@ -45,7 +45,7 @@ subtest 'CGI::Cookie objects' => sub {
     my @cookies = ( $cookie1, $cookie2 );
     my $header  = tie my %header, 'CGI::Header';
 
-    $header{'Set-Cookie'} = \@cookies;
+    $header->cookie( \@cookies );
     is_deeply $header->header, { cookie => \@cookies };
     #is $header->as_hashref->{'Set-Cookie'}, \@cookies;
     ok exists $header->as_hashref->{'Set-Cookie'};
@@ -64,6 +64,7 @@ subtest 'CGI::Cookie objects' => sub {
 };
 
 subtest '-cookie and -date' => sub {
+    plan skip_all => 'obsolete';
     my $header = tie my %header, 'CGI::Header';
     $header{Date} = 'Sat, 07 Jul 2012 05:05:09 GMT';
     is $header->set( 'Set-Cookie' => $cookie1 ), $cookie1;

@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 12;
+use Test::More tests => 11;
 use Test::Exception;
 
 #my %env;
@@ -29,5 +29,5 @@ is $header->as_hashref->{Server}, 'Apache/1.3.27 (Unix)';
 ok exists $header->as_hashref->{Server};
 
 my $expected = qr{^Modification of a read-only value attempted};
-throws_ok { $header{Server} = 'Apache/1.3.27 (Unix)' } $expected;
+#throws_ok { $header{Server} = 'Apache/1.3.27 (Unix)' } $expected;
 throws_ok { delete $header{Server} } $expected;

@@ -58,6 +58,8 @@ subtest '-content_disposition' => sub {
 };
 
 subtest '-attachment and -content_disposition' => sub {
+    plan skip_all => 'obsolete';
+
     my $header = tie my %header, 'CGI::Header';
 
     %{ $header->header } = ( attachment => 'genome.jpg' );

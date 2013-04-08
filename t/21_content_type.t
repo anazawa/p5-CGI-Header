@@ -78,6 +78,8 @@ subtest '-type and -charset' => sub {
 };
 
 subtest 'STORE()' => sub {
+    plan skip_all => 'obsolete';
+
     my $header = tie my %header, 'CGI::Header';
 
     %{ $header->header } = ();
