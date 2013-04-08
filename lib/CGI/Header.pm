@@ -10,23 +10,21 @@ our $VERSION = '0.41';
 
 our $MODIFY = 'Modification of a read-only value attempted';
 
-our %ALIASED_TO = (
+my %Property_Alias = (
     'cookies'       => 'cookie',
     'content-type'  => 'type',
     'set-cookie'    => 'cookie',
+    'uri'           => 'location',
+    'url'           => 'location',
     'window-target' => 'target',
 );
-
-sub get_alias {
-    $ALIASED_TO{ $_[1] };
-}
 
 sub normalize_property_name {
     my $class = shift;
     my $prop = lc shift;
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
-    $class->get_alias($prop) || $prop;
+    $Property_Alias{$prop} || $prop;
 }
 
 sub normalize_field_name {
@@ -43,7 +41,7 @@ sub time2str {
 }
 
 sub new {
-    my $self = bless {}, shift;
+    my $self = bless { handler => 'header' }, shift;
     my @args = @_;
 
     if ( ref $args[0] eq 'HASH' ) {
@@ -73,6 +71,13 @@ sub header {
     $_[0]->{header};
 }
 
+sub handler {
+    my $self = shift;
+    return $self->{handler} unless @_;
+    $self->{handler} = shift;
+    $self;
+}
+
 sub query {
     my $self = shift;
     $self->{query} ||= $self->_build_query;
@@ -88,10 +93,16 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = $self->normalize_property_name( $key );
+        my $prop = lc $key;
+           $prop =~ s/^-//;
+           $prop =~ tr/_/-/;
+           $prop = $Property_Alias{$prop} || $prop;
+
         next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{ $prop };
-        $header->{ $prop } = delete $header->{ $key }; # rename $key to $prop
+
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
     $self;
@@ -358,32 +369,45 @@ sub p3p {
 }
 
 sub as_hashref {
-    +{ $_[0]->flatten };
+    +{ $_[0]->flatten(0) };
 }
 
 sub flatten {
     my $self  = shift;
+    my $level = defined $_[0] ? int shift : 1;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
-    my $nph   = delete $copy{nph} || $query->nph;
+
+    if ( $self->{handler} eq 'redirect' ) {
+        $copy{location} = $query->self_url if !$copy{location};
+        $copy{status} = '302 Found' if !defined $copy{status};
+        $copy{type} = q{} if !exists $copy{type};
+    }
 
     my @headers;
 
-    my ( $charset, $cookie, $expires, $status, $target, $type )
-        = delete @copy{qw/charset cookie expires status target type/};
+    my ( $charset, $cookie, $expires, $nph, $status, $target, $type )
+        = delete @copy{qw/charset cookie expires nph status target type/};
 
-    push @headers, 'Server', $query->server_software if $nph;
+    push @headers, 'Server', $query->server_software if $nph or $query->nph;
     push @headers, 'Status', $status        if $status;
     push @headers, 'Window-Target', $target if $target;
 
-    if ( my $tags = delete $copy{p3p} ) {
-        $tags = join ' ', @{ $tags } if ref $tags eq 'ARRAY';
+    if ( my $p3p = delete $copy{p3p} ) {
+        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
         push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
-    if ( $cookie ) {
-        my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-        push @headers, map { ('Set-Cookie', "$_") } @cookies;
+    my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+       @cookies = grep { $_ } map { $self->_bake_cookie($_) } @cookies;
+
+    if ( @cookies ) {
+        if ( $level == 0 ) {
+            push @headers, 'Set-Cookie', \@cookies;
+        }
+        else {
+            push @headers, map { ('Set-Cookie', $_) } @cookies;
+        }
     }
 
     push @headers, 'Expires', $self->time2str($expires) if $expires;
@@ -406,9 +430,32 @@ sub flatten {
     @headers;
 }
 
+sub _bake_cookie {
+    my ( $self, $cookie ) = @_;
+    ref $cookie eq 'CGI::Cookie' ? $cookie->as_string : $cookie;
+}
+
 sub as_string {
-    my $self = shift;
-    $self->query->header( $self->{header} );
+    my $self    = shift;
+    my $handler = $self->{handler};
+    my $query   = $self->query;
+
+    if ( $handler eq 'header' or $handler eq 'redirect' ) {
+        if ( my $method = $query->can($handler) ) {
+            return $query->$method( $self->{header} );
+        }
+        else {
+            croak ref($query) . " is missing '$handler' method";
+        }
+    }
+    elsif ( $handler eq 'none' ) {
+        return q{};
+    }
+    else {
+        croak "Invalid handler '$handler'";
+    }
+
+    return;
 }
 
 BEGIN { # TODO: These methods can't be overridden

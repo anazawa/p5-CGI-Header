@@ -1,5 +1,14 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add handler() attribute which defaults to 'header'.
+    If handler() is set to 'redirect', as_string() will invoke:
+
+        $h->query->redirect( $h->header )
+
+  [INCOMPATIBLE CHANGES]
+
+    - Remove CGI::Header::Redirect and t/31_cgi_redirect.t
+
 0.41  Apr 8th, 2013
 
   - CGI::Header::Redirect is obsolete and will be removed in 0.42
