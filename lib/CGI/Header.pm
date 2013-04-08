@@ -188,16 +188,20 @@ sub as_hashref {
 sub flatten {
     my $self  = shift;
     my $level = defined $_[0] ? int shift : 1;
+    my $handler = $self->{handler};
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
 
-    if ( $self->{handler} eq 'redirect' ) {
+    my @headers;
+
+    if ( $handler eq 'redirect' ) {
         $copy{location} = $query->self_url if !$copy{location};
         $copy{status} = '302 Found' if !defined $copy{status};
         $copy{type} = q{} if !exists $copy{type};
     }
-
-    my @headers;
+    elsif ( $handler eq 'none' ) {
+        return \@headers;
+    } 
 
     my ( $charset, $cookie, $expires, $nph, $status, $target, $type )
         = delete @copy{qw/charset cookie expires nph status target type/};
