@@ -3,7 +3,6 @@ use 5.008_009;
 use strict;
 use warnings;
 use Carp qw/croak/;
-use Scalar::Util qw/blessed/;
 
 our $VERSION = '0.43';
 
@@ -16,44 +15,14 @@ my %Property_Alias = (
     'window-target' => 'target',
 );
 
-sub normalize_property_name {
-    my $class = shift;
-    my $prop = lc shift;
-    $prop =~ s/^-//;
-    $prop =~ tr/_/-/;
-    $Property_Alias{$prop} || $prop;
-}
-
-sub time2str {
-    require CGI::Util;
-    CGI::Util::expires( $_[1], 'http' );
-}
-
 sub new {
-    my $self = bless { handler => 'header' }, shift;
-    my @args = @_;
+    my $class = shift;
 
-    if ( ref $args[0] eq 'HASH' ) {
-        @{ $self }{qw/header query/} = splice @args, 0, 2;
-    }
-    elsif ( @args % 2 == 0 ) {
-        my $header = $self->{header} = {};
-        while ( my ($key, $value) = splice @args, 0, 2 ) {
-            my $prop = $self->normalize_property_name( $key );
-            $header->{ $prop } = $value; # force overwrite
-        }
-        if ( blessed $header->{-query} ) {
-            $self->{query} = delete $header->{-query};
-        }
-    }
-    elsif ( @args == 1 ) {
-        $self->{header}->{-type} = shift @args;
-    }
-    else {
-        croak 'Odd number of elements in hash assignment';
-    }
-
-    $self;
+    bless {
+        handler => 'header',
+        header => {},
+        @_
+    }, $class;
 }
 
 sub header {
@@ -130,7 +99,12 @@ sub clear {
 sub clone {
     my $self = shift;
     my %copy = %{ $self->{header} };
-    ref( $self )->new( \%copy, $self->{query} );
+
+    ref($self)->new(
+        handler => $self->{handler},
+        header  => \%copy,
+        query   => $self->query,
+    );
 }
 
 BEGIN {
@@ -249,8 +223,8 @@ sub flatten {
         }
     }
 
-    push @headers, 'Expires', $self->time2str($expires) if $expires;
-    push @headers, 'Date', $self->time2str if $expires or $cookie or $nph;
+    push @headers, 'Expires', $self->_date($expires) if $expires;
+    push @headers, 'Date', $self->_date if $expires or $cookie or $nph;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( my $attachment = delete $copy{attachment} ) {
@@ -273,6 +247,11 @@ sub flatten {
 sub _bake_cookie {
     my ( $self, $cookie ) = @_;
     ref $cookie eq 'CGI::Cookie' ? $cookie->as_string : $cookie;
+}
+
+sub _date {
+    require CGI::Util;
+    CGI::Util::expires( $_[1], 'http' );
 }
 
 sub as_string {
@@ -304,7 +283,7 @@ __END__
 
 =head1 NAME
 
-CGI::Header - Adapter for CGI::header() function
+CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 SYNOPSIS
 
@@ -326,18 +305,21 @@ CGI::Header - Adapter for CGI::header() function
   };
 
   # create a CGI::Header object
-  my $h = CGI::Header->new( $header, $query );
+  my $h = CGI::Header->new(
+      header => $header,
+      query  => $query
+  );
 
   # update $header
-  $h->set( 'Content-Length' => 3002 );
-  $h->delete( 'Content-Disposition' );
-  $h->clear;
+  $h->set( 'Content-Length' => 3002 ); # overwrite
+  $h->delete('Content-Disposition'); # => 3002
+  $h->clear; # => $self
 
   $h->header; # same reference as $header
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.40.
+This document refers to CGI::Header version 0.44.
 
 =head1 DEPENDENCIES
 
@@ -346,13 +328,10 @@ This module is compatible with CGI.pm 3.51 or higher.
 =head1 DESCRIPTION
 
 This module is a utility class to manipulate a hash reference
-received by the C<header()> function of CGI.pm.
-This class is, so to speak, a subclass of Hash,
-while Perl5 doesn't provide a built-in class called Hash.
+received by CGI.pm's C<header()> method.
 
-This module isn't the replacement of the C<CGI::header()> function.
-If you're allowed to replace the function with other modules
-like L<HTTP::Headers>, you should do so.
+This module isn't the replacement of the C<CGI::header()> function,
+but complements CGI.pm.
 
 This module can be used in the following situation:
 
@@ -375,7 +354,7 @@ CGI::Header normalizes them automatically.
 
   use CGI::Header;
 
-  my $h = CGI::Header->new( $header );
+  my $h = CGI::Header->new( header => $header );
   $h->set( 'Content-Length' => 3002 ); # add Content-Length header
 
   $header;
@@ -399,82 +378,14 @@ array references. See L<CGI::Header::PSGI>.
 
 =back
 
-=head2 CLASS METHODS
-
-=over 4
-
-=item $header = CGI::Header->new( { type => 'text/plain', ... }[, $query] )
-
-Given a header hash reference, returns a CGI::Header object
-which holds a reference to the original given argument:
-
-  my $header = { type => 'text/plain' };
-  my $h = CGI::Header->new( $header );
-  $h->header; # same reference as $header
-
-The object updates the reference when called write methods like C<set()>,
-C<delete()> or C<clear()>:
-
-  # updates $header
-  $h->set( 'Content-Length' => 3002 );
-  $h->delete( 'Content-Disposition' );
-  $h->clear;
-
-You can also pass your query object, preceded by the header hash ref.:
-
-  my $query = CGI->new;
-  my $h = CGI::Header->new( $header, $query );
-  $h->query; # => $query
-
-NOTE: In this case, C<new()> doesn't check whether property names of C<$header>
-are normalized or not at all, and so you have to C<rehash()> the header hash
-reference explicitly when you aren't sure that they are normalized.
-
-=item $header = CGI::Header->new( type => 'text/plain', ... )
-
-It's roughly equivalent to:
-
-  my $h = CGI::Header->new({ type => 'text/plain', ... })->rehash;
-
-Unlike C<rehash()>, if a property name is duplicated,
-that property will be overwritten silently:
-
-  my $h = CGI::Header->new(
-      -Type        => 'text/plain',
-      Content_Type => 'text/html'
-  );
-
-  $h->header->{type}; # => "text/html"
-
-In addition to CGI.pm-compatible HTTP header properties,
-you can specify '-query' property which represents your query object:
-
-  my $query = CGI->new;
-
-  my $h = CGI::Header->new(
-      type  => 'text/plain',
-      query => $query,
-  );
-
-  $h->header; # => { type => 'text/plain' }
-  $h->query;  # => $query
-
-=item $header = CGI::Header->new( $media_type )
-
-A shortcut for:
-
-  my $header = CGI::Header->new({ type => $media_type });
-
-=back
-
-=head2 INSTANCE METHODS
+=head2 ATTRIBUTES
 
 =over 4
 
 =item $query = $header->query
 
-Returns your current query object. C<query()> defaults to the Singleton
-instance of CGI.pm (C<$CGI::Q>).
+Returns your current query object. This attribute defaults to the Singleton
+instance of CGI.pm (C<$CGI::Q>) which is shared by functions exported by the module.
 
 =item $self = $header->handler('redirect')
 
@@ -487,10 +398,17 @@ header. This attribute defaults to C<header>.
 =item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
+This attribute defaults to a reference to an empty hash.
 You can always pass the header hash to C<CGI::header()> function
 to generate CGI response headers:
 
   print CGI::header( $header->header );
+
+=back
+
+=head2 METHODS
+
+=over 4
 
 =item $self = $header->rehash
 
@@ -561,18 +479,13 @@ Get or set the value of the header field.
 The header field name (C<$field>) is not case sensitive.
 
   # field names are case-insensitive
-  $header->get( 'Content-Length' );
-  $header->get( 'content-length' );
+  $header->get('Content-Length');
+  $header->get('content-length');
 
-The C<$value> argument may be a plain string or
-a reference to an array of L<CGI::Cookie> objects for the Set-Cookie header.
+The C<$value> argument must be a plain string:
 
   $header->set( 'Content-Length' => 3002 );
-  my $length = $header->get( 'Content-Length' ); # => 3002
-
-  # $cookie1 and $cookie2 are CGI::Cookie objects
-  $header->set( 'Set-Cookie' => [$cookie1, $cookie2] );
-  my $cookies = $header->get( 'Set-Cookie' ); # => [ $cookie1, $cookie2 ]
+  my $length = $header->get('Content-Length'); # => 3002
 
 =item $bool = $header->exists( $field )
 
@@ -587,7 +500,7 @@ Returns a Boolean value telling whether the specified field exists.
 Deletes the specified field form CGI response headers.
 Returns the value of the deleted field.
 
-  my $value = $header->delete( 'Content-Disposition' ); # => 'inline'
+  my $value = $header->delete('Content-Disposition'); # => 'inline'
 
 =item $self = $header->clear
 
@@ -633,7 +546,7 @@ If C<< $header->handler >> is set to C<none>, returns an empty string.
 
 =head2 PROPERTIES
 
-The following methods were named after propertyn ames recognized by
+The following methods were named after property names recognized by
 CGI.pm's C<header> method. Most of these methods can both be used to
 read and to set the value of a property.
 

@@ -5,7 +5,7 @@ use CGI;
 use CGI::Header;
 use CGI::Cookie;
 use CGI::Util;
-use Test::More tests => 9;
+use Test::More tests => 8;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
@@ -15,24 +15,9 @@ can_ok 'CGI::Header', qw(
     p3p expires nph attachment flatten
 );
 
-subtest 'normalize_property_name()' => sub {
-    my @data = (
-        'Foo'      => 'foo',
-        'Foo-Bar'  => 'foo-bar',
-        '-foo'     => 'foo',
-        '-foo_bar' => 'foo-bar',
-        '-content_type'  => 'type',
-        '-cookies'       => 'cookie',
-        '-set_cookie'    => 'cookie',
-        '-window_target' => 'target',
-    );
-
-    while ( my ($input, $expected) = splice @data, 0, 2 ) {
-        is( CGI::Header->normalize_property_name($input), $expected );
-    }
-};
-
 subtest 'new()' => sub {
+    plan skip_all => 'obsolete behaviour';
+
     my %header = ();
     my $header = CGI::Header->new( \%header );
     is $header->query, $CGI::Q;
@@ -51,40 +36,11 @@ subtest 'new()' => sub {
 
     $header = CGI::Header->new( -foo => 'bar' );
     is_deeply $header->header, { foo => 'bar' };
-
-    $header = CGI::Header->new(
-        '-Charset'      => 'utf-8',
-        '-content_type' => 'text/plain',
-        'Set-Cookie'    => 'ID=123456; path=/',
-        '-expires'      => '+3d',
-        'foo'           => 'bar',
-        'foo-bar'       => 'baz',
-        'window_target' => 'ResultsWindow',
-        'charset'       => 'EUC-JP',
-    );
-    is_deeply $header->header, {
-        type    => 'text/plain',
-        charset => 'EUC-JP',
-        cookie  => 'ID=123456; path=/',
-        expires => '+3d',
-        foo     => 'bar',
-        'foo-bar' => 'baz',
-        target  => 'ResultsWindow',
-    };
-
-    $header = CGI::Header->new('text/plain');
-    is_deeply $header->header, { -type => 'text/plain' };
-
-    throws_ok { CGI::Header->new( -foo => 'bar', '-baz' ) }
-        qr{^Odd number of elements in hash assignment};
-
-    $header = CGI::Header->new( -query => 'a plain string' );
-    is_deeply $header->header, { query => 'a plain string' };
 };
 
 subtest 'basic' => sub {
     my %header;
-    my $header = CGI::Header->new( \%header );
+    my $header = CGI::Header->new( header => \%header );
 
     # exists()
     %header = ( foo => 'bar' );
@@ -115,14 +71,16 @@ subtest 'basic' => sub {
 };
 
 subtest 'rehash()' => sub {
-    my $header = CGI::Header->new({
-        '-content_type' => 'text/plain',
-        'Set-Cookie'    => 'ID=123456; path=/',
-        '-expires'      => '+3d',
-        'foo'           => 'bar',
-        'foo-bar'       => 'baz',
-        'window_target' => 'ResultsWindow',
-    });
+    my $header = CGI::Header->new(
+        header => {
+            '-content_type' => 'text/plain',
+            'Set-Cookie'    => 'ID=123456; path=/',
+            '-expires'      => '+3d',
+            'foo'           => 'bar',
+            'foo-bar'       => 'baz',
+            'window_target' => 'ResultsWindow',
+        },
+    );
 
     my $expected = $header->header;
 
@@ -138,21 +96,23 @@ subtest 'rehash()' => sub {
         target  => 'ResultsWindow',
     };
 
-    $header = CGI::Header->new({
-        -Type        => 'text/plain',
-        Content_Type => 'text/html',
-    });
+    $header = CGI::Header->new(
+        header => {
+            -Type        => 'text/plain',
+            Content_Type => 'text/html',
+        },
+    );
     throws_ok { $header->rehash } qr{^Property 'type' already exists};
 };
 
 subtest 'clone()' => sub {
-    my $header = CGI::Header->new( -foo => 'bar' );
+    my $header = CGI::Header->new( header => { foo => 'bar' } );
     my $clone = $header->clone;
     isnt $clone->header, $header->header;
     is_deeply $clone->header, $header->header;
 
     my $query = CGI->new;
-    $header = CGI::Header->new( {}, $query );
+    $header = CGI::Header->new( query => $query );
     is $header->clone->query, $query;
 };
 
@@ -180,9 +140,11 @@ subtest 'flatten()' => sub {
     );
 
     my $header = CGI::Header->new(
-        -status         => '304 Not Modified',
-        -content_length => 12345,
-        -cookie         => [ $cookie1, $cookie2 ],
+        header => {
+            status           => '304 Not Modified',
+            'content-length' => 12345,
+            cookie           => [ $cookie1, $cookie2 ],
+        },
     );
 
     my @got = $header->flatten;

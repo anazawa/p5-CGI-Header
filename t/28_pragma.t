@@ -14,7 +14,7 @@ subtest 'default' => sub {
 };
 
 subtest 'an empty string' => sub {
-    my $header = CGI::Header->new( pragma => q{} );
+    my $header = CGI::Header->new( header => { pragma => q{} } );
     is $header->as_hashref->{Pragma}, q{};
     ok exists $header->as_hashref->{Pragma};
     #is delete $header{Pragma}, q{};
