@@ -301,6 +301,7 @@ BEGIN {
     my @props = qw(
         charset
         location
+        nph
         status
         target
         type
@@ -317,21 +318,6 @@ BEGIN {
         no strict 'refs';
         *{$prop} = $code;
     }
-}
-
-sub nph {
-    my $self   = shift;
-    my $header = $self->{header};
-    my $NPH    = $self->query->nph; # => $CGI::NPH
-
-    if ( @_ ) {
-        my $nph = shift;
-        croak "The '-nph' pragma is enabled" if !$nph and $NPH;
-        delete @{ $header }{qw/date server/} if $nph;
-        return $header->{nph} = $nph;
-    }
-
-    $NPH or $header->{nph};
 }
 
 sub cookie {
@@ -399,7 +385,7 @@ sub flatten {
     }
 
     my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-       @cookies = grep { $_ } map { $self->_bake_cookie($_) } @cookies;
+       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
     if ( @cookies ) {
         if ( $level == 0 ) {
@@ -414,11 +400,12 @@ sub flatten {
     push @headers, 'Date', $self->time2str if $expires or $cookie or $nph;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
-    if ( my $fn = delete $copy{attachment} ) {
-        push @headers, 'Content-Disposition', qq{attachment; filename="$fn"};
+    if ( my $attachment = delete $copy{attachment} ) {
+        my $value = qq{attachment; filename="$attachment"};
+        push @headers, 'Content-Disposition', $value;
     }
 
-    push @headers, map { ucfirst($_), $copy{$_} } keys %copy;
+    push @headers, map { ucfirst $_, $copy{$_} } keys %copy;
 
     if ( !defined $type or $type ne q{} ) {
         $charset = $query->charset unless defined $charset;
@@ -654,6 +641,14 @@ A shortcut for:
 Returns your current query object. C<query()> defaults to the Singleton
 instance of CGI.pm (C<$CGI::Q>).
 
+=item $self = $header->handler('redirect')
+
+Works like C<CGI::Application>'s C<header_type> method.
+This method can be used to declare that you are setting a redirection
+header. This attribute defaults to C<header>.
+
+  $header->handler('redirect')->as_string; # invokes $header->query->redirect
+
 =item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
@@ -707,8 +702,10 @@ C<CGI::header()> also accepts aliases of parameter names.
 This module converts them as follows:
 
  'content-type'  -> 'type'
- 'set-cookie'    -> 'cookie'
  'cookies'       -> 'cookie'
+ 'set-cookie'    -> 'cookie'
+ 'uri'           -> 'location'
+ 'url'           -> 'location'
  'window-target' -> 'target'
 
 If a property name is duplicated, throws an exception:
@@ -847,9 +844,15 @@ Returns pairs of fields and values.
 
 =item $header->as_string
 
-A shortcut for:
+If C<< $header->handler >> is set to C<header>, it's identical to:
 
   $header->query->header( $header->header );
+
+If C<< $header->handler >> is set to C<redirect>, it's identical to:
+
+  $header->query->redirect( $header->header );
+
+If C<< $header->handler >> is set to C<none>, returns an empty string.
 
 =back
 

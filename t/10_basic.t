@@ -166,10 +166,6 @@ subtest 'nph()' => sub {
     $header->nph( 0 );
     ok !$header->nph;
     ok $header->header->{nph} == 0;
-
-    %{ $header->header } = ( date => 'Sat, 07 Jul 2012 05:05:09 GMT' );
-    $header->nph( 1 );
-    is_deeply $header->header, { nph => 1 }, '-date should be deleted';
 };
 
 subtest 'flatten()' => sub {

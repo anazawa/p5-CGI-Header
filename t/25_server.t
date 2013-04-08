@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 13;
+use Test::More tests => 12;
 use Test::Exception;
 
 #my %env;
@@ -17,8 +17,6 @@ is_deeply $header->header, { server => 'Apache/1.3.27 (Unix)' };
 %{ $header->header } = ( server => 'Apache/1.3.27 (Unix)' );
 is $header{Server}, 'Apache/1.3.27 (Unix)';
 ok exists $header{Server};
-$header->nph( 1 );
-is_deeply $header->header, { nph => 1 }, '-server should be deleted';
 
 %{ $header->header } = ( nph => 1 );
 

@@ -8,6 +8,7 @@ Revision history for Perl extension CGI::Header.
   [INCOMPATIBLE CHANGES]
 
     - Remove CGI::Header::Redirect and t/31_cgi_redirect.t
+    - Remove t/32_nph_pragma.t
 
 0.41  Apr 8th, 2013
 
