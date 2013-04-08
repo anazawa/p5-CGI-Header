@@ -182,54 +182,51 @@ sub p3p {
 }
 
 sub as_hashref {
-    my $self    = shift;
-    my $handler = $self->{handler};
-    my $query   = $self->query;
-    my %copy    = %{ $self->{header} };
+    my $self  = shift;
+    my $query = $self->query;
+    my %hash  = %{ $self->{header} };
 
-    my @headers;
-
-    if ( $handler eq 'redirect' ) {
-        $copy{location} = $query->self_url if !$copy{location};
-        $copy{status} = '302 Found' if !defined $copy{status};
-        $copy{type} = q{} if !exists $copy{type};
+    if ( $self->{handler} eq 'redirect' ) {
+        $hash{location} = $query->self_url if !$hash{location};
+        $hash{status} = '302 Found' if !defined $hash{status};
+        $hash{type} = q{} if !exists $hash{type};
     }
 
-    my ( $charset, $cookie, $expires, $nph, $status, $target, $type )
-        = delete @copy{qw/charset cookie expires nph status target type/};
+    my ( $attachment, $charset, $cookie, $expires, $nph, $p3p, $status, $target, $type )
+        = delete @hash{qw/attachment charset cookie expires nph p3p status target type/};
 
-    push @headers, 'Server', $query->server_software if $nph or $query->nph;
-    push @headers, 'Status', $status        if $status;
-    push @headers, 'Window-Target', $target if $target;
+    %hash = map { ucfirst $_, $hash{$_} } keys %hash;
 
-    if ( my $p3p = delete $copy{p3p} ) {
+    $hash{'Server'}        = $query->server_software if $nph or $query->nph;
+    $hash{'Status'}        = $status                 if $status;
+    $hash{'Window-Target'} = $target                 if $target;
+
+    if ( $p3p ) {
         my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
-        push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
+        $hash{'P3P'} = qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
     my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
        @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
-    push @headers, 'Set-Cookie', \@cookies if @cookies;
-    push @headers, 'Expires', $self->_date($expires) if $expires;
-    push @headers, 'Date', $self->_date if $expires or @cookies or $nph;
-    push @headers, 'Pragma', 'no-cache' if $query->cache;
+    $hash{'Set-Cookie'} = \@cookies if @cookies;
+    $hash{'Expires'}    = $self->_date($expires) if $expires;
+    $hash{'Date'}       = $self->_date if $expires or @cookies or $nph;
+    $hash{'Pragma'}     = 'no-cache' if $query->cache;
 
-    if ( my $attachment = delete $copy{attachment} ) {
+    if ( $attachment ) {
         my $value = qq{attachment; filename="$attachment"};
-        push @headers, 'Content-Disposition', $value;
+        $hash{'Content-Disposition'} = $value;
     }
-
-    push @headers, map { ucfirst $_, $copy{$_} } keys %copy;
 
     if ( !defined $type or $type ne q{} ) {
         $charset = $query->charset unless defined $charset;
         my $ct = $type || 'text/html';
         $ct .= "; charset=$charset" if $charset && $ct !~ /\bcharset\b/;
-        push @headers, 'Content-Type', $ct;
+        $hash{'Content-Type'} = $ct;
     }
 
-    +{ @headers };
+    \%hash;
 }
 
 sub _bake_cookie {

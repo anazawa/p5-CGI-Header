@@ -1,5 +1,9 @@
 Revision history for Perl extension CGI::Header.
 
+  [INCOMPATIBLE CHANGES]
+
+    - Remove flatten()
+
 0.44  Apr 9th, 2013
 
   [INCOMPATIBLE CHANGES]
