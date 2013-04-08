@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
-use Test::More tests => 18;
+use Test::More tests => 17;
 use Test::Warn;
 
 set_fixed_time '1341637509';
@@ -55,8 +55,3 @@ warning_is { $header{Expires} = '+3d' }
 %{ $header->header } = ();
 $header->expires( '+3d' );
 is_deeply $header->header, { expires => '+3d' };
-
-%{ $header->header } = ( date => $today );
-$header->expires( '+3d' );
-is_deeply $header->header, { expires => '+3d' };
-

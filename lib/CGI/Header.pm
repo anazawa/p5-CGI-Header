@@ -248,58 +248,11 @@ sub clone {
     ref( $self )->new( \%copy, $self->{query} );
 }
 
-sub _push {
-    my ( $self, $prop, @values ) = @_;
-
-    if ( my $value = $self->{header}->{$prop} ) {
-        return push @{$value}, @values if ref $value eq 'ARRAY';
-        unshift @values, $value;
-    }
-
-    $self->{header}->{$prop} = @values > 1 ? \@values : $values[0];
-
-    scalar @values;
-}
-
-sub push_p3p {
-    my $self = shift;
-    $self->_push( 'p3p', @_ );
-}
-
-sub push_cookie {
-    my $self = shift;
-    $self->_push( 'cookie', @_ );
-}
-
-BEGIN {
-    my @conflicts = (
-        attachment => [ 'content-disposition' ],
-        expires    => [ 'date' ],
-    );
-
-    while ( my ($method, $conflicts) = splice @conflicts, 0, 2 ) {
-        my $prop = "$method";
-        my $code = sub {
-            my $self   = shift;
-            my $header = $self->{header};
-    
-            if ( @_ ) {
-                my $value = shift;
-                delete @{ $header }{ @$conflicts } if $value;
-                $header->{ $prop } = $value;
-            }
-
-            $header->{ $prop };
-        };
-
-        no strict 'refs';
-        *{ $method } = $code;
-    }
-}
-
 BEGIN {
     my @props = qw(
+        attachment
         charset
+        expires
         location
         nph
         status
@@ -327,13 +280,19 @@ sub cookie {
         $self->{header}->{cookie} = @_ > 1 ? [ @_ ] : shift;
     }
     elsif ( my $cookie = $self->{header}->{cookie} ) {
-        return ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+        my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+        return @cookies;
     }
     else {
         return;
     }
 
     $self;
+}
+
+sub push_cookie {
+    my $self = shift;
+    push @{ $self->{header}->{cookie} }, @_;
 }
 
 sub p3p {
@@ -766,66 +725,6 @@ It's identical to:
   my %copy = %{ $header->header }; # shallow copy
   my $clone = CGI::Header->new( \%copy, $header->query );
 
-=item $filename = $header->attachment
-
-=item $header->attachment( $filename )
-
-Can be used to turn the page into an attachment.
-Represents suggested name for the saved file.
-
-  $header->attachment( 'genome.jpg' );
-  my $filename = $header->attachment; # => "genome.jpg"
-
-In this case, the outgoing header will be formatted as:
-
-  Content-Disposition: attachment; filename="genome.jpg"
-
-=item @tags = $header->p3p_tags
-
-=item $header->p3p_tags( @tags )
-
-This method will be renamed to C<p3p> in 0.41.
-
-Represents P3P tags. The parameter can be an array or a space-delimited
-string. Returns a list of P3P tags. (In scalar context,
-returns the number of P3P tags.)
-
-  $header->p3p_tags(qw/CAO DSP LAW CURa/);
-  # or
-  $header->p3p_tags( 'CAO DSP LAW CURa' );
-
-  my @tags = $header->p3p_tags; # => ("CAO", "DSP", "LAW", "CURa")
-  my $size = $header->p3p_tags; # => 4
-
-In this case, the outgoing header will be formatted as:
-
-  P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
-
-=item $format = $header->expires
-
-=item $header->expires( $format )
-
-The Expires header gives the date and time after which the entity
-should be considered stale. You can specify an absolute or relative
-expiration interval. The following forms are all valid for this field:
-
-  $header->expires( '+30s' ); # 30 seconds from now
-  $header->expires( '+10m' ); # ten minutes from now
-  $header->expires( '+1h'  ); # one hour from now
-  $header->expires( 'now'  ); # immediately
-  $header->expires( '+3M'  ); # in three months
-  $header->expires( '+10y' ); # in ten years time
-
-  # at the indicated time & date
-  $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
-
-=item $header->nph
-
-If set to a true value, will issue the correct headers to work
-with a NPH (no-parse-header) script.
-
-  $header->nph( 1 );
-
 =item @headers = $header->flatten
 
 Returns pairs of fields and values. 
@@ -856,36 +755,140 @@ If C<< $header->handler >> is set to C<none>, returns an empty string.
 
 =back
 
-=head2 TYING A HASH
+=head2 PROPERTIES
 
-  use CGI::Header;
+The following methods were named after propertyn ames recognized by
+CGI.pm's C<header> method. Most of these methods can both be used to
+read and to set the value of a property.
 
-  my $header = { type => 'text/plain' };
-  tie my %header => 'CGI::Header' => $header;
+If you pass an argument to the method, the property value will be set,
+and also the current object itself will be returned; therefore you can
+chain methods as follows:
 
-  # update $header
-  $header{'Content-Length'} = 3002;
-  delete $header{'Content-Disposition'};
-  %header = ();
+  $header->type('text/html')->charset('utf-8');
 
-  tied( %header )->header; # same reference as $header
+If no argument is supplied, the property value will returned.
+If the given property doesn't exist, C<undef> will be returned.
 
-Above methods are aliased as follows:
+=over 4
 
-  TIEHASH -> new
-  FETCH   -> get
-  STORE   -> set
-  DELETE  -> delete
-  CLEAR   -> clear
-  EXISTS  -> exists
+=item $self = $header->attachment( $filename )
 
-You can also iterate through the tied hash:
+=item $filename = $header->attachment
 
-  my @fields = keys %header;
-  my @values = values %header;
-  my ( $field, $value ) = each %header;
+Get or set the C<attachment> property.
+Can be used to turn the page into an attachment.
+Represents suggested name for the saved file.
 
-See also L<perltie>.
+  $header->attachment( 'genome.jpg' );
+  my $filename = $header->attachment; # => "genome.jpg"
+
+In this case, the outgoing header will be formatted as:
+
+  Content-Disposition: attachment; filename="genome.jpg"
+
+=item $self = $header->charset( $character_set )
+
+=item $character_set = $header->charset
+
+Get or set the C<charset> property. Represents the character set sent to
+the browser.
+
+=item $self = $header->cookie( @cookies )
+
+=item @cookies = $header->cookie
+
+Get or set the C<cookie> property.
+The parameter can be a list of L<CGI::Cookie> objects.
+
+=item $header->push_cookie( @cookie )
+
+Given a list of L<CGI::Cookie> objects, appends them to the C<cookie>
+property.
+
+=item $self = $header->expires
+
+=item $header->expires( $format )
+
+Get or set the C<expires> property.
+The Expires header gives the date and time after which the entity
+should be considered stale. You can specify an absolute or relative
+expiration interval. The following forms are all valid for this field:
+
+  $header->expires( '+30s' ); # 30 seconds from now
+  $header->expires( '+10m' ); # ten minutes from now
+  $header->expires( '+1h'  ); # one hour from now
+  $header->expires( 'now'  ); # immediately
+  $header->expires( '+3M'  ); # in three months
+  $header->expires( '+10y' ); # in ten years time
+
+  # at the indicated time & date
+  $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
+
+=item $self = $header->location( $url )
+
+=item $url = $header->location
+
+Get or set the Location header.
+
+  $header->location('http://somewhere.else/in/movie/land');
+
+=item $self = $header->nph( $bool )
+
+=item $bool = $header->nph
+
+Get or set the C<nph> property.
+If set to a true value, will issue the correct headers to work
+with a NPH (no-parse-header) script.
+
+  $header->nph(1);
+
+=item @tags = $header->p3p
+
+=item $self = $header->p3p( @tags )
+
+Get or set the C<p3p> property.
+The parameter can be an array or a space-delimited
+string. Returns a list of P3P tags. (In scalar context,
+returns the number of P3P tags.)
+
+  $header->p3p(qw/CAO DSP LAW CURa/);
+  # or
+  $header->p3p( 'CAO DSP LAW CURa' );
+
+  my @tags = $header->p3p; # => ("CAO", "DSP", "LAW", "CURa")
+  my $size = $header->p3p; # => 4
+
+In this case, the outgoing header will be formatted as:
+
+  P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
+
+=item $self = $header->status( $status )
+
+=item $status = $header->status
+
+Get or set the Status header.
+
+  $header->status('304 Not Modified');
+
+=item $self = $header->target( $window_target )
+
+=item $window_target = $header->target
+
+Get or set the Window-Target header.
+
+  $header->target('ResultsWindow');
+
+=item $self = $header->type( $media_type )
+
+=item $media_type = $header->type
+
+Get or set the C<type> property. Represents the media type of the message
+content.
+
+  $header->type('text/html');
+
+=back
 
 =head1 EXAMPLES
 

@@ -9,6 +9,7 @@ Revision history for Perl extension CGI::Header.
 
     - Remove CGI::Header::Redirect and t/31_cgi_redirect.t
     - Remove t/32_nph_pragma.t
+    - Remove push_p3p()
 
 0.41  Apr 8th, 2013
 
