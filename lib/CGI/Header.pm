@@ -177,8 +177,17 @@ sub cookie {
 }
 
 sub push_cookie {
-    my $self = shift;
-    push @{ $self->{header}->{cookie} }, @_;
+    my ( $self, @cookies ) = @_;
+    my $header = $self->{header};
+
+    if ( my $cookie = $header->{cookie} ) {
+        return push @{$cookie}, @cookies if ref $cookie eq 'ARRAY';
+        unshift @cookies, $cookie;
+    }
+
+    $header->{cookie} = @cookies > 1 ? \@cookies : $cookies[0];
+
+    scalar @cookies;
 }
 
 sub p3p {
