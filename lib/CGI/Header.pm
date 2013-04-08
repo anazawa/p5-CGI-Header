@@ -199,9 +199,6 @@ sub flatten {
         $copy{status} = '302 Found' if !defined $copy{status};
         $copy{type} = q{} if !exists $copy{type};
     }
-    elsif ( $handler eq 'none' ) {
-        return \@headers;
-    } 
 
     my ( $charset, $cookie, $expires, $nph, $status, $target, $type )
         = delete @copy{qw/charset cookie expires nph status target type/};
@@ -271,14 +268,8 @@ sub as_string {
             croak ref($query) . " is missing '$handler' method";
         }
     }
-    elsif ( $handler eq 'none' ) {
-        return q{};
-    }
-    else {
-        croak "Invalid handler '$handler'";
-    }
 
-    return;
+    croak "Invalid handler '$handler'";
 }
 
 1;
