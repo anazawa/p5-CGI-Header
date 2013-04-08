@@ -8,8 +8,6 @@ use Scalar::Util qw/blessed/;
 
 our $VERSION = '0.42';
 
-our $MODIFY = 'Modification of a read-only value attempted';
-
 my %Property_Alias = (
     'cookies'       => 'cookie',
     'content-type'  => 'type',
@@ -25,14 +23,6 @@ sub normalize_property_name {
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
     $Property_Alias{$prop} || $prop;
-}
-
-sub normalize_field_name {
-    my $class = shift;
-    my $field = lc shift;
-    $field =~ s/^-//;
-    $field =~ tr/_/-/;
-    $field;
 }
 
 sub time2str {
