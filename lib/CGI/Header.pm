@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.43';
+our $VERSION = '0.44';
 
 my %Property_Alias = (
     'cookies'       => 'cookie',
@@ -186,11 +186,11 @@ sub as_hashref {
 }
 
 sub flatten {
-    my $self  = shift;
-    my $level = defined $_[0] ? int shift : 1;
+    my $self    = shift;
+    my $level   = defined $_[0] ? int shift : 1;
     my $handler = $self->{handler};
-    my $query = $self->query;
-    my %copy  = %{ $self->{header} };
+    my $query   = $self->query;
+    my %copy    = %{ $self->{header} };
 
     my @headers;
 

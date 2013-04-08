@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.44  Apr 9th, 2013
+
   [INCOMPATIBLE CHANGES]
 
     - Revise new() entirely
