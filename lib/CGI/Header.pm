@@ -182,12 +182,7 @@ sub p3p {
 }
 
 sub as_hashref {
-    +{ $_[0]->flatten(0) };
-}
-
-sub flatten {
     my $self    = shift;
-    my $level   = defined $_[0] ? int shift : 1;
     my $handler = $self->{handler};
     my $query   = $self->query;
     my %copy    = %{ $self->{header} };
@@ -215,17 +210,9 @@ sub flatten {
     my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
        @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
-    if ( @cookies ) {
-        if ( $level == 0 ) {
-            push @headers, 'Set-Cookie', \@cookies;
-        }
-        else {
-            push @headers, map { ('Set-Cookie', $_) } @cookies;
-        }
-    }
-
+    push @headers, 'Set-Cookie', \@cookies if @cookies;
     push @headers, 'Expires', $self->_date($expires) if $expires;
-    push @headers, 'Date', $self->_date if $expires or $cookie or $nph;
+    push @headers, 'Date', $self->_date if $expires or @cookies or $nph;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( my $attachment = delete $copy{attachment} ) {
@@ -242,7 +229,7 @@ sub flatten {
         push @headers, 'Content-Type', $ct;
     }
 
-    @headers;
+    +{ @headers };
 }
 
 sub _bake_cookie {

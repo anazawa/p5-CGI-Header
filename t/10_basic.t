@@ -12,7 +12,7 @@ set_fixed_time( 1341637509 );
 
 can_ok 'CGI::Header', qw(
     new header query rehash clone clear delete exists get set
-    p3p expires nph attachment flatten
+    p3p expires nph attachment as_hashref
 );
 
 subtest 'new()' => sub {
@@ -147,16 +147,15 @@ subtest 'flatten()' => sub {
         },
     );
 
-    my @got = $header->flatten;
-    my @expected = (
+    my $got = $header->as_hashref;
+    my $expected = {
         'Status',         '304 Not Modified',
-        'Set-Cookie',     "$cookie1",
-        'Set-Cookie',     "$cookie2",
+        'Set-Cookie',     ["$cookie1", "$cookie2"],
         'Date',           CGI::Util::expires(),
         'Content-length', '12345',
         'Content-Type',   'text/html; charset=ISO-8859-1',
-    );
-    is_deeply \@got, \@expected, 'default';
+    };
+    is_deeply $got, $expected, 'default';
 };
 
 subtest 'as_string()' => sub {
