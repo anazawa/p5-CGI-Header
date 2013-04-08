@@ -134,8 +134,7 @@ sub delete {
 
 sub clear {
     my $self = shift;
-    %{ $self->{header} } = ( type => q{} );
-    $self->query->cache( 0 );
+    %{ $self->{header} } = ();
     $self;
 }
 
@@ -313,11 +312,6 @@ sub FIRSTKEY {
 }
 
 sub NEXTKEY { $_[0]->{iterator}->() }
-
-sub _has_date {
-    my $self = shift;
-    $self->{header}->{cookie} or $self->expires or $self->nph;
-}
 
 1;
 
@@ -677,8 +671,7 @@ Get or set the C<attachment> property.
 Can be used to turn the page into an attachment.
 Represents suggested name for the saved file.
 
-  $header->attachment( 'genome.jpg' );
-  my $filename = $header->attachment; # => "genome.jpg"
+  $header->attachment('genome.jpg');
 
 In this case, the outgoing header will be formatted as:
 
@@ -844,31 +837,31 @@ You can set the Content-Type header to neither undef nor an empty:
   $header->set( 'Content-Type' => undef );
   $header->set( 'Content-Type' => q{} );
 
-Use delete() instead:
+Set C<type> property to an empty string:
 
-  $header->delete('Content-Type');
+  $header->type(q{});
 
 =item Date
 
 If one of the following conditions is met, the Date header will be set
 automatically, and also the header field will become read-only:
 
-  if ( $header->nph or $header->get('Set-Cookie') or $header->expires ) {
-      my $date = $header->get('Date'); # => HTTP-Date (current time)
+  if ( $header->nph or $header->cookie or $header->expires ) {
+      my $date = $header->as_hashref->{'Date'}; # => HTTP-Date (current time)
       $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' ); # wrong
       $header->delete('Date'); # wrong
   }
 
 =item Expires
 
-You can't assign to the Expires header directly
+You shouldn't assign to the Expires header directly
 because the following behavior will surprise us:
 
-  # wrong
+  # confusing
   $header->set( 'Expires' => '+3d' );
 
   my $value = $header->get('Expires');
-  # => "Thu, 25 Apr 1999 00:40:33 GMT" (not "+3d")
+  # => "+3d" (not "Thu, 25 Apr 1999 00:40:33 GMT")
 
 Use expires() instead:
 
@@ -891,7 +884,7 @@ If the following condition is met, the Pragma header will be set
 automatically, and also the header field will become read-only:
 
   if ( $header->query->cache ) {
-      my $pragma = $header->get('Pragma'); # => 'no-cache'
+      my $pragma = $header->as_hashref->{'Pragma'}; # => 'no-cache'
       $header->set( 'Pragma' => 'no-cache' ); # wrong
       $header->delete('Pragma'); # wrong
   }
@@ -902,11 +895,11 @@ If the following condition is met, the Server header will be set
 automatically, and also the header field will become read-only: 
 
   if ( $header->nph ) {
-      my $server = $header->get('Server');
+      my $server = $header->as_hashref->{'Server'};
       # => $header->query->server_software
 
       $header->set( 'Server' => 'Apache/1.3.27 (Unix)' ); # wrong
-      $header->delete( 'Server' ); # wrong
+      $header->delete('Server'); # wrong
   }
 
 

@@ -99,7 +99,7 @@ subtest 'basic' => sub {
     # clear()
     %header = ( foo => 'bar' );
     is $header->clear, $header, "should return current object itself";
-    is_deeply \%header, { type => q{} }, 'should be empty';
+    is_deeply \%header, {}, 'should be empty';
 
     # set()
     %header = ();

@@ -30,9 +30,9 @@ ok %header;
 ok !%header;
 
 # CLEAR
-%{ $header->header } = ();
+%{ $header->header } = ( foo => 'bar' );
 %header = ();
-is_deeply $header->header, { type => q{} };
+is_deeply $header->header, {};
 
 # EXISTS
 %{ $header->header } = ( foo => 'bar', bar => undef );

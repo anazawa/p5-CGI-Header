@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
-use Test::More tests => 22;
+use Test::More tests => 20;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
