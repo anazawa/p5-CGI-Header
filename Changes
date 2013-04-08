@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.42  Apr 8th, 2013
+
   - Add handler() attribute which defaults to 'header'.
     If handler() is set to 'redirect', as_string() will invoke:
 
