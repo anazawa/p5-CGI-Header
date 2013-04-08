@@ -1,3 +1,4 @@
+.shipit
 Changes
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
@@ -14,7 +15,6 @@ META.yml
 README
 t/00_compile.t
 t/10_basic.t
-t/11_tie.t
 t/20_content_disposition.t
 t/21_content_type.t
 t/22_date.t
@@ -26,4 +26,6 @@ t/27_status.t
 t/28_pragma.t
 t/29_window_target.t
 t/30_cgi_header.t
+tools/benchmark.pl
+tools/profile.pl
 xt/pod.t

@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.43  Apr 8th, 2013
+
    [INCOMPATIBLE CHANGES]
 
     - Remove dispatch tables used by set() and delete()

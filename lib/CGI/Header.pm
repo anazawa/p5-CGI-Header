@@ -2,11 +2,10 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use Carp qw/carp croak/;
-use List::Util qw/first/;
+use Carp qw/croak/;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '0.42';
+our $VERSION = '0.43';
 
 my %Property_Alias = (
     'cookies'       => 'cookie',

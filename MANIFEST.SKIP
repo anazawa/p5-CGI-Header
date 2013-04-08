@@ -1,9 +1,0 @@
-\.shipit
-\.git/
-^MANIFEST\.
-^Makefile$
-\.old$
-tools/
-MYMETA
-^pm_to_blib
-^blib/
