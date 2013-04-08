@@ -5,7 +5,7 @@ use Test::More tests => 5;
 use Test::Warn;
 
 subtest 'default' => sub {
-    my $header = tie my %header, 'CGI::Header';
+    my $header = CGI::Header->new;
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=ISO-8859-1';
     ok exists $header->as_hashref->{'Content-Type'};
     #is delete $header{Content_Type}, 'text/html; charset=ISO-8859-1';
@@ -13,13 +13,13 @@ subtest 'default' => sub {
 };
 
 subtest '-type' => sub {
-    my $header = tie my %header, 'CGI::Header';
+    my $header = CGI::Header->new;
 
     %{ $header->header } = ( type => q{} );
-    is $header{'Content-Type'}, undef;
-    ok !exists $header{'Content-Type'};
-    is delete $header{'Content-Type'}, undef;
-    is_deeply $header->header, { type => q{} };
+    is $header->as_hashref->{'Content-Type'}, undef;
+    ok !exists $header->as_hashref->{'Content-Type'};
+    #is delete $header{'Content-Type'}, undef;
+    #is_deeply $header->header, { type => q{} };
 
     %{ $header->header } = ( type => 'text/plain' );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=ISO-8859-1';
@@ -28,7 +28,7 @@ subtest '-type' => sub {
     %{ $header->header } = ( -type => undef );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=ISO-8859-1';
     ok exists $header->as_hashref->{'Content-Type'};
-    ok %header;
+    #ok %header;
 
     %{ $header->header } = ( type => 'text/plain; charset=EUC-JP' );
     is $header->as_hashref->{'Content-Type'}, 'text/plain; charset=EUC-JP';
@@ -42,7 +42,7 @@ subtest '-type' => sub {
 };
 
 subtest '-charset' => sub {
-    my $header = tie my %header, 'CGI::Header';
+    my $header = CGI::Header->new;
 
     %{ $header->header } = ( charset => 'utf-8' );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=utf-8';
@@ -52,7 +52,7 @@ subtest '-charset' => sub {
 };
 
 subtest '-type and -charset' => sub {
-    my $header = tie my %header, 'CGI::Header';
+    my $header = CGI::Header->new;
 
     %{ $header->header } = ( type => undef, charset => 'utf-8' );
     is $header->as_hashref->{'Content-Type'}, 'text/html; charset=utf-8';
@@ -61,8 +61,8 @@ subtest '-type and -charset' => sub {
     #is delete $header{Content_Type}, 'text/plain; charset=utf-8';
     #is_deeply $header->header, { -type => q{} };
 
-    %{ $header->header } = ( -type => q{}, -charset => 'utf-8' );
-    is $header{Content_Type}, undef;
+    %{ $header->header } = ( type => q{}, charset => 'utf-8' );
+    is $header->as_hashref->{'Content-Type'}, undef;
 
     %{ $header->header } = (
         type    => 'text/plain; charset=euc-jp',

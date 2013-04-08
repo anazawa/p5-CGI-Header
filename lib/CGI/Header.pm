@@ -300,19 +300,6 @@ sub as_string {
     return;
 }
 
-BEGIN { # TODO: These methods can't be overridden
-    *TIEHASH = \&new;    *FETCH  = \&get;    *STORE = \&set;
-    *EXISTS  = \&exists; *DELETE = \&delete; *CLEAR = \&clear;    
-}
-
-sub FIRSTKEY {
-    my $self = shift;
-    my @fields = keys %{ $self->as_hashref };
-    ( $self->{iterator} = sub { shift @fields } )->();
-}
-
-sub NEXTKEY { $_[0]->{iterator}->() }
-
 1;
 
 __END__

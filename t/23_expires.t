@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI::Header;
-use Test::More tests => 16;
+use Test::More tests => 14;
 use Test::Warn;
 
 set_fixed_time '1341637509';
@@ -10,17 +10,17 @@ set_fixed_time '1341637509';
 my $today    = 'Sat, 07 Jul 2012 05:05:09 GMT';
 my $tomorrow = 'Sun, 08 Jul 2012 05:05:09 GMT';
 
-my $header = tie my %header, 'CGI::Header';
+my $header = CGI::Header->new;
 
 %{ $header->header } = ();
-ok !exists $header{Expires};
-is $header{Expires}, undef;
+ok !exists $header->as_hashref->{Expires};
+is $header->as_hashref->{Expires}, undef;
 is $header->expires, undef;
-is delete $header{Expires}, undef;
-is_deeply $header->header, {};
+#is delete $header{Expires}, undef;
+#is_deeply $header->header, {};
 
 %{ $header->header } = ( expires => '+1d' );
-ok exists $header{Expires};
+ok exists $header->as_hashref->{Expires};
 ok exists $header->as_hashref->{Date};
 is $header->as_hashref->{Expires}, $tomorrow;
 is $header->as_hashref->{Date}, $today;
@@ -33,9 +33,9 @@ is $header->expires, '+1d';
 
 %{ $header->header } = ( expires => q{} );
 ok !exists $header->as_hashref->{Expires};
-ok !exists $header{Date};
+ok !exists $header->as_hashref->{Date};
 is $header->as_hashref->{Expires}, undef;
-is $header{Date}, undef;
+is $header->as_hashref->{Date}, undef;
 is $header->expires, q{};
 #is delete $header{Expires}, undef;
 #is_deeply $header->header, {};
