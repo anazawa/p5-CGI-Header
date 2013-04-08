@@ -25,8 +25,8 @@ subtest 'default' => sub {
 subtest 'an empty string' => sub {
     my $header = tie my %header, 'CGI::Header', ( -cookie => q{} );
     is $header{Set_Cookie}, undef;
-    ok !exists $header{Set_Cookie};
-    is delete $header{Set_Cookie}, undef;
+    ok !exists $header->as_hashref->{Set_Cookie};
+    is delete $header{cookie}, q{};
     is_deeply $header->header, {};
 };
 

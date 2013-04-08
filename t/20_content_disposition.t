@@ -19,15 +19,15 @@ subtest '-attachment' => sub {
     is $header{'Content-Disposition'}, undef;
     ok !exists $header{'Content-Disposition'};
     is $header->attachment, undef;
-    is delete $header{'Content-Disposition'}, undef;
-    is_deeply $header->header, {};
+    #is delete $header{'Content-Disposition'}, undef;
+    #is_deeply $header->header, {};
 
     %{ $header->header } = ( attachment => q{} );
     is $header{'Content-Disposition'}, undef;
     ok !exists $header{'Content-Disposition'};
     is $header->attachment, q{};
-    is delete $header{'Content-Disposition'}, undef;
-    is_deeply $header->header, {};
+    #is delete $header{'Content-Disposition'}, undef;
+    #is_deeply $header->header, {};
 
     %{ $header->header } = ( attachment => 'genome.jpg' );
     is $header->as_hashref->{'Content-Disposition'}, 'attachment; filename="genome.jpg"';

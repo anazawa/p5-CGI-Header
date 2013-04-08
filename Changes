@@ -1,5 +1,9 @@
 Revision history for Perl extension CGI::Header.
 
+   [INCOMPATIBLE CHANGES]
+
+    - Remove dispatch tables used by set() and delete()
+
 0.42  Apr 8th, 2013
 
   - Add handler() attribute which defaults to 'header'.

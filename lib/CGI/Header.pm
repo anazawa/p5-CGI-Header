@@ -96,7 +96,7 @@ sub rehash {
         my $prop = lc $key;
            $prop =~ s/^-//;
            $prop =~ tr/_/-/;
-           $prop = $Property_Alias{$prop} || $prop;
+           $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
 
         next if $key eq $prop; # $key is normalized
 
@@ -126,60 +126,10 @@ sub exists {
     exists $self->{header}->{$field};
 }
 
-my %DELETE = (
-    'content-disposition' => sub {
-        my ( $self, $prop ) = @_;
-        delete @{ $self->{header} }{ $prop, 'attachment' };
-    },
-    'content-type' => sub {
-        my ( $self, $prop ) = @_;
-        delete $self->{header}->{charset};
-        $self->{header}->{type} = q{};
-    },
-    date => sub {
-        my ( $self, $prop ) = @_;
-        croak $MODIFY if $self->_has_date;
-        delete $self->{header}->{$prop};
-    },
-    expires => '_delete',
-    p3p => '_delete',
-    pragma => sub {
-        my ( $self, $prop ) = @_;
-        croak $MODIFY if $self->query->cache;
-        delete $self->{header}->{$prop};
-    },
-    server => sub {
-        my ( $self, $prop ) = @_;
-        croak $MODIFY if $self->nph;
-        delete $self->{header}->{$prop};
-    },
-    'set-cookie' => sub {
-        my ( $self, $prop ) = @_;
-        delete $self->{header}->{cookie};
-    },
-    status => '_delete',
-    'window-target' => sub {
-        my ( $self, $prop ) = @_;
-        delete $self->{header}->{target};
-    },
-);
-
 sub delete {
-    my $self  = shift;
-    my $field = $self->normalize_field_name( shift );
-
-    if ( my $delete = $DELETE{$field} ) {
-        my $value = defined wantarray && $self->get( $field );
-        $self->$delete( $field );
-        return $value;
-    }
-
+    my $self = shift;
+    my $field = lc shift;
     delete $self->{header}->{$field};
-}
-
-sub _delete {
-    my ( $self, $prop ) = @_;
-    delete $self->{header}->{$prop};
 }
 
 sub clear {
