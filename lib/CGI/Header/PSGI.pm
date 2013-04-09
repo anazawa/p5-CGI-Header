@@ -1,33 +1,64 @@
 package CGI::Header::PSGI;
 use strict;
 use warnings;
-use parent 'CGI::Header';
+use base 'CGI::Header';
+use Carp qw/croak/;
 
 our $VERSION = '0.06';
 
-sub finalize {
+sub new {
+    my $class = shift;
+    $class->SUPER::new( status => '200', @_ );
+}
+
+sub status {
+    my $self = shift;
+    return $self->{status} unless @_;
+    $self->{status} = shift;
+    $self;
+}
+
+sub rehash {
+    my $self = shift;
+    my $header = $self->SUPER::rehash->header;
+    $self->{status} = delete $header->{status} if exists $header->{status};
+    $self;
+}
+
+sub status_code {
+    my $self = shift;
+    my $code = $self->{status};
+    return '302' if $self->{handler} eq 'redirect' and !defined $code;
+    return '200' if !$code;
+    $code =~ s/\D*$//;
+    $code;
+}
+
+sub crlf {
+    $CGI::CRLF;
+}
+
+sub as_arrayref {
     my $self  = shift;
+    my $crlf  = $self->crlf;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
 
     if ( $self->{handler} eq 'redirect' ) {
         $copy{location} = $query->self_url if !$copy{location};
-        $copy{status} = '302 Found' if !defined $copy{status};
         $copy{type} = q{} if !exists $copy{type};
     }
 
-    my ( $charset, $cookie, $expires, $nph, $target, $type )
-        = delete @copy{qw/charset cookie expires nph target type/};
+    delete $copy{nph};
 
-    my $status = delete $copy{status} || '200';
-       $status =~ s/\D*$//;
+    my ( $attachment, $charset, $cookie, $expires, $p3p, $target, $type )
+        = delete @copy{qw/attachment charset cookie expires p3p target type/};
 
     my @headers;
 
-    push @headers, 'Server', $query->server_software if $nph or $query->nph;
     push @headers, 'Window-Target', $target if $target;
 
-    if ( my $p3p = delete $copy{p3p} ) {
+    if ( $p3p ) {
         my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
         push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
@@ -35,12 +66,12 @@ sub finalize {
     my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
        @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
-    push @headers, 'Set-Cookie', \@cookies if @cookies;
+    push @headers, map { ('Set-Cookie', $_) } @cookies;
     push @headers, 'Expires', $self->_date($expires) if $expires;
-    push @headers, 'Date', $self->_date if $expires or @cookies or $nph;
+    push @headers, 'Date', $self->_date if $expires or @cookies;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
-    if ( my $attachment = delete $copy{attachment} ) {
+    if ( $attachment ) {
         my $value = qq{attachment; filename="$attachment"};
         push @headers, 'Content-Disposition', $value;
     }
@@ -54,7 +85,24 @@ sub finalize {
         push @headers, 'Content-Type', $ct;
     }
 
-    $status, \@headers;
+    my @array;
+    while ( my ($field, $value) = splice @headers, 0, 2 ) {
+        # From RFC 822:
+        # Unfolding is accomplished by regarding CRLF immediately
+        # followed by a LWSP-char as equivalent to the LWSP-char.
+        $value =~ s/$crlf(\s)/$1/g;
+
+        # All other uses of newlines are invalid input.
+        if ( $value =~ /$crlf|\015|\012/ ) {
+            # shorten very long values in the diagnostic
+            $value = substr($value, 0, 72) . '...' if length $value > 72;
+            croak "Invalid header value contains a newline not followed by whitespace: $value";
+        }
+
+        push @array, $field, $value;
+    }
+
+    \@array;
 }
 
 sub _bake_cookie {
@@ -63,7 +111,6 @@ sub _bake_cookie {
 }
 
 sub _date {
-    require CGI::Util;
     CGI::Util::expires( $_[1], 'http' );
 }
 

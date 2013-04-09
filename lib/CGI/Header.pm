@@ -2,6 +2,7 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
+use CGI qw//;
 use Carp qw/croak/;
 
 our $VERSION = '0.44';
@@ -42,7 +43,6 @@ sub query {
 }
 
 sub _build_query {
-    require CGI;
     CGI::self_or_default();
 }
 
@@ -170,7 +170,7 @@ sub p3p {
     $self;
 }
 
-sub finalize {
+sub as_string {
     my $self    = shift;
     my $handler = $self->{handler};
     my $query   = $self->query;
