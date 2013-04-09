@@ -17,33 +17,11 @@ my %Property_Alias = (
 
 sub new {
     my $class = shift;
-
-    bless {
-        handler => 'header',
-        header => {},
-        @_
-    }, $class;
+    bless { header => {}, @_ }, $class;
 }
 
 sub header {
     $_[0]->{header};
-}
-
-sub handler {
-    my $self = shift;
-    return $self->{handler} unless @_;
-    $self->{handler} = shift;
-    $self;
-}
-
-sub query {
-    my $self = shift;
-    $self->{query} ||= $self->_build_query;
-}
-
-sub _build_query {
-    require CGI;
-    CGI::self_or_default();
 }
 
 sub rehash {
@@ -62,7 +40,7 @@ sub rehash {
 
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
-
+    
     $self;
 }
 
@@ -94,17 +72,6 @@ sub clear {
     my $self = shift;
     %{ $self->{header} } = ();
     $self;
-}
-
-sub clone {
-    my $self = shift;
-    my %copy = %{ $self->{header} };
-
-    ref($self)->new(
-        handler => $self->{handler},
-        header  => \%copy,
-        query   => $self->query,
-    );
 }
 
 BEGIN {
@@ -179,80 +146,6 @@ sub p3p {
     }
 
     $self;
-}
-
-sub as_hashref {
-    my $self  = shift;
-    my $query = $self->query;
-    my %hash  = %{ $self->{header} };
-
-    if ( $self->{handler} eq 'redirect' ) {
-        $hash{location} = $query->self_url if !$hash{location};
-        $hash{status} = '302 Found' if !defined $hash{status};
-        $hash{type} = q{} if !exists $hash{type};
-    }
-
-    my ( $attachment, $charset, $cookie, $expires, $nph, $p3p, $status, $target, $type )
-        = delete @hash{qw/attachment charset cookie expires nph p3p status target type/};
-
-    my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
-
-    %hash = map { ucfirst $_, $hash{$_} } keys %hash;
-
-    $hash{'Date'}          = $self->_date if $expires or @cookies or $nph;
-    $hash{'Expires'}       = $self->_date($expires) if $expires;
-    $hash{'Pragma'}        = 'no-cache' if $query->cache;
-    $hash{'Server'}        = $query->server_software if $nph or $query->nph;
-    $hash{'Set-Cookie'}    = \@cookies if @cookies;
-    $hash{'Status'}        = $status if $status;
-    $hash{'Window-Target'} = $target if $target;
-
-    if ( $p3p ) {
-        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
-        $hash{'P3P'} = qq{policyref="/w3c/p3p.xml", CP="$tags"};
-    }
-
-    if ( $attachment ) {
-        my $value = qq{attachment; filename="$attachment"};
-        $hash{'Content-Disposition'} = $value;
-    }
-
-    if ( !defined $type or $type ne q{} ) {
-        $charset = $query->charset unless defined $charset;
-        my $ct = $type || 'text/html';
-        $ct .= "; charset=$charset" if $charset && $ct !~ /\bcharset\b/;
-        $hash{'Content-Type'} = $ct;
-    }
-
-    \%hash;
-}
-
-sub _bake_cookie {
-    my ( $self, $cookie ) = @_;
-    ref $cookie eq 'CGI::Cookie' ? $cookie->as_string : $cookie;
-}
-
-sub _date {
-    require CGI::Util;
-    CGI::Util::expires( $_[1], 'http' );
-}
-
-sub as_string {
-    my $self    = shift;
-    my $handler = $self->{handler};
-    my $query   = $self->query;
-
-    if ( $handler eq 'header' or $handler eq 'redirect' ) {
-        if ( my $method = $query->can($handler) ) {
-            return $query->$method( $self->{header} );
-        }
-        else {
-            croak ref($query) . " is missing '$handler' method";
-        }
-    }
-
-    croak "Invalid handler '$handler'";
 }
 
 1;
@@ -490,7 +383,7 @@ Returns a copy of this CGI::Header object.
 
 =item $header->as_hashref
 
-Turn headers into hash reference.
+Turn headers into L<HTTP::Headers>-compatible hash reference.
 
 =item $header->as_string
 
