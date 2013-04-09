@@ -17,11 +17,33 @@ my %Property_Alias = (
 
 sub new {
     my $class = shift;
-    bless { header => {}, @_ }, $class;
+
+    bless {
+        handler => 'header',
+        header => {},
+        @_
+    }, $class;
 }
 
 sub header {
     $_[0]->{header};
+}
+
+sub handler {
+    my $self = shift;
+    return $self->{handler} unless @_;
+    $self->{handler} = shift;
+    $self;
+}
+
+sub query {
+    my $self = shift;
+    $self->{query} ||= $self->_build_query;
+}
+
+sub _build_query {
+    require CGI;
+    CGI::self_or_default();
 }
 
 sub rehash {
@@ -146,6 +168,23 @@ sub p3p {
     }
 
     $self;
+}
+
+sub finalize {
+    my $self    = shift;
+    my $handler = $self->{handler};
+    my $query   = $self->query;
+
+    if ( $handler eq 'header' or $handler eq 'redirect' ) {
+        if ( my $method = $query->can($handler) ) {
+            return $query->$method( $self->{header} );
+        }
+        else {
+            croak ref($self) . " is missing '$handler' method";
+        }
+    }
+
+    croak "Invalid handler '$handler'";
 }
 
 1;
