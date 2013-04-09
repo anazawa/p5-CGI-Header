@@ -195,24 +195,23 @@ sub as_hashref {
     my ( $attachment, $charset, $cookie, $expires, $nph, $p3p, $status, $target, $type )
         = delete @hash{qw/attachment charset cookie expires nph p3p status target type/};
 
+    my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
+       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
+
     %hash = map { ucfirst $_, $hash{$_} } keys %hash;
 
+    $hash{'Date'}          = $self->_date if $expires or @cookies or $nph;
+    $hash{'Expires'}       = $self->_date($expires) if $expires;
+    $hash{'Pragma'}        = 'no-cache' if $query->cache;
     $hash{'Server'}        = $query->server_software if $nph or $query->nph;
-    $hash{'Status'}        = $status                 if $status;
-    $hash{'Window-Target'} = $target                 if $target;
+    $hash{'Set-Cookie'}    = \@cookies if @cookies;
+    $hash{'Status'}        = $status if $status;
+    $hash{'Window-Target'} = $target if $target;
 
     if ( $p3p ) {
         my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
         $hash{'P3P'} = qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
-
-    my @cookies = ref $cookie eq 'ARRAY' ? @{$cookie} : $cookie;
-       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
-
-    $hash{'Set-Cookie'} = \@cookies if @cookies;
-    $hash{'Expires'}    = $self->_date($expires) if $expires;
-    $hash{'Date'}       = $self->_date if $expires or @cookies or $nph;
-    $hash{'Pragma'}     = 'no-cache' if $query->cache;
 
     if ( $attachment ) {
         my $value = qq{attachment; filename="$attachment"};
@@ -488,26 +487,10 @@ This will remove all header fields.
 =item $clone = $header->clone
 
 Returns a copy of this CGI::Header object.
-It's identical to:
-
-  my %copy = %{ $header->header }; # shallow copy
-  my $clone = CGI::Header->new( \%copy, $header->query );
-
-=item @headers = $header->flatten
-
-Returns pairs of fields and values. 
-
-  # $cookie1 and $cookie2 are CGI::Cookie objects
-  my $header = CGI::Header->new( cookie => [$cookie1, $cookie2] );
-
-  $header->flatten;
-  # => (
-  #     "Set-Cookie" => "$cookie1",
-  #     "Set-Cookie" => "$cookie2",
-  #     ...
-  # )
 
 =item $header->as_hashref
+
+Turn headers into hash reference.
 
 =item $header->as_string
 
