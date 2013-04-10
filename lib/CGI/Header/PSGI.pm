@@ -35,13 +35,9 @@ sub status_code {
     $code;
 }
 
-sub crlf {
-    $CGI::CRLF;
-}
-
 sub as_arrayref {
     my $self  = shift;
-    my $crlf  = $self->crlf;
+    my $crlf  = $self->_crlf;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
     my $nph   = delete $copy{nph} || $query->nph;
@@ -104,6 +100,10 @@ sub as_arrayref {
     }
 
     \@array;
+}
+
+sub _crlf {
+    $CGI::CRLF;
 }
 
 sub _bake_cookie {

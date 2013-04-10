@@ -5,7 +5,7 @@ use warnings;
 use CGI qw//;
 use Carp qw/croak/;
 
-our $VERSION = '0.44';
+our $VERSION = '0.45';
 
 my %Property_Alias = (
     'cookies'       => 'cookie',
