@@ -1,28 +1,427 @@
-This is Perl module CGI::Header.
+NAME
+    CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
-INSTALLATION
+SYNOPSIS
+      use CGI;
+      use CGI::Header;
 
-CGI::Header installation is straightforward.
-If your CPAN shell is set up, you should just be able to do
+      my $query = CGI->new;
 
-    % cpan CGI::Header
+      # CGI.pm-compatible HTTP header properties
+      my $header = {
+          attachment => 'foo.gif',
+          charset    => 'utf-7',
+          cookie     => [ $cookie1, $cookie2 ], # CGI::Cookie objects
+          expires    => '+3d',
+          nph        => 1,
+          p3p        => [qw/CAO DSP LAW CURa/],
+          target     => 'ResultsWindow',
+          type       => 'image/gif'
+      };
 
-Download it, unpack it, then build it as per the usual:
+      # create a CGI::Header object
+      my $h = CGI::Header->new(
+          header => $header,
+          query  => $query
+      );
 
-    % perl Makefile.PL
-    % make && make test
+      # update $header
+      $h->set( 'Content-Length' => 3002 ); # overwrite
+      $h->delete('Content-Disposition'); # => 3002
+      $h->clear; # => $self
 
-Then install it:
+      $h->header; # same reference as $header
 
-    % make install
+VERSION
+    This document refers to CGI::Header version 0.45.
 
-DOCUMENTATION
+DEPENDENCIES
+    This module is compatible with CGI.pm 3.51 or higher.
 
-CGI::Header documentation is available as in POD.
-So you can do:
+DESCRIPTION
+    This module is a utility class to manipulate a hash reference received
+    by CGI.pm's "header()" method.
 
-    % perldoc CGI::Header
+    This module isn't the replacement of the "CGI::header()" function, but
+    complements CGI.pm.
 
-to read the documentation online with your favorite pager.
+    This module can be used in the following situation:
 
-Ryo Anazawa
+    1. $header is a hash reference which represents CGI response headers
+        For example, CGI::Application implements "header_add()" method which
+        can be used to add CGI.pm-compatible HTTP header properties.
+        Instances of CGI applications often hold those properties.
+
+          my $header = { type => 'text/plain' };
+
+    2. Manipulates $header using CGI::Header
+        Since property names are case-insensitive, application developers
+        have to normalize them manually when they specify header properties.
+        CGI::Header normalizes them automatically.
+
+          use CGI::Header;
+
+          my $h = CGI::Header->new( header => $header );
+          $h->set( 'Content-Length' => 3002 ); # add Content-Length header
+
+          $header;
+          # => {
+          #     'type' => 'text/plain',
+          #     'content-length' => '3002',
+          # }
+
+    3. Passes $header to CGI::header() to stringify the variable
+          use CGI;
+
+          print CGI::header( $header );
+          # Content-length: 3002
+          # Content-Type: text/plain; charset=ISO-8859-1
+          #
+
+        "header()" function just stringifies given header properties. This
+        module can be used to generate PSGI-compatible header array
+        references. See CGI::Header::PSGI.
+
+  ATTRIBUTES
+    $query = $header->query
+        Returns your current query object. This attribute defaults to the
+        Singleton instance of CGI.pm ($CGI::Q) which is shared by functions
+        exported by the module.
+
+    $self = $header->handler('redirect')
+        Works like "CGI::Application"'s "header_type" method. This method
+        can be used to declare that you are setting a redirection header.
+        This attribute defaults to "header".
+
+          $header->handler('redirect')->as_string; # invokes $header->query->redirect
+
+    $hashref = $header->header
+        Returns the header hash reference associated with this CGI::Header
+        object. This attribute defaults to a reference to an empty hash. You
+        can always pass the header hash to "CGI::header()" function to
+        generate CGI response headers:
+
+          print CGI::header( $header->header );
+
+  METHODS
+    $self = $header->rehash
+        Rebuilds the header hash to normalize parameter names without
+        changing the reference. Returns this object itself. If parameter
+        names aren't normalized, the methods listed below won't work as you
+        expect.
+
+          my $h1 = $header->header;
+          # => {
+          #     '-content_type'   => 'text/plain',
+          #     'Set-Cookie'      => 'ID=123456; path=/',
+          #     'expires'         => '+3d',
+          #     '-target'         => 'ResultsWindow',
+          #     '-content-length' => '3002'
+          # }
+
+          $header->rehash;
+
+          my $h2 = $header->header; # same reference as $h1
+          # => {
+          #     'type'           => 'text/plain',
+          #     'cookie'         => 'ID=123456; path=/',
+          #     'expires'        => '+3d',
+          #     'target'         => 'ResultsWindow',
+          #     'content-length' => '3002'
+          # }
+
+        Normalized property names are:
+
+        1. lowercased
+              'Content-Length' -> 'content-length'
+
+        2. use dashes instead of underscores in property name
+              'content_length' -> 'content-length'
+
+        "CGI::header()" also accepts aliases of parameter names. This module
+        converts them as follows:
+
+         'content-type'  -> 'type'
+         'cookies'       -> 'cookie'
+         'set-cookie'    -> 'cookie'
+         'uri'           -> 'location'
+         'url'           -> 'location'
+         'window-target' -> 'target'
+
+        If a property name is duplicated, throws an exception:
+
+          $header->header;
+          # => {
+          #     -Type        => 'text/plain',
+          #     Content_Type => 'text/html',
+          # }
+
+          $header->rehash; # die "Property '-type' already exists"
+
+    $value = $header->get( $field )
+    $value = $header->set( $field => $value )
+        Get or set the value of the header field. The header field name
+        ($field) is not case sensitive.
+
+          # field names are case-insensitive
+          $header->get('Content-Length');
+          $header->get('content-length');
+
+        The $value argument must be a plain string:
+
+          $header->set( 'Content-Length' => 3002 );
+          my $length = $header->get('Content-Length'); # => 3002
+
+    $bool = $header->exists( $field )
+        Returns a Boolean value telling whether the specified field exists.
+
+          if ( $header->exists('ETag') ) {
+              ...
+          }
+
+    $value = $header->delete( $field )
+        Deletes the specified field form CGI response headers. Returns the
+        value of the deleted field.
+
+          my $value = $header->delete('Content-Disposition'); # => 'inline'
+
+    $self = $header->clear
+        This will remove all header fields.
+
+    $header->as_string
+        If "$header->handler" is set to "header", it's identical to:
+
+          $header->query->header( $header->header );
+
+        If "$header->handler" is set to "redirect", it's identical to:
+
+          $header->query->redirect( $header->header );
+
+  PROPERTIES
+    The following methods were named after property names recognized by
+    CGI.pm's "header" method. Most of these methods can both be used to read
+    and to set the value of a property.
+
+    If you pass an argument to the method, the property value will be set,
+    and also the current object itself will be returned; therefore you can
+    chain methods as follows:
+
+      $header->type('text/html')->charset('utf-8');
+
+    If no argument is supplied, the property value will returned. If the
+    given property doesn't exist, "undef" will be returned.
+
+    $self = $header->attachment( $filename )
+    $filename = $header->attachment
+        Get or set the "attachment" property. Can be used to turn the page
+        into an attachment. Represents suggested name for the saved file.
+
+          $header->attachment('genome.jpg');
+
+        In this case, the outgoing header will be formatted as:
+
+          Content-Disposition: attachment; filename="genome.jpg"
+
+    $self = $header->charset( $character_set )
+    $character_set = $header->charset
+        Get or set the "charset" property. Represents the character set sent
+        to the browser.
+
+    $self = $header->cookie( @cookies )
+    @cookies = $header->cookie
+        Get or set the "cookie" property. The parameter can be a list of
+        CGI::Cookie objects.
+
+    $header->push_cookie( @cookie )
+        Given a list of CGI::Cookie objects, appends them to the "cookie"
+        property.
+
+    $self = $header->expires
+    $header->expires( $format )
+        Get or set the "expires" property. The Expires header gives the date
+        and time after which the entity should be considered stale. You can
+        specify an absolute or relative expiration interval. The following
+        forms are all valid for this field:
+
+          $header->expires( '+30s' ); # 30 seconds from now
+          $header->expires( '+10m' ); # ten minutes from now
+          $header->expires( '+1h'  ); # one hour from now
+          $header->expires( 'now'  ); # immediately
+          $header->expires( '+3M'  ); # in three months
+          $header->expires( '+10y' ); # in ten years time
+
+          # at the indicated time & date
+          $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
+
+    $self = $header->location( $url )
+    $url = $header->location
+        Get or set the Location header.
+
+          $header->location('http://somewhere.else/in/movie/land');
+
+    $self = $header->nph( $bool )
+    $bool = $header->nph
+        Get or set the "nph" property. If set to a true value, will issue
+        the correct headers to work with a NPH (no-parse-header) script.
+
+          $header->nph(1);
+
+    @tags = $header->p3p
+    $self = $header->p3p( @tags )
+        Get or set the "p3p" property. The parameter can be an array or a
+        space-delimited string. Returns a list of P3P tags. (In scalar
+        context, returns the number of P3P tags.)
+
+          $header->p3p(qw/CAO DSP LAW CURa/);
+          # or
+          $header->p3p( 'CAO DSP LAW CURa' );
+
+          my @tags = $header->p3p; # => ("CAO", "DSP", "LAW", "CURa")
+          my $size = $header->p3p; # => 4
+
+        In this case, the outgoing header will be formatted as:
+
+          P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
+
+    $self = $header->status( $status )
+    $status = $header->status
+        Get or set the Status header.
+
+          $header->status('304 Not Modified');
+
+    $self = $header->target( $window_target )
+    $window_target = $header->target
+        Get or set the Window-Target header.
+
+          $header->target('ResultsWindow');
+
+    $self = $header->type( $media_type )
+    $media_type = $header->type
+        Get or set the "type" property. Represents the media type of the
+        message content.
+
+          $header->type('text/html');
+
+EXAMPLES
+  WRITING Blosxom PLUGINS
+    The following plugin just adds the Content-Length header to CGI response
+    headers sent by blosxom.cgi:
+
+      package content_length;
+      use CGI::Header;
+
+      sub start {
+          !$blosxom::static_entries;
+      }
+
+      sub last {
+          my $h = CGI::Header->new( $blosxom::header )->rehash;
+          $h->set( 'Content-Length' => length $blosxom::output );
+      }
+
+      1;
+
+    Since Blosxom <http://blosxom.sourceforge.net/> depends on the
+    procedural interface of CGI.pm, you don't have to pass $query to "new()"
+    in this case.
+
+  CONVERTING TO HTTP::Headers OBJECTS
+      use CGI::Header;
+      use HTTP::Headers;
+
+      my @header_props = ( type => 'text/plain', ... );
+      my $h = HTTP::Headers->new( CGI::Header->new(@header_props)->flatten );
+      $h->header( 'Content-Type' ); # => "text/plain"
+
+LIMITATIONS
+    Since the following strings conflict with property names, you can't use
+    them as field names ($field):
+
+      "Attachment"
+      "Charset"
+      "Cookie"
+      "Cookies"
+      "NPH"
+      "Target"
+      "Type"
+
+    Content-Type
+        You can set the Content-Type header to neither undef nor an empty:
+
+          # wrong
+          $header->set( 'Content-Type' => undef );
+          $header->set( 'Content-Type' => q{} );
+
+        Set "type" property to an empty string:
+
+          $header->type(q{});
+
+    Date
+        If one of the following conditions is met, the Date header will be
+        set automatically, and also the header field will become read-only:
+
+          if ( $header->nph or $header->cookie or $header->expires ) {
+              my $date = $header->as_hashref->{'Date'}; # => HTTP-Date (current time)
+              $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' ); # wrong
+              $header->delete('Date'); # wrong
+          }
+
+    Expires
+        You shouldn't assign to the Expires header directly because the
+        following behavior will surprise us:
+
+          # confusing
+          $header->set( 'Expires' => '+3d' );
+
+          my $value = $header->get('Expires');
+          # => "+3d" (not "Thu, 25 Apr 1999 00:40:33 GMT")
+
+        Use expires() instead:
+
+          $header->expires('+3d');
+
+    P3P You can't assign to the P3P header directly:
+
+          # wrong
+          $header->set( 'P3P' => '/path/to/p3p.xml' );
+
+        "CGI::header()" restricts where the policy-reference file is
+        located, and so you can't modify the location ("/w3c/p3p.xml").
+        You're allowed to set P3P tags using "p3p()".
+
+    Pragma
+        If the following condition is met, the Pragma header will be set
+        automatically, and also the header field will become read-only:
+
+          if ( $header->query->cache ) {
+              my $pragma = $header->as_hashref->{'Pragma'}; # => 'no-cache'
+              $header->set( 'Pragma' => 'no-cache' ); # wrong
+              $header->delete('Pragma'); # wrong
+          }
+
+    Server
+        If the following condition is met, the Server header will be set
+        automatically, and also the header field will become read-only:
+
+          if ( $header->nph ) {
+              my $server = $header->as_hashref->{'Server'};
+              # => $header->query->server_software
+
+              $header->set( 'Server' => 'Apache/1.3.27 (Unix)' ); # wrong
+              $header->delete('Server'); # wrong
+          }
+
+SEE ALSO
+    CGI, Plack::Util::headers(), HTTP::Headers
+
+BUGS
+    There are no known bugs in this module. Please report problems to
+    ANAZAWA (anazawa@cpan.org). Patches are welcome.
+
+AUTHOR
+    Ryo Anazawa (anazawa@cpan.org)
+
+LICENSE
+    This module is free software; you can redistibute it and/or modify it
+    under the same terms as Perl itself. See perlartistic.
+

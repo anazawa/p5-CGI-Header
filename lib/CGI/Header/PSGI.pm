@@ -116,3 +116,76 @@ sub _date {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+CGI::Header::PSGI - Generate PSGI-compatible response header arrayref
+
+=head1 SYNOPSIS
+
+  use CGI::PSGI;
+  use CGI::Header::PSGI;
+
+  my $app = sub {
+      my $env = shift;
+
+      my $header = CGI::Header::PSGI->new( query => CGI::PSGI->new($env) );
+        
+      ...
+
+      return [
+          $header->status_code,
+          $header->as_arrayref,
+          [ "Hello, World" ]
+      ];
+  };
+
+=head1 VERSION
+
+This document refers to CGI::Header::PSGI 0.06.
+
+=head1 DESCRIPTION
+
+This class inherits from L<CGI::Header>, and also overrides some methods
+to adapt your CGI.pm-based application for L<PSGI>-specification.
+
+This module doesn't care if your query class is orthogonal to
+a global variable C<%ENV>. For example, C<CGI::PSGI> adds the C<env>
+attribute to CGI.pm, and also overrides some methods which refer to C<%ENV>
+directly. This module doesn't solve those problems at all.
+In other words, this module requires your query class is orthogonal to
+C<%ENV>.
+
+=head2 METHODS
+
+This class adds the following methods to C<CGI::Header>.
+
+=over 4
+
+=item $header->status_code
+
+Returns HTTP status code.
+
+=item $header->as_arrayref
+
+Returns PSGI header array reference.
+
+=back
+
+=head1 SEE ALSO
+
+L<CGI::Emulate::PSGI>
+
+=head1 AUTHOR
+
+Ryo Anazawa (anazawa@cpan.org)
+
+=head1 LICENSE
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+=cut
+

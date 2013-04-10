@@ -1,8 +1,11 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add CGI::Header::PSGI to this distribution
+
   [INCOMPATIBLE CHANGES]
 
-    - Remove flatten()
+    - Rewrite test suite entirely
+    - Remove flatten() and as_hashref()
 
 0.44  Apr 9th, 2013
 

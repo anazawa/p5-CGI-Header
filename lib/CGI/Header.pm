@@ -229,7 +229,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.44.
+This document refers to CGI::Header version 0.45.
 
 =head1 DEPENDENCIES
 
@@ -416,14 +416,6 @@ Returns the value of the deleted field.
 
 This will remove all header fields.
 
-=item $clone = $header->clone
-
-Returns a copy of this CGI::Header object.
-
-=item $header->as_hashref
-
-Turn headers into L<HTTP::Headers>-compatible hash reference.
-
 =item $header->as_string
 
 If C<< $header->handler >> is set to C<header>, it's identical to:
@@ -433,8 +425,6 @@ If C<< $header->handler >> is set to C<header>, it's identical to:
 If C<< $header->handler >> is set to C<redirect>, it's identical to:
 
   $header->query->redirect( $header->header );
-
-If C<< $header->handler >> is set to C<none>, returns an empty string.
 
 =back
 
