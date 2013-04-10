@@ -7,8 +7,16 @@ use Carp qw/croak/;
 our $VERSION = '0.06';
 
 sub new {
-    my $class = shift;
-    $class->SUPER::new( status => '200', @_ );
+    my $class  = shift;
+    my $self   = $class->SUPER::new( @_ )->rehash;
+    my $header = $self->header;
+
+    if ( exists $header->{status} ) {
+        my $status = delete $header->{status};
+        $self->{status} = $status if !exists $self->{status};
+    }
+
+    $self;
 }
 
 sub status {
@@ -18,18 +26,11 @@ sub status {
     $self;
 }
 
-sub rehash {
-    my $self = shift;
-    my $header = $self->SUPER::rehash->header;
-    $self->{status} = delete $header->{status} if exists $header->{status};
-    $self;
-}
-
 sub status_code {
     my $self = shift;
     my $code = $self->{status};
-    return '302' if $self->{handler} eq 'redirect' and !defined $code;
-    return '200' if !$code;
+    $code = '302' if $self->{handler} eq 'redirect' and !defined $code;
+    $code = '200' if !$code;
     $code =~ s/\D*$//;
     $code;
 }
@@ -43,19 +44,19 @@ sub as_arrayref {
     my $crlf  = $self->crlf;
     my $query = $self->query;
     my %copy  = %{ $self->{header} };
+    my $nph   = delete $copy{nph} || $query->nph;
 
     if ( $self->{handler} eq 'redirect' ) {
         $copy{location} = $query->self_url if !$copy{location};
         $copy{type} = q{} if !exists $copy{type};
     }
 
-    delete $copy{nph};
-
     my ( $attachment, $charset, $cookie, $expires, $p3p, $target, $type )
         = delete @copy{qw/attachment charset cookie expires p3p target type/};
 
     my @headers;
 
+    push @headers, 'Server', $query->server_software if $nph;
     push @headers, 'Window-Target', $target if $target;
 
     if ( $p3p ) {
@@ -68,7 +69,7 @@ sub as_arrayref {
 
     push @headers, map { ('Set-Cookie', $_) } @cookies;
     push @headers, 'Expires', $self->_date($expires) if $expires;
-    push @headers, 'Date', $self->_date if $expires or @cookies;
+    push @headers, 'Date', $self->_date if $expires or @cookies or $nph;
     push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( $attachment ) {
