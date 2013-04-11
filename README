@@ -42,7 +42,7 @@ DESCRIPTION
     This module is a utility class to manipulate a hash reference received
     by CGI.pm's "header()" method.
 
-    This module isn't the replacement of the "CGI::header()" function, but
+    This module isn't the replacement of the "header()" method, but
     complements CGI.pm.
 
     This module can be used in the following situation:
@@ -50,7 +50,7 @@ DESCRIPTION
     1. $header is a hash reference which represents CGI response headers
         For example, CGI::Application implements "header_add()" method which
         can be used to add CGI.pm-compatible HTTP header properties.
-        Instances of CGI applications often hold those properties.
+        Instances of CGI.pm-based applications often hold those properties.
 
           my $header = { type => 'text/plain' };
 
@@ -79,7 +79,7 @@ DESCRIPTION
           #
 
         "header()" function just stringifies given header properties. This
-        module can be used to generate PSGI-compatible header array
+        module can be used to generate PSGI-compatible response header array
         references. See CGI::Header::PSGI.
 
   ATTRIBUTES
@@ -186,7 +186,7 @@ DESCRIPTION
           my $value = $header->delete('Content-Disposition'); # => 'inline'
 
     $self = $header->clear
-        This will remove all header fields.
+        This will remove all header properties.
 
     $header->as_string
         If "$header->handler" is set to "header", it's identical to:
@@ -315,7 +315,7 @@ EXAMPLES
       }
 
       sub last {
-          my $h = CGI::Header->new( $blosxom::header )->rehash;
+          my $h = CGI::Header->new( header => $blosxom::header )->rehash;
           $h->set( 'Content-Length' => length $blosxom::output );
       }
 
@@ -324,14 +324,6 @@ EXAMPLES
     Since Blosxom <http://blosxom.sourceforge.net/> depends on the
     procedural interface of CGI.pm, you don't have to pass $query to "new()"
     in this case.
-
-  CONVERTING TO HTTP::Headers OBJECTS
-      use CGI::Header;
-      use HTTP::Headers;
-
-      my @header_props = ( type => 'text/plain', ... );
-      my $h = HTTP::Headers->new( CGI::Header->new(@header_props)->flatten );
-      $h->header( 'Content-Type' ); # => "text/plain"
 
 LIMITATIONS
     Since the following strings conflict with property names, you can't use
@@ -361,24 +353,9 @@ LIMITATIONS
         set automatically, and also the header field will become read-only:
 
           if ( $header->nph or $header->cookie or $header->expires ) {
-              my $date = $header->as_hashref->{'Date'}; # => HTTP-Date (current time)
               $header->set( 'Date' => 'Thu, 25 Apr 1999 00:40:33 GMT' ); # wrong
               $header->delete('Date'); # wrong
           }
-
-    Expires
-        You shouldn't assign to the Expires header directly because the
-        following behavior will surprise us:
-
-          # confusing
-          $header->set( 'Expires' => '+3d' );
-
-          my $value = $header->get('Expires');
-          # => "+3d" (not "Thu, 25 Apr 1999 00:40:33 GMT")
-
-        Use expires() instead:
-
-          $header->expires('+3d');
 
     P3P You can't assign to the P3P header directly:
 
@@ -394,7 +371,6 @@ LIMITATIONS
         automatically, and also the header field will become read-only:
 
           if ( $header->query->cache ) {
-              my $pragma = $header->as_hashref->{'Pragma'}; # => 'no-cache'
               $header->set( 'Pragma' => 'no-cache' ); # wrong
               $header->delete('Pragma'); # wrong
           }
@@ -404,15 +380,12 @@ LIMITATIONS
         automatically, and also the header field will become read-only:
 
           if ( $header->nph ) {
-              my $server = $header->as_hashref->{'Server'};
-              # => $header->query->server_software
-
               $header->set( 'Server' => 'Apache/1.3.27 (Unix)' ); # wrong
               $header->delete('Server'); # wrong
           }
 
 SEE ALSO
-    CGI, Plack::Util::headers(), HTTP::Headers
+    CGI, HTTP::Headers
 
 BUGS
     There are no known bugs in this module. Please report problems to

@@ -1,7 +1,8 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 28;
+use Test::Exception;
+use Test::More tests => 25;
 
 my $header = CGI::Header->new;
 
@@ -16,20 +17,23 @@ is $header->delete('Foo'), 'bar';
 is $header->type('text/plain'), $header;
 is $header->type, 'text/plain';
 
-is $header->p3p(qw/CAO DSP LAW CURa/), $header;
-is_deeply [ $header->p3p ], [qw/CAO DSP LAW CURa/];
+#is $header->p3p(qw/CAO DSP LAW CURa/), $header;
+#is_deeply [ $header->p3p ], [qw/CAO DSP LAW CURa/];
 
 is $header->p3p('CAO DSP LAW CURa'), $header;
-is_deeply [ $header->p3p ], [qw/CAO DSP LAW CURa/];
+is $header->p3p, 'CAO DSP LAW CURa';
 
 is $header->status('304 Not Modified'), $header;
 is $header->status, '304 Not Modified';
 
-is $header->cookie(qw/cookie1 cookie2/), $header;
-is_deeply [ $header->cookie ], [qw/cookie1 cookie2/];
+#is $header->cookie([qw/cookie1 cookie2/]), $header;
+#is_deeply $header->cookie, [qw/cookie1 cookie2/];
 
-is $header->push_cookie(qw/cookie3 cookie4/), 4;
-is_deeply [ $header->cookie ], [qw/cookie1 cookie2 cookie3 cookie4/];
+is $header->push_cookie( riddle_name => "The Sphynx's Question" ), $header;
+is $header->cookie->name, 'riddle_name';
+
+throws_ok { $header->push_cookie }
+    qr{^Failed to create CGI::Cookie object};
 
 is $header->target('ResultsWindow'), $header;
 is $header->target, 'ResultsWindow';
