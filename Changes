@@ -1,5 +1,12 @@
 Revision history for Perl extension CGI::Header.
 
+0.46  Apr 11th, 2013
+
+  - Remove CGI::Header::PSGI from this distribution. Sorry for confusing
+    changes.
+  - Simplify cookie() and p3p()
+  - push_cookie() creates CGI::Cookie object automatically
+
 0.45  Apr 10th, 2013
 
   - Add CGI::Header::PSGI to this distribution and rewrite the module

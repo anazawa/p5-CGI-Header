@@ -1,13 +1,14 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::Exception;
-use Test::More tests => 25;
+use Test::More tests => 26;
 
 my $header = CGI::Header->new;
 
 isa_ok $header, 'CGI::Header';
 isa_ok $header->header, 'HASH';
+isa_ok $header->query, 'CGI';
+is $header->handler, 'header';
 
 is $header->set('Foo' => 'bar'), 'bar';
 is $header->get('Foo'), 'bar';
@@ -16,9 +17,6 @@ is $header->delete('Foo'), 'bar';
 
 is $header->type('text/plain'), $header;
 is $header->type, 'text/plain';
-
-#is $header->p3p(qw/CAO DSP LAW CURa/), $header;
-#is_deeply [ $header->p3p ], [qw/CAO DSP LAW CURa/];
 
 is $header->p3p('CAO DSP LAW CURa'), $header;
 is $header->p3p, 'CAO DSP LAW CURa';
@@ -31,9 +29,6 @@ is $header->status, '304 Not Modified';
 
 is $header->push_cookie( riddle_name => "The Sphynx's Question" ), $header;
 is $header->cookie->name, 'riddle_name';
-
-throws_ok { $header->push_cookie }
-    qr{^Failed to create CGI::Cookie object};
 
 is $header->target('ResultsWindow'), $header;
 is $header->target, 'ResultsWindow';

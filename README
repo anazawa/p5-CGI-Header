@@ -33,7 +33,7 @@ SYNOPSIS
       $h->header; # same reference as $header
 
 VERSION
-    This document refers to CGI::Header version 0.45.
+    This document refers to CGI::Header version 0.46.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -227,14 +227,16 @@ DESCRIPTION
         Get or set the "charset" property. Represents the character set sent
         to the browser.
 
-    $self = $header->cookie( @cookies )
-    @cookies = $header->cookie
-        Get or set the "cookie" property. The parameter can be a list of
-        CGI::Cookie objects.
+    $self = $header->cookie( $cookie )
+    $cookie = $header->cookie
+        Get or set the "cookie" property.
 
-    $header->push_cookie( @cookie )
-        Given a list of CGI::Cookie objects, appends them to the "cookie"
-        property.
+    $header->push_cookie({ name => $name, value => $value, ... })
+        The given argument will be passed to "$header->query->cookie" method
+        to create CGI::Cookie object. The object will be added to the
+        "cookie" property.
+
+          $header->push_cookie( riddle_name => "The Sphynx's Question" );
 
     $self = $header->expires
     $header->expires( $format )
@@ -266,18 +268,14 @@ DESCRIPTION
 
           $header->nph(1);
 
-    @tags = $header->p3p
-    $self = $header->p3p( @tags )
-        Get or set the "p3p" property. The parameter can be an array or a
-        space-delimited string. Returns a list of P3P tags. (In scalar
-        context, returns the number of P3P tags.)
+    $tags = $header->p3p
+    $self = $header->p3p( $tags )
+        Get or set the "p3p" property. The parameter can be an arrayref or a
+        space-delimited string.
 
-          $header->p3p(qw/CAO DSP LAW CURa/);
+          $header->p3p([qw/CAO DSP LAW CURa/]);
           # or
-          $header->p3p( 'CAO DSP LAW CURa' );
-
-          my @tags = $header->p3p; # => ("CAO", "DSP", "LAW", "CURa")
-          my $size = $header->p3p; # => 4
+          $header->p3p('CAO DSP LAW CURa');
 
         In this case, the outgoing header will be formatted as:
 

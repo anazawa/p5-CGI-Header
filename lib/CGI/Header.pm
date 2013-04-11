@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.45';
+our $VERSION = '0.46';
 
 my %Property_Alias = (
     'cookies'       => 'cookie',
@@ -128,10 +128,7 @@ sub push_cookie {
     my $cookie = $self->query->cookie( @_ );
     my $header = $self->{header};
 
-    if ( ref $cookie ne $self->_cookie_class ) {
-        croak "Failed to create " . $self->_cookie_class . " object";
-    }
-    elsif ( ref $header->{cookie} eq 'ARRAY' ) {
+    if ( ref $header->{cookie} eq 'ARRAY' ) {
         push @{ $header->{cookie} }, $cookie;
     }
     elsif ( exists $header->{cookie} ) {
@@ -144,26 +141,21 @@ sub push_cookie {
     $self;
 }
 
-sub _cookie_class { 'CGI::Cookie' }
-
 sub as_string {
     my $self    = shift;
     my $handler = $self->{handler};
-    my $query   = $self->query;
 
     if ( $handler eq 'header' or $handler eq 'redirect' ) {
-        if ( my $method = $query->can($handler) ) {
-            return $query->$method( $self->{header} );
-        }
-        else {
-            croak ref($self) . " is missing '$handler' method";
-        }
+        return $self->query->$handler( $self->{header} );
     }
     elsif ( $handler eq 'none' ) {
         return q{};
     }
+    else {
+        croak "Invalid handler '$handler'";
+    }
 
-    croak "Invalid handler '$handler'";
+    return;
 }
 
 1;
@@ -208,7 +200,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.45.
+This document refers to CGI::Header version 0.46.
 
 =head1 DEPENDENCIES
 
