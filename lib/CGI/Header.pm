@@ -10,8 +10,6 @@ my %Property_Alias = (
     'cookies'       => 'cookie',
     'content-type'  => 'type',
     'set-cookie'    => 'cookie',
-    'uri'           => 'location',
-    'url'           => 'location',
     'window-target' => 'target',
 );
 
@@ -19,7 +17,6 @@ sub new {
     my $class = shift;
 
     bless {
-        handler => 'header',
         header => {},
         @_
     }, $class;
@@ -27,13 +24,6 @@ sub new {
 
 sub header {
     $_[0]->{header};
-}
-
-sub handler {
-    my $self = shift;
-    return $self->{handler} unless @_;
-    $self->{handler} = shift;
-    $self;
 }
 
 sub query {
@@ -141,21 +131,16 @@ sub push_cookie {
     $self;
 }
 
+sub redirect {
+    my $self = shift;
+    return $self->{header}->{location} unless @_;
+    $self->{header}->{location} = shift;
+    $self->status( shift || '302 Found' );
+}
+
 sub as_string {
-    my $self    = shift;
-    my $handler = $self->{handler};
-
-    if ( $handler eq 'header' or $handler eq 'redirect' ) {
-        return $self->query->$handler( $self->{header} );
-    }
-    elsif ( $handler eq 'none' ) {
-        return q{};
-    }
-    else {
-        croak "Invalid handler '$handler'";
-    }
-
-    return;
+    my $self = shift;
+    $self->query->header( $self->{header} );
 }
 
 1;
@@ -268,14 +253,6 @@ array references. See L<CGI::Header::PSGI>.
 Returns your current query object. This attribute defaults to the Singleton
 instance of CGI.pm (C<$CGI::Q>) which is shared by functions exported by the module.
 
-=item $self = $header->handler('redirect')
-
-Works like C<CGI::Application>'s C<header_type> method.
-This method can be used to declare that you are setting a redirection
-header. This attribute defaults to C<header>.
-
-  $header->handler('redirect')->as_string; # invokes $header->query->redirect
-
 =item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
@@ -387,15 +364,16 @@ Returns the value of the deleted field.
 
 This will remove all header properties.
 
+=item $self = $header->redirect( $url[, $status] );
+
+Sets redirect URL with an optional status code and a human-readable
+message, which defaults to C<302 Found>.
+
 =item $header->as_string
 
-If C<< $header->handler >> is set to C<header>, it's identical to:
+It's identical to:
 
   $header->query->header( $header->header );
-
-If C<< $header->handler >> is set to C<redirect>, it's identical to:
-
-  $header->query->redirect( $header->header );
 
 =back
 
@@ -445,15 +423,14 @@ Get or set the C<cookie> property.
 
 =item $header->push_cookie({ name => $name, value => $value, ... })
 
-The given argument will be passed to C<< $header->query->cookie >> method
-to create L<CGI::Cookie> object. The object will be added to the C<cookie>
-property.
+Creates L<CGI::Cookie> object by passing the given argument to CGI.pm's
+C<cookie> method, and also adds the object to the C<cookie> property.
 
   $header->push_cookie( riddle_name => "The Sphynx's Question" );
 
-=item $self = $header->expires
+=item $self = $header->expires( $format )
 
-=item $header->expires( $format )
+=item $format = $header->expires
 
 Get or set the C<expires> property.
 The Expires header gives the date and time after which the entity

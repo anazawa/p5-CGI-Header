@@ -1,14 +1,14 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 26;
+use Test::More tests => 28;
 
 my $header = CGI::Header->new;
 
 isa_ok $header, 'CGI::Header';
 isa_ok $header->header, 'HASH';
 isa_ok $header->query, 'CGI';
-is $header->handler, 'header';
+#is $header->handler, 'header';
 
 is $header->set('Foo' => 'bar'), 'bar';
 is $header->get('Foo'), 'bar';
@@ -41,6 +41,10 @@ is $header->charset, 'utf-8';
 
 is $header->attachment('genome.jpg'), $header;
 is $header->attachment, 'genome.jpg';
+
+is $header->redirect('http://somewhere.else/in/movie/land'), $header;
+is $header->location, 'http://somewhere.else/in/movie/land';
+is $header->status, '302 Found';
 
 is $header->clear, $header;
 is_deeply $header->header, {};
