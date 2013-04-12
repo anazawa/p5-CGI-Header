@@ -7,9 +7,9 @@ use Carp qw/croak/;
 our $VERSION = '0.46';
 
 my %Property_Alias = (
-    'cookies'       => 'cookie',
+    'cookie'        => 'cookies',
     'content-type'  => 'type',
-    'set-cookie'    => 'cookie',
+    'set-cookie'    => 'cookies',
     'uri'           => 'location',
     'url'           => 'location',
     'window-target' => 'target',
@@ -92,7 +92,7 @@ BEGIN {
     my @props = qw(
         attachment
         charset
-        cookie
+        cookies
         expires
         location
         nph
@@ -113,24 +113,6 @@ BEGIN {
         no strict 'refs';
         *{$prop} = $code;
     }
-}
-
-sub push_cookie {
-    my $self   = shift;
-    my $cookie = $self->query->cookie( @_ );
-    my $header = $self->{header};
-
-    if ( ref $header->{cookie} eq 'ARRAY' ) {
-        push @{ $header->{cookie} }, $cookie;
-    }
-    elsif ( exists $header->{cookie} ) {
-        $header->{cookie} = [ $header->{cookie}, $cookie ];
-    }
-    else {
-        $header->{cookie} = $cookie;
-    }
-
-    $self;
 }
 
 sub redirect {
@@ -162,7 +144,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
   my $header = {
       attachment => 'foo.gif',
       charset    => 'utf-7',
-      cookie     => [ $cookie1, $cookie2 ], # CGI::Cookie objects
+      cookies    => [ $cookie1, $cookie2 ], # CGI::Cookie objects
       expires    => '+3d',
       nph        => 1,
       p3p        => [qw/CAO DSP LAW CURa/],
@@ -289,7 +271,7 @@ as you expect.
   my $h2 = $header->header; # same reference as $h1
   # => {
   #     'type'           => 'text/plain',
-  #     'cookie'         => 'ID=123456; path=/',
+  #     'cookies'        => 'ID=123456; path=/',
   #     'expires'        => '+3d',
   #     'target'         => 'ResultsWindow',
   #     'content-length' => '3002'
@@ -313,8 +295,8 @@ C<CGI::header()> also accepts aliases of parameter names.
 This module converts them as follows:
 
  'content-type'  -> 'type'
- 'cookies'       -> 'cookie'
- 'set-cookie'    -> 'cookie'
+ 'cookie'        -> 'cookies'
+ 'set-cookie'    -> 'cookies'
  'uri'           -> 'location'
  'url'           -> 'location'
  'window-target' -> 'target'
@@ -410,18 +392,11 @@ In this case, the outgoing header will be formatted as:
 Get or set the C<charset> property. Represents the character set sent to
 the browser.
 
-=item $self = $header->cookie( $cookie )
+=item $self = $header->cookies([ $cookie1, $cookie2, ... ])
 
-=item $cookie = $header->cookie
+=item $cookies = $header->cookies
 
-Get or set the C<cookie> property.
-
-=item $header->push_cookie({ name => $name, value => $value, ... })
-
-Creates L<CGI::Cookie> object by passing the given argument to CGI.pm's
-C<cookie> method, and also adds the object to the C<cookie> property.
-
-  $header->push_cookie( riddle_name => "The Sphynx's Question" );
+Get or set the C<cookies> property.
 
 =item $self = $header->expires( $format )
 

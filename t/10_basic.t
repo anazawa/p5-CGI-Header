@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 34;
+use Test::More tests => 31;
 
 my $header = CGI::Header->new(
     header => {
@@ -17,9 +17,9 @@ isa_ok $header->query, 'CGI';
 
 is $header->rehash, $header;
 is_deeply $header->header, {
-    'type'   => 'text/plain',
-    'cookie' => 'ID=123456; path=/',
-    'target' => 'ResultsWindow',
+    'type'    => 'text/plain',
+    'cookies' => 'ID=123456; path=/',
+    'target'  => 'ResultsWindow',
 };
 
 is $header->set('Foo' => 'bar'), 'bar';
@@ -36,12 +36,8 @@ is $header->p3p, 'CAO DSP LAW CURa';
 is $header->status('304 Not Modified'), $header;
 is $header->status, '304 Not Modified';
 
-is $header->cookie([qw/cookie1 cookie2/]), $header;
-is_deeply $header->cookie, [qw/cookie1 cookie2/];
-
-is $header->push_cookie( riddle_name => "The Sphynx's Question" ), $header;
-is $header->cookie->[-1]->name, 'riddle_name';
-is $header->cookie->[-1]->value, "The Sphynx's Question";
+is $header->cookies([qw/cookie1 cookie2/]), $header;
+is_deeply $header->cookies, [qw/cookie1 cookie2/];
 
 is $header->target('ResultsWindow'), $header;
 is $header->target, 'ResultsWindow';
