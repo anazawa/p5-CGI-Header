@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.47  Apr 12th, 2013
+
   - Remove handler() and add redirect() instead
   - Rename cookie() to cookies() since the "cookie" property can be an
     arrayref

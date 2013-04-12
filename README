@@ -11,7 +11,7 @@ SYNOPSIS
       my $header = {
           attachment => 'foo.gif',
           charset    => 'utf-7',
-          cookie     => [ $cookie1, $cookie2 ], # CGI::Cookie objects
+          cookies    => [ $cookie1, $cookie2 ], # CGI::Cookie objects
           expires    => '+3d',
           nph        => 1,
           p3p        => [qw/CAO DSP LAW CURa/],
@@ -33,7 +33,7 @@ SYNOPSIS
       $h->header; # same reference as $header
 
 VERSION
-    This document refers to CGI::Header version 0.46.
+    This document refers to CGI::Header version 0.47.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -88,13 +88,6 @@ DESCRIPTION
         Singleton instance of CGI.pm ($CGI::Q) which is shared by functions
         exported by the module.
 
-    $self = $header->handler('redirect')
-        Works like "CGI::Application"'s "header_type" method. This method
-        can be used to declare that you are setting a redirection header.
-        This attribute defaults to "header".
-
-          $header->handler('redirect')->as_string; # invokes $header->query->redirect
-
     $hashref = $header->header
         Returns the header hash reference associated with this CGI::Header
         object. This attribute defaults to a reference to an empty hash. You
@@ -124,7 +117,7 @@ DESCRIPTION
           my $h2 = $header->header; # same reference as $h1
           # => {
           #     'type'           => 'text/plain',
-          #     'cookie'         => 'ID=123456; path=/',
+          #     'cookies'        => 'ID=123456; path=/',
           #     'expires'        => '+3d',
           #     'target'         => 'ResultsWindow',
           #     'content-length' => '3002'
@@ -142,8 +135,8 @@ DESCRIPTION
         converts them as follows:
 
          'content-type'  -> 'type'
-         'cookies'       -> 'cookie'
-         'set-cookie'    -> 'cookie'
+         'cookie'        -> 'cookies'
+         'set-cookie'    -> 'cookies'
          'uri'           -> 'location'
          'url'           -> 'location'
          'window-target' -> 'target'
@@ -189,13 +182,9 @@ DESCRIPTION
         This will remove all header properties.
 
     $header->as_string
-        If "$header->handler" is set to "header", it's identical to:
+        It's identical to:
 
           $header->query->header( $header->header );
-
-        If "$header->handler" is set to "redirect", it's identical to:
-
-          $header->query->redirect( $header->header );
 
   PROPERTIES
     The following methods were named after property names recognized by
@@ -227,19 +216,12 @@ DESCRIPTION
         Get or set the "charset" property. Represents the character set sent
         to the browser.
 
-    $self = $header->cookie( $cookie )
-    $cookie = $header->cookie
-        Get or set the "cookie" property.
+    $self = $header->cookies([ $cookie1, $cookie2, ... ])
+    $cookies = $header->cookies
+        Get or set the "cookies" property.
 
-    $header->push_cookie({ name => $name, value => $value, ... })
-        The given argument will be passed to "$header->query->cookie" method
-        to create CGI::Cookie object. The object will be added to the
-        "cookie" property.
-
-          $header->push_cookie( riddle_name => "The Sphynx's Question" );
-
-    $self = $header->expires
-    $header->expires( $format )
+    $self = $header->expires( $format )
+    $format = $header->expires
         Get or set the "expires" property. The Expires header gives the date
         and time after which the entity should be considered stale. You can
         specify an absolute or relative expiration interval. The following
@@ -280,6 +262,12 @@ DESCRIPTION
         In this case, the outgoing header will be formatted as:
 
           P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
+
+    $self = $header->redirect( $url[, $status] );
+        Sets redirect URL with an optional status code and a human-readable
+        message, which defaults to "302 Found". Returns this object itself.
+
+          $header->redirect('http://somewhere.else/in/movie/land');
 
     $self = $header->status( $status )
     $status = $header->status
