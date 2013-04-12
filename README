@@ -311,6 +311,45 @@ EXAMPLES
     procedural interface of CGI.pm, you don't have to pass $query to "new()"
     in this case.
 
+  HANDLING HTTP COOKIES
+    It's up to you to decide how to manage HTTP cookies.
+
+      use parent 'CGI::Header';
+
+      # Add cookie() attribute which defaults a reference to an empty hash.
+      # The keys of the hash are the cookies' names, and their corresponding
+      # values are a plain string, e.g., "$header->cookie->{ID} = 123456"
+      sub cookie {
+          $_[0]->{cookie} ||= {};
+      }
+
+      sub as_string {
+          my $self = shift;
+
+          # Creates CGI::Cookie objects right before stringifying header props.
+          my @cookies;
+          while ( my ($name, $value) = each %{$self->cookie} ) {
+              push @cookies, $self->query->cookie( $name => $value );
+          }
+
+          $self->cookies( \@cookies )->SUPER::as_string;
+      }
+
+  CGI::Simple
+    Since CGI::Simple is "a relatively lightweight replacement drop in
+    replacement for CGI.pm", this module is compatible with the module. If
+    you're using the procedural interface of the module
+    (CGI::Simple::Standard), you need to override the "_build_query" method
+    as follows:
+
+      use parent 'CGI::Header';
+      use CGI::Simple::Standard;
+
+      sub _build_query {
+          # NOTE: loader() is implemented for debugging
+          CGI::Simple::Standard->loader('_cgi_object');
+      }
+
 LIMITATIONS
     Since the following strings conflict with property names, you can't use
     them as field names ($field):
