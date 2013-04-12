@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Remove handler() and add redirect() instead
+
 0.46  Apr 11th, 2013
 
   - Remove CGI::Header::PSGI from this distribution. Sorry for confusing

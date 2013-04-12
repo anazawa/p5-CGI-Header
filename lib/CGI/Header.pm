@@ -10,6 +10,8 @@ my %Property_Alias = (
     'cookies'       => 'cookie',
     'content-type'  => 'type',
     'set-cookie'    => 'cookie',
+    'uri'           => 'location',
+    'url'           => 'location',
     'window-target' => 'target',
 );
 
@@ -132,10 +134,8 @@ sub push_cookie {
 }
 
 sub redirect {
-    my $self = shift;
-    return $self->{header}->{location} unless @_;
-    $self->{header}->{location} = shift;
-    $self->status( shift || '302 Found' );
+    my ( $self, $url, $status ) = @_;
+    $self->status( $status || '302 Found' )->location( $url );
 }
 
 sub as_string {
@@ -364,11 +364,6 @@ Returns the value of the deleted field.
 
 This will remove all header properties.
 
-=item $self = $header->redirect( $url[, $status] );
-
-Sets redirect URL with an optional status code and a human-readable
-message, which defaults to C<302 Found>.
-
 =item $header->as_string
 
 It's identical to:
@@ -480,6 +475,13 @@ string.
 In this case, the outgoing header will be formatted as:
 
   P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
+
+=item $self = $header->redirect( $url[, $status] );
+
+Sets redirect URL with an optional status code and a human-readable
+message, which defaults to C<302 Found>. Returns this object itself.
+
+  $header->redirect('http://somewhere.else/in/movie/land');
 
 =item $self = $header->status( $status )
 
