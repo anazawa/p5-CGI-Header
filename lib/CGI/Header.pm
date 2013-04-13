@@ -523,10 +523,11 @@ It's up to you to decide how to manage HTTP cookies.
       $_[0]->{cookie} ||= {};
   }
 
+  # Override as_string() to create and set CGI::Cookie objects right before
+  # stringifying header props.
   sub as_string {
       my $self = shift;
 
-      # Creates CGI::Cookie objects right before stringifying header props.
       my @cookies;
       while ( my ($name, $value) = each %{$self->cookie} ) {
           push @cookies, $self->query->cookie( $name => $value );
@@ -535,9 +536,9 @@ It's up to you to decide how to manage HTTP cookies.
       $self->cookies( \@cookies )->SUPER::as_string;
   }
 
-=head2 CGI::Simple
+=head2 WORKING WITH CGI::Simple
 
-Since L<CGI::Simple> is "a relatively lightweight replacement drop in
+Since L<CGI::Simple> is "a relatively lightweight drop in
 replacement for CGI.pm", this module is compatible with the module.
 If you're using the procedural interface of the module
 (L<CGI::Simple::Standard>), you need to override the C<_build_query> method
@@ -547,7 +548,7 @@ as follows:
   use CGI::Simple::Standard;
 
   sub _build_query {
-      # NOTE: loader() is implemented for debugging
+      # NOTE: loader() is designed for debugging
       CGI::Simple::Standard->loader('_cgi_object');
   }
 
@@ -568,15 +569,13 @@ you can't use them as field names (C<$field>):
 
 =item Content-Type
 
-You can set the Content-Type header to neither undef nor an empty:
-
-  # wrong
-  $header->set( 'Content-Type' => undef );
-  $header->set( 'Content-Type' => q{} );
-
-Set C<type> property to an empty string:
+If you don't want to send the Content-Type header,
+set the C<type> property to an empty string, though it's far from intuitive
+manipulation:
 
   $header->type(q{});
+
+  $header->type(undef); # doesn't work as you expect
 
 =item Date
 
