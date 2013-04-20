@@ -10,8 +10,8 @@ my %Property_Alias = (
     'cookie'        => 'cookies',
     'content-type'  => 'type',
     'set-cookie'    => 'cookies',
-    'uri'           => 'location',
-    'url'           => 'location',
+    'uri'           => 'location', # for CGI#redirect
+    'url'           => 'location', # for CGI#redirect
     'window-target' => 'target',
 );
 
@@ -141,29 +141,26 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
   my $query = CGI->new;
 
   # CGI.pm-compatible HTTP header properties
-  my $header = {
-      attachment => 'foo.gif',
-      charset    => 'utf-7',
-      cookies    => [ $cookie1, $cookie2 ], # CGI::Cookie objects
-      expires    => '+3d',
-      nph        => 1,
-      p3p        => [qw/CAO DSP LAW CURa/],
-      target     => 'ResultsWindow',
-      type       => 'image/gif'
-  };
-
-  # create a CGI::Header object
-  my $h = CGI::Header->new(
-      header => $header,
-      query  => $query
+  my $header = CGI::Header->new(
+      query => $query,
+      header => {
+          attachment => 'foo.gif',
+          charset    => 'utf-7',
+          cookies    => [ $cookie1, $cookie2 ], # CGI::Cookie objects
+          expires    => '+3d',
+          nph        => 1,
+          p3p        => [qw/CAO DSP LAW CURa/],
+          target     => 'ResultsWindow',
+          type       => 'image/gif'
+      },
   );
 
   # update $header
-  $h->set( 'Content-Length' => 3002 ); # overwrite
-  $h->delete('Content-Disposition'); # => 3002
-  $h->clear; # => $self
+  $header->set( 'Content-Length' => 3002 ); # overwrite
+  $header->delete('Content-Disposition'); # => 3002
+  $header->clear; # => $self
 
-  $h->header; # same reference as $header
+  $header->as_string; # => "Content-Type: text/html\n..."
 
 =head1 VERSION
 
@@ -230,19 +227,18 @@ array references. See L<CGI::Header::PSGI>.
 
 =over 4
 
-=item $query = $header->query
+=item $header->query
 
 Returns your current query object. This attribute defaults to the Singleton
-instance of CGI.pm (C<$CGI::Q>) which is shared by functions exported by the module.
+instance of CGI.pm (C<$CGI::Q>), which is shared by functions exported
+by the module.
 
 =item $hashref = $header->header
 
 Returns the header hash reference associated with this CGI::Header object.
 This attribute defaults to a reference to an empty hash.
-You can always pass the header hash to C<CGI::header()> function
-to generate CGI response headers:
-
-  print CGI::header( $header->header );
+The hashref will be passed to CGI.pm's C<header> method to generate
+CGI response headers. See C<CGI::Header#as_string>.
 
 =back
 
@@ -252,9 +248,9 @@ to generate CGI response headers:
 
 =item $self = $header->rehash
 
-Rebuilds the header hash to normalize parameter names
+Rebuilds the header hash to normalize property names
 without changing the reference. Returns this object itself.
-If parameter names aren't normalized, the methods listed below won't work
+If property names aren't normalized, the methods listed below won't work
 as you expect.
 
   my $h1 = $header->header;
@@ -291,14 +287,12 @@ Normalized property names are:
 
 =back
 
-C<CGI::header()> also accepts aliases of parameter names.
+CGI.pm's C<header> method also accepts aliases of property names.
 This module converts them as follows:
 
  'content-type'  -> 'type'
  'cookie'        -> 'cookies'
  'set-cookie'    -> 'cookies'
- 'uri'           -> 'location'
- 'url'           -> 'location'
  'window-target' -> 'target'
 
 If a property name is duplicated, throws an exception:
