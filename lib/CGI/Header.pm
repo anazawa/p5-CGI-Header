@@ -10,8 +10,8 @@ my %Property_Alias = (
     'cookie'        => 'cookies',
     'content-type'  => 'type',
     'set-cookie'    => 'cookies',
-    'uri'           => 'location', # for CGI#redirect
-    'url'           => 'location', # for CGI#redirect
+    'uri'           => 'location', # for CGI::redirect()
+    'url'           => 'location', # for CGI::redirect()
     'window-target' => 'target',
 );
 
@@ -84,7 +84,7 @@ sub delete {
 
 sub clear {
     my $self = shift;
-    %{ $self->{header} } = ();
+    undef %{ $self->{header} };
     $self;
 }
 
