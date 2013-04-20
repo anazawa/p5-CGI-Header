@@ -16,4 +16,7 @@ META.yml
 README
 t/00_compile.t
 t/10_basic.t
+t/20_cookie.t
+t/21_cgi_simple.t
+t/22_blosxom.t
 xt/pod.t

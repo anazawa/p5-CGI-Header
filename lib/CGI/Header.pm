@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.47';
+our $VERSION = '0.48';
 
 my %Property_Alias = (
     'cookie'        => 'cookies',
@@ -89,7 +89,7 @@ sub clear {
 }
 
 BEGIN {
-    my @Property_Names = qw(
+    for my $method (qw/
         attachment
         charset
         cookies
@@ -100,18 +100,16 @@ BEGIN {
         status
         target
         type
-    );
-
-    for my $prop ( @Property_Names ) {
-        my $code = sub {
+    /) {
+        my $body = sub {
             my $self = shift;
-            return $self->{header}->{$prop} unless @_;
-            $self->{header}->{$prop} = shift;
+            return $self->{header}->{$method} unless @_;
+            $self->{header}->{$method} = shift;
             $self;
         };
 
         no strict 'refs';
-        *{$prop} = $code;
+        *{$method} = $body;
     }
 }
 
@@ -164,7 +162,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.47.
+This document refers to CGI::Header version 0.48.
 
 =head1 DEPENDENCIES
 

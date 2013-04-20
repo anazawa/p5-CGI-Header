@@ -11,7 +11,7 @@ sub run_blosxom {
     our $output = 'hello, world';
 
     my $plugin = 'my_plugin';
-    $plugin->last if $plugin->start;
+    $plugin->start && $plugin->last;
 
     CGI::header( $header ) . $output;
 }
