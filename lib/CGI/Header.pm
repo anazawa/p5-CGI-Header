@@ -7,15 +7,33 @@ use Carp qw/croak/;
 our $VERSION = '0.48';
 
 my %Property_Alias = (
-    'cookie'        => 'cookies',
     'content-type'  => 'type',
+    'cookie'        => 'cookies',
     'set-cookie'    => 'cookies',
     'window-target' => 'target',
 );
 
 sub new {
-    my $class  = shift;
-    my $self   = { header => {}, @_ };
+    my ( $class, @args ) = @_;
+    ( bless { header => {}, @args }, $class )->rehash;
+}
+
+sub header {
+    $_[0]->{header};
+}
+
+sub query {
+    my $self = shift;
+    $self->{query} ||= $self->_build_query;
+}
+
+sub _build_query {
+    require CGI;
+    CGI::self_or_default();
+}
+
+sub rehash {
+    my $self   = shift;
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
@@ -31,21 +49,7 @@ sub new {
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
-    bless $self, $class;
-}
-
-sub header {
-    $_[0]->{header};
-}
-
-sub query {
-    my $self = shift;
-    $self->{query} ||= $self->_build_query;
-}
-
-sub _build_query {
-    require CGI;
-    CGI::self_or_default();
+    $self;
 }
 
 sub get {
@@ -76,6 +80,12 @@ sub clear {
     my $self = shift;
     undef %{ $self->{header} };
     $self;
+}
+
+sub replace {
+    my $self = shift;
+    %{ $self->{header} } = @_;
+    $self->rehash;
 }
 
 BEGIN {
