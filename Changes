@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Remove rehash(). new() normalizes property names automatically.
+
 0.48 (RC-1.00) Apr 20th, 2013
 
   - Add EXAMPLES to POD

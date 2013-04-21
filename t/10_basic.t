@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 31;
+use Test::More tests => 30;
 
 my $header = CGI::Header->new(
     header => {
@@ -15,7 +15,6 @@ isa_ok $header, 'CGI::Header';
 isa_ok $header->header, 'HASH';
 isa_ok $header->query, 'CGI';
 
-is $header->rehash, $header;
 is_deeply $header->header, {
     'type'    => 'text/plain',
     'cookies' => 'ID=123456; path=/',

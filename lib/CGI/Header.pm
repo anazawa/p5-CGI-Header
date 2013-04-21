@@ -16,30 +16,9 @@ my %Property_Alias = (
 );
 
 sub new {
-    my $class = shift;
-
-    bless {
-        header => {},
-        @_
-    }, $class;
-}
-
-sub header {
-    $_[0]->{header};
-}
-
-sub query {
-    my $self = shift;
-    $self->{query} ||= $self->_build_query;
-}
-
-sub _build_query {
-    require CGI;
-    CGI::self_or_default();
-}
-
-sub rehash {
-    my $self   = shift;
+    my $class  = shift;
+    my @args   = @_ == 1 && ref $_[0] eq 'HASH' ? ( header => shift ) : @_;
+    my $self   = { header => {}, @args };
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
@@ -55,7 +34,21 @@ sub rehash {
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
-    $self;
+    bless $self, $class;
+}
+
+sub header {
+    $_[0]->{header};
+}
+
+sub query {
+    my $self = shift;
+    $self->{query} ||= $self->_build_query;
+}
+
+sub _build_query {
+    require CGI;
+    CGI::self_or_default();
 }
 
 sub get {
