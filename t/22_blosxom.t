@@ -22,7 +22,7 @@ use base 'CGI::Header';
 our $INSTANCE;
 
 sub instance {
-    $INSTANCE ||= $_[0]->SUPER::new( $blosxom::header );
+    $INSTANCE ||= $_[0]->SUPER::new( header => $blosxom::header );
 }
 
 package my_plugin;

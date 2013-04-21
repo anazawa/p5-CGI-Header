@@ -10,15 +10,12 @@ my %Property_Alias = (
     'cookie'        => 'cookies',
     'content-type'  => 'type',
     'set-cookie'    => 'cookies',
-    'uri'           => 'location', # for CGI::redirect()
-    'url'           => 'location', # for CGI::redirect()
     'window-target' => 'target',
 );
 
 sub new {
     my $class  = shift;
-    my @args   = @_ == 1 && ref $_[0] eq 'HASH' ? ( header => shift ) : @_;
-    my $self   = { header => {}, @args };
+    my $self   = { header => {}, @_ };
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
