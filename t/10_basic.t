@@ -2,32 +2,18 @@ use strict;
 use warnings;
 use CGI::Header;
 use Test::Exception;
-use Test::More tests => 30;
+use Test::More tests => 10;
 
 subtest 'CGI::Header#new' => sub {
-    my $header = CGI::Header->new(
-        header => {
-            '-Content_Type'  => 'text/plain',
-            '-Set_Cookie'    => 'ID=123456; path=/',
-            '-Window_Target' => 'ResultsWindow',
-        },
-    );
-
+    my $header = CGI::Header->new;
     isa_ok $header, 'CGI::Header';
     isa_ok $header->header, 'HASH';
     isa_ok $header->query, 'CGI';
-
-    is_deeply $header->header, {
-        'type'    => 'text/plain',
-        'cookies' => 'ID=123456; path=/',
-        'target'  => 'ResultsWindow',
-    };
 };
 
 subtest 'CGI::Header#rehash' => sub {
-    my $header = {};
+    my $header = { type => 'text/html' };
     my $h = CGI::Header->new( header => $header );
-    $h->type('text/html');
     $h->set( 'Content-Type' => 'text/plain' );
     throws_ok { $h->rehash } qr{^Property 'type' already exists};
 };
@@ -50,19 +36,6 @@ subtest 'header fields' => sub {
 
 subtest 'header props.' => sub {
     my $header = CGI::Header->new;
-
-    can_ok $header, qw(
-        attachment
-        charset
-        cookies
-        expires
-        location
-        nph
-        p3p
-        status
-        target
-        type
-    );
 
     is $header->attachment('genome.jpg'), $header;
     is $header->attachment, 'genome.jpg';
@@ -116,14 +89,32 @@ subtest 'CGI::Header#redirect' => sub {
 };
 
 subtest 'CGI::Header#clear' => sub {
-    my $header = { foo => 'bar' };
+    my $header = { type => 'text/html', charset => 'utf-8' };
     my $h = CGI::Header->new( header => $header );
-    is $h->clear, $h;
+    is $h->clear, $h, 'should return current object itself';
     ok $h->header == $header;
-    is_deeply $h->header, {};
+    is_deeply $h->header, {}, 'should be empty';
 };
 
 subtest 'CGI::Header#as_string' => sub {
     my $header = CGI::Header->new;
     like $header->as_string, qr{^Content-Type: text/html; charset=ISO-8859-1};
+};
+
+subtest 'CGI::Header#merge' => sub {
+    my $header = { type => 'text/plain', charset => 'utf-8' };
+    my $h = CGI::Header->new( header => $header );
+    is $h->merge( -Content_Type => 'text/html' ), $h;
+    ok $h->header == $header;
+    is_deeply $h->header, { type => 'text/html', charset => 'utf-8' };
+    throws_ok { $h->merge('type') } qr{^Odd number of elements passed};
+};
+
+subtest 'CGI::Header#replace' => sub {
+    my $header = { type => 'text/plain', charset => 'utf-8' };
+    my $h = CGI::Header->new( header => $header );
+    is $h->replace( -Content_Type => 'text/html' ), $h;
+    ok $h->header == $header;
+    is_deeply $h->header, { type => 'text/html' };
+    throws_ok { $h->replace('type') } qr{^Odd number of elements passed};
 };

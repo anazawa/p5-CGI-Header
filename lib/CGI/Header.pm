@@ -37,19 +37,44 @@ sub rehash {
     my $header = $self->{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = lc $key;
-           $prop =~ s/^-//;
-           $prop =~ tr/_/-/;
-           $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
-
+        my $prop = $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
-
         croak "Property '$prop' already exists" if exists $header->{$prop};
-
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
     $self;
+}
+
+sub merge {
+    my ( $self, @args ) = @_;
+
+    if ( @args % 2 == 0 ) {
+        my $header = $self->rehash->{header};
+        while ( my ($key, $value) = splice @args, 0, 2 ) {
+            my $prop = $self->_normalize( $key );
+            $header->{$prop} = $value; # overwrite
+        }
+    }
+    else {
+        croak 'Odd number of elements passed to merge()';
+    }
+
+    $self;
+}
+
+sub replace {
+    my ( $self, @args ) = @_;
+    $self->clear->merge( @args );
+}
+
+sub _normalize {
+    my $self = shift;
+    my $prop = lc shift;
+    $prop =~ s/^-//;
+    $prop =~ tr/_/-/;
+    $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
+    $prop;
 }
 
 sub get {
@@ -80,12 +105,6 @@ sub clear {
     my $self = shift;
     undef %{ $self->{header} };
     $self;
-}
-
-sub replace {
-    my $self = shift;
-    %{ $self->{header} } = @_;
-    $self->rehash;
 }
 
 BEGIN {
