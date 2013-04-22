@@ -13,9 +13,28 @@ my %Property_Alias = (
     'window-target' => 'target',
 );
 
+sub _normalize {
+    my $class = shift;
+    my $prop = lc shift;
+    $prop =~ s/^-//;
+    $prop =~ tr/_/-/;
+    $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
+    $prop;
+}
+
 sub new {
-    my ( $class, @args ) = @_;
-    ( bless { header => {}, @args }, $class )->rehash;
+    my $class  = shift;
+    my $self   = bless { header => {}, @_ }, $class;
+    my $header = $self->{header};
+
+    for my $key ( keys %{$header} ) {
+        my $prop = $self->_normalize( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+    }
+
+    $self;
 }
 
 sub header {
@@ -32,73 +51,28 @@ sub _build_query {
     CGI::self_or_default();
 }
 
-sub rehash {
-    my $self   = shift;
-    my $header = $self->{header};
-
-    for my $key ( keys %{$header} ) {
-        my $prop = $self->_normalize( $key );
-        next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
-    }
-
-    $self;
-}
-
-sub merge {
-    my ( $self, @args ) = @_;
-
-    if ( @args % 2 == 0 ) {
-        my $header = $self->rehash->{header};
-        while ( my ($key, $value) = splice @args, 0, 2 ) {
-            my $prop = $self->_normalize( $key );
-            $header->{$prop} = $value; # overwrite
-        }
-    }
-    else {
-        croak 'Odd number of elements passed to merge()';
-    }
-
-    $self;
-}
-
-sub replace {
-    my ( $self, @args ) = @_;
-    $self->clear->merge( @args );
-}
-
-sub _normalize {
-    my $self = shift;
-    my $prop = lc shift;
-    $prop =~ s/^-//;
-    $prop =~ tr/_/-/;
-    $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
-    $prop;
-}
-
 sub get {
-    my $self = shift;
-    my $field = lc shift;
-    $self->{header}->{$field};
+    my ( $self, $key ) = @_;
+    my $prop = $self->_normalize( $key );
+    $self->{header}->{$prop};
 }
 
 sub set {
-    my $self = shift;
-    my $field = lc shift;
-    $self->{header}->{$field} = shift;
+    my ( $self, $key, $value ) = @_;
+    my $prop = $self->_normalize( $key );
+    $self->{header}->{$prop} = $value;
 }
 
 sub exists {
-    my $self = shift;
-    my $field = lc shift;
-    exists $self->{header}->{$field};
+    my ( $self, $key, $value ) = @_;
+    my $prop = $self->_normalize( $key );
+    exists $self->{header}->{$prop};
 }
 
 sub delete {
-    my $self = shift;
-    my $field = lc shift;
-    delete $self->{header}->{$field};
+    my ( $self, $key, $value ) = @_;
+    my $prop = $self->_normalize( $key );
+    delete $self->{header}->{$prop};
 }
 
 sub clear {
@@ -263,64 +237,7 @@ CGI response headers. See C<CGI::Header#as_string>.
 
 =over 4
 
-=item $self = $header->rehash
 
-Rebuilds the header hash to normalize property names
-without changing the reference. Returns this object itself.
-If property names aren't normalized, the methods listed below won't work
-as you expect.
-
-  my $h1 = $header->header;
-  # => {
-  #     '-content_type'   => 'text/plain',
-  #     'Set-Cookie'      => 'ID=123456; path=/',
-  #     'expires'         => '+3d',
-  #     '-target'         => 'ResultsWindow',
-  #     '-content-length' => '3002'
-  # }
-
-  $header->rehash;
-
-  my $h2 = $header->header; # same reference as $h1
-  # => {
-  #     'type'           => 'text/plain',
-  #     'cookies'        => 'ID=123456; path=/',
-  #     'expires'        => '+3d',
-  #     'target'         => 'ResultsWindow',
-  #     'content-length' => '3002'
-  # }
-
-Normalized property names are:
-
-=over 4
-
-=item 1. lowercased
-
-  'Content-Length' -> 'content-length'
-
-=item 2. use dashes instead of underscores in property name
-
-  'content_length' -> 'content-length'
-
-=back
-
-CGI.pm's C<header> method also accepts aliases of property names.
-This module converts them as follows:
-
- 'content-type'  -> 'type'
- 'cookie'        -> 'cookies'
- 'set-cookie'    -> 'cookies'
- 'window-target' -> 'target'
-
-If a property name is duplicated, throws an exception:
-
-  $header->header;
-  # => {
-  #     -Type        => 'text/plain',
-  #     Content_Type => 'text/html',
-  # }
-
-  $header->rehash; # die "Property '-type' already exists"
 
 =item $value = $header->get( $field )
 
@@ -495,6 +412,41 @@ content.
   $header->type('text/html');
 
 =back
+
+=head2 NORMALIZING PROPERTY NAMES
+
+This class normalizes property names automatically.
+Normalized property names are
+
+=over 4
+
+=item 1. lowercased
+
+  'Content-Length' -> 'content-length'
+
+=item 2. use dashes instead of underscores in property name
+
+  'content_length' -> 'content-length'
+
+=back
+
+CGI.pm's C<header> method also accepts aliases of property names.
+This module converts them as follows:
+
+ 'content-type'  -> 'type'
+ 'cookie'        -> 'cookies'
+ 'set-cookie'    -> 'cookies'
+ 'window-target' -> 'target'
+
+If a property name is duplicated, throws an exception:
+
+  my $header = CGI::Header->new(
+      header => {
+          -Type        => 'text/plain',
+          Content_Type => 'text/html',
+      }
+  );
+  # die "Property '-type' already exists"
 
 =head1 EXAMPLES
 

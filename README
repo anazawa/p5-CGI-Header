@@ -92,58 +92,6 @@ DESCRIPTION
         response headers. See "CGI::Header#as_string".
 
   METHODS
-    $self = $header->rehash
-        Rebuilds the header hash to normalize property names without
-        changing the reference. Returns this object itself. If property
-        names aren't normalized, the methods listed below won't work as you
-        expect.
-
-          my $h1 = $header->header;
-          # => {
-          #     '-content_type'   => 'text/plain',
-          #     'Set-Cookie'      => 'ID=123456; path=/',
-          #     'expires'         => '+3d',
-          #     '-target'         => 'ResultsWindow',
-          #     '-content-length' => '3002'
-          # }
-
-          $header->rehash;
-
-          my $h2 = $header->header; # same reference as $h1
-          # => {
-          #     'type'           => 'text/plain',
-          #     'cookies'        => 'ID=123456; path=/',
-          #     'expires'        => '+3d',
-          #     'target'         => 'ResultsWindow',
-          #     'content-length' => '3002'
-          # }
-
-        Normalized property names are:
-
-        1. lowercased
-              'Content-Length' -> 'content-length'
-
-        2. use dashes instead of underscores in property name
-              'content_length' -> 'content-length'
-
-        CGI.pm's "header" method also accepts aliases of property names.
-        This module converts them as follows:
-
-         'content-type'  -> 'type'
-         'cookie'        -> 'cookies'
-         'set-cookie'    -> 'cookies'
-         'window-target' -> 'target'
-
-        If a property name is duplicated, throws an exception:
-
-          $header->header;
-          # => {
-          #     -Type        => 'text/plain',
-          #     Content_Type => 'text/html',
-          # }
-
-          $header->rehash; # die "Property '-type' already exists"
-
     $value = $header->get( $field )
     $value = $header->set( $field => $value )
         Get or set the value of the header field. The header field name
@@ -280,6 +228,34 @@ DESCRIPTION
         message content.
 
           $header->type('text/html');
+
+  NORMALIZING PROPERTY NAMES
+    This class normalizes property names automatically. Normalized property
+    names are
+
+    1. lowercased
+          'Content-Length' -> 'content-length'
+
+    2. use dashes instead of underscores in property name
+          'content_length' -> 'content-length'
+
+    CGI.pm's "header" method also accepts aliases of property names. This
+    module converts them as follows:
+
+     'content-type'  -> 'type'
+     'cookie'        -> 'cookies'
+     'set-cookie'    -> 'cookies'
+     'window-target' -> 'target'
+
+    If a property name is duplicated, throws an exception:
+
+      my $header = CGI::Header->new(
+          header => {
+              -Type        => 'text/plain',
+              Content_Type => 'text/html',
+          }
+      );
+      # die "Property '-type' already exists"
 
 EXAMPLES
   WRITING Blosxom PLUGINS

@@ -2,28 +2,28 @@ use strict;
 use warnings;
 use CGI::Header;
 use Test::Exception;
-use Test::More tests => 10;
+use Test::More tests => 9;
+
+subtest 'normalization' => sub {
+    my $class = 'CGI::Header';
+
+    my %data = (
+        '-Content_Type'  => 'type',
+        '-Cookie'        => 'cookies',
+        '-Set_Cookie'    => 'cookies',
+        '-Window_Target' => 'target',
+    );
+
+    while ( my ($input, $expected) = each %data ) {
+        is $class->_normalize($input), $expected;
+    }
+};
 
 subtest 'CGI::Header#new' => sub {
     my $header = CGI::Header->new;
     isa_ok $header, 'CGI::Header';
     isa_ok $header->header, 'HASH';
     isa_ok $header->query, 'CGI';
-};
-
-subtest 'CGI::Header#rehash' => sub {
-    my $header = { type => 'text/html' };
-    my $h = CGI::Header->new( header => $header );
-    $h->set( 'Content-Type' => 'text/plain' );
-    throws_ok { $h->rehash } qr{^Property 'type' already exists};
-};
-
-subtest 'CGI::Header#replace' => sub {
-    my $header = { type => 'text/html' };
-    my $h = CGI::Header->new( header => $header );
-    is $h->replace( -Content_Type => 'text/plain', -Charset => 'utf-8' ), $h;
-    ok $h->header == $header;
-    is_deeply $h->header, { type => 'text/plain', charset => 'utf-8' };
 };
 
 subtest 'header fields' => sub {
@@ -102,6 +102,7 @@ subtest 'CGI::Header#as_string' => sub {
 };
 
 subtest 'CGI::Header#merge' => sub {
+    plan skip_all => 'not implemented yet';
     my $header = { type => 'text/plain', charset => 'utf-8' };
     my $h = CGI::Header->new( header => $header );
     is $h->merge( -Content_Type => 'text/html' ), $h;
@@ -111,6 +112,7 @@ subtest 'CGI::Header#merge' => sub {
 };
 
 subtest 'CGI::Header#replace' => sub {
+    plan skip_all => 'not implemented yet';
     my $header = { type => 'text/plain', charset => 'utf-8' };
     my $h = CGI::Header->new( header => $header );
     is $h->replace( -Content_Type => 'text/html' ), $h;
