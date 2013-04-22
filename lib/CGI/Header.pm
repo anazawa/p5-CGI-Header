@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.48';
+our $VERSION = '0.49';
 
 my %Property_Alias = (
     'content-type'  => 'type',
@@ -24,17 +24,17 @@ sub _normalize {
 
 sub new {
     my $class  = shift;
-    my $self   = bless { header => {}, @_ }, $class;
-    my $header = $self->{header};
+    my %args   = ( header => {}, @_ );
+    my $header = $args{header};
 
     for my $key ( keys %{$header} ) {
-        my $prop = $self->_normalize( $key );
+        my $prop = $class->_normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
-    $self;
+    bless \%args, $class;
 }
 
 sub header {
@@ -155,7 +155,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.48.
+This document refers to CGI::Header version 0.49.
 
 =head1 DEPENDENCIES
 
@@ -236,8 +236,6 @@ CGI response headers. See C<CGI::Header#as_string>.
 =head2 METHODS
 
 =over 4
-
-
 
 =item $value = $header->get( $field )
 
@@ -416,7 +414,7 @@ content.
 =head2 NORMALIZING PROPERTY NAMES
 
 This class normalizes property names automatically.
-Normalized property names are
+Normalized property names are:
 
 =over 4
 
