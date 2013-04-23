@@ -138,7 +138,7 @@ DESCRIPTION
 
       $header->type('text/html')->charset('utf-8');
 
-    If no argument is supplied, the property value will returned. If the
+    If no argument is supplied, the property value will be returned. If the
     given property doesn't exist, "undef" will be returned.
 
     $self = $header->attachment( $filename )
@@ -338,7 +338,9 @@ LIMITATIONS
 
           $header->type(q{});
 
-          $header->type(undef); # doesn't work as you expect
+          # doesn't work as you expect
+          $header->delete('Content-Type');
+          $header->type(undef);
 
     Date
         If one of the following conditions is met, the Date header will be
