@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Tests don't depend on Test::Exception (Thanks to CPAN testers)
+
 0.49 (RC-1.00) Apr 22nd, 2013
 
   - Remove rehash(). new() normalizes property names automatically.

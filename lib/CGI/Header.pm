@@ -64,13 +64,13 @@ sub set {
 }
 
 sub exists {
-    my ( $self, $key, $value ) = @_;
+    my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
     exists $self->{header}->{$prop};
 }
 
 sub delete {
-    my ( $self, $key, $value ) = @_;
+    my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
     delete $self->{header}->{$prop};
 }
@@ -292,7 +292,7 @@ chain methods as follows:
 
   $header->type('text/html')->charset('utf-8');
 
-If no argument is supplied, the property value will returned.
+If no argument is supplied, the property value will be returned.
 If the given property doesn't exist, C<undef> will be returned.
 
 =over 4
@@ -536,7 +536,9 @@ manipulation:
 
   $header->type(q{});
 
-  $header->type(undef); # doesn't work as you expect
+  # doesn't work as you expect
+  $header->delete('Content-Type');
+  $header->type(undef);
 
 =item Date
 

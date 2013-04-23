@@ -13,7 +13,7 @@ sub as_string {
     my $self = shift;
 
     my @cookies;
-    while ( my ($name, $value) = each %{ $self->cookie } ) {
+    while ( my ($name, $value) = each %{$self->cookie} ) {
         push @cookies, $self->query->cookie( $name => $value );
     }
 

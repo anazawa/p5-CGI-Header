@@ -1,8 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::Exception;
-use Test::More tests => 9;
+use Test::More tests => 7;
 
 subtest 'normalization' => sub {
     my $class = 'CGI::Header';
@@ -99,24 +98,4 @@ subtest 'CGI::Header#clear' => sub {
 subtest 'CGI::Header#as_string' => sub {
     my $header = CGI::Header->new;
     like $header->as_string, qr{^Content-Type: text/html; charset=ISO-8859-1};
-};
-
-subtest 'CGI::Header#merge' => sub {
-    plan skip_all => 'not implemented yet';
-    my $header = { type => 'text/plain', charset => 'utf-8' };
-    my $h = CGI::Header->new( header => $header );
-    is $h->merge( -Content_Type => 'text/html' ), $h;
-    ok $h->header == $header;
-    is_deeply $h->header, { type => 'text/html', charset => 'utf-8' };
-    throws_ok { $h->merge('type') } qr{^Odd number of elements passed};
-};
-
-subtest 'CGI::Header#replace' => sub {
-    plan skip_all => 'not implemented yet';
-    my $header = { type => 'text/plain', charset => 'utf-8' };
-    my $h = CGI::Header->new( header => $header );
-    is $h->replace( -Content_Type => 'text/html' ), $h;
-    ok $h->header == $header;
-    is_deeply $h->header, { type => 'text/html' };
-    throws_ok { $h->replace('type') } qr{^Odd number of elements passed};
 };
