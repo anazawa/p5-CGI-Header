@@ -484,17 +484,27 @@ It's up to you to decide how to manage HTTP cookies.
       $_[0]->{cookie} ||= {};
   }
 
+  # The 'cookies' property defaults to an arrayref
+  sub cookies {
+      my $self = shift;
+      my $header = $self->header;
+      return $header->{cookies} ||= [] unless @_;
+      $header->{cookies} = ref $_[0] eq 'ARRAY' ? shift : [ @_ ];
+      $self;
+  }
+
   # Override as_string() to create and set CGI::Cookie objects right before
   # stringifying header props.
   sub as_string {
-      my $self = shift;
+      my $self    = shift;
+      my $query   = $self->query;
+      my $cookies = $self->cookies;
 
-      my @cookies;
       while ( my ($name, $value) = each %{$self->cookie} ) {
-          push @cookies, $self->query->cookie( $name => $value );
+          push @{$cookies}, $query->cookie( $name => $value );
       }
 
-      $self->cookies( \@cookies )->SUPER::as_string;
+      $self->SUPER::as_string;
   }
 
 =head2 WORKING WITH CGI::Simple
