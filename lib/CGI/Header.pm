@@ -486,11 +486,7 @@ It's up to you to decide how to manage HTTP cookies.
 
   # The 'cookies' property defaults to an arrayref
   sub cookies {
-      my $self = shift;
-      my $header = $self->header;
-      return $header->{cookies} ||= [] unless @_;
-      $header->{cookies} = ref $_[0] eq 'ARRAY' ? shift : [ @_ ];
-      $self;
+      $_[0]->header->{cookies} ||= [];
   }
 
   # Override as_string() to create and set CGI::Cookie objects right before

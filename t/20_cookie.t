@@ -10,11 +10,7 @@ sub cookie {
 }
 
 sub cookies {
-    my $self = shift;
-    my $header = $self->header;
-    return $header->{cookies} ||= [] unless @_;
-    $header->{cookies} = ref $_[0] eq 'ARRAY' ? shift : [ @_ ];
-    $self;
+    $_[0]->header->{cookies} ||= [];
 }
 
 sub as_string {
