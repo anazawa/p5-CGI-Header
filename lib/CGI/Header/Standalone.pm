@@ -18,7 +18,7 @@ sub as_hashref {
 
     if ( $nph ) {
         $response->{protocol} = $query->server_protocol;
-        @{$response}{qw/code message/} = split ' ', $status || '200 OK';
+        @{$response}{qw/code message/} = split ' ', $status || '200 OK', 2;
         push @$headers, 'Server', $query->server_software;
     }
 
@@ -68,34 +68,44 @@ sub _date {
 sub as_string {
     my $self     = shift;
     my $response = $self->as_hashref;
+    my @headers  = @{ $response->{headers} }; # copy
     my $crlf     = $self->_crlf;
 
     my @lines;
 
+    # add Status-Line
     if ( exists $response->{protocol} ) {
-        my $status_line = join ' ', @{$response}{qw/protocol code message/};
-        push @lines, $status_line;
+        push @lines, join ' ', @{$response}{qw/protocol code message/};
     }
 
-    while ( my ($field, $value) = splice @{$response->{headers}}, 0, 2 ) {
-        # CR escaping for values, per RFC 822:
-        # > Unfolding is accomplished by regarding CRLF immediately
-        # > followed by a LWSP-char as equivalent to the LWSP-char.
-        $value =~ s/$crlf(\s)/$1/g;
-
-        # All other uses of newlines are invalid input.
-        if ( $value =~ /$crlf|\015|\012/ ) {
-            # shorten very long values in the diagnostic
-            $value = substr($value, 0, 72) . '...' if length $value > 72;
-            croak "Invalid header value contains a newline not followed by whitespace: $value";
-        }
-
-        push @lines, "$field: $value";
+    # add response headers
+    while ( my ($field, $value) = splice @headers, 0, 2 ) {
+        push @lines, $field . ': ' . $self->_process_newline( $value );
     }
 
     push @lines, q{}; # add an empty line
 
     join $crlf, @lines, q{};
+}
+
+sub _process_newline {
+    my $self  = shift;
+    my $value = shift;
+    my $crlf  = $self->_crlf;
+
+    # CR escaping for values, per RFC 822:
+    # > Unfolding is accomplished by regarding CRLF immediately
+    # > followed by a LWSP-char as equivalent to the LWSP-char.
+    $value =~ s/$crlf(\s)/$1/g;
+
+    # All other uses of newlines are invalid input.
+    if ( $value =~ /$crlf|\015|\012/ ) {
+        # shorten very long values in the diagnostic
+        $value = substr($value, 0, 72) . '...' if length $value > 72;
+        croak "Invalid header value contains a newline not followed by whitespace: $value";
+    }
+
+    $value;
 }
 
 sub _crlf {
