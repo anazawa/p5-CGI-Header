@@ -23,9 +23,7 @@ my $header = CGI::Header::Standalone->new(
     },
 );
 
-isa_ok $header, 'CGI::Header';
-
-is_deeply $header->as_hashref, {
+is_deeply $header->_finalize, {
     protocol => 'HTTP/1.0',
     code => '304',
     message => 'Not Modified',

@@ -4,7 +4,29 @@ use warnings;
 use parent 'CGI::Header';
 use Carp qw/croak/;
 
-sub as_hashref {
+sub as_string {
+    my $self     = shift;
+    my $response = $self->_finalize;
+    my $headers  = $response->{headers};
+
+    my @lines;
+
+    # add Status-Line
+    if ( exists $response->{protocol} ) {
+        push @lines, join ' ', @{$response}{qw/protocol code message/};
+    }
+
+    # add response headers
+    while ( my ($field, $value) = splice @$headers, 0, 2 ) {
+        push @lines, $field . ': ' . $self->_process_newline( $value );
+    }
+
+    push @lines, q{}; # add an empty line
+
+    join $self->_crlf, @lines, q{};
+}
+
+sub _finalize {
     my $self   = shift;
     my $query  = $self->query;
     my %header = %{ $self->header };
@@ -63,29 +85,6 @@ sub _bake_cookie {
 sub _date {
     my ( $self, $expires ) = @_;
     CGI::Util::expires( $expires, 'http' );
-}
-
-sub as_string {
-    my $self     = shift;
-    my $response = $self->as_hashref;
-    my @headers  = @{ $response->{headers} }; # copy
-    my $crlf     = $self->_crlf;
-
-    my @lines;
-
-    # add Status-Line
-    if ( exists $response->{protocol} ) {
-        push @lines, join ' ', @{$response}{qw/protocol code message/};
-    }
-
-    # add response headers
-    while ( my ($field, $value) = splice @headers, 0, 2 ) {
-        push @lines, $field . ': ' . $self->_process_newline( $value );
-    }
-
-    push @lines, q{}; # add an empty line
-
-    join $crlf, @lines, q{};
 }
 
 sub _process_newline {
