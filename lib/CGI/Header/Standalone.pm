@@ -52,12 +52,13 @@ sub _finalize {
         push @$headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
-    my @cookies = ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies;
-       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
+    for my $raw ( ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies ) {
+        my $baked = $self->_bake_cookie( $raw );
+        push @$headers, 'Set-Cookie', $baked if $baked;
+    }
 
-    push @$headers, map { ('Set-Cookie', $_) } @cookies;
     push @$headers, 'Expires', $self->_date($expires) if $expires;
-    push @$headers, 'Date', $self->_date if $expires or @cookies or $nph;
+    push @$headers, 'Date', $self->_date if $expires or $cookies or $nph;
     push @$headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( $attachment ) {
