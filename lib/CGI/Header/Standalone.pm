@@ -4,46 +4,71 @@ use warnings;
 use parent 'CGI::Header';
 use Carp qw/croak/;
 
+sub _crlf {
+    $CGI::CRLF;
+}
+
 sub as_string {
     my $self     = shift;
     my $response = $self->_finalize;
-    my $headers  = $response->{headers};
+    my $crlf     = $self->_crlf; # CGI.pm should be loaded
 
     my @lines;
 
-    # add Status-Line
+    # add Status-Line required by NPH scripts
     if ( exists $response->{protocol} ) {
-        push @lines, join ' ', @{$response}{qw/protocol code message/};
+        my ($protocol, $status) = @{$response}{qw/protocol status/};
+        push @lines, "$protocol $status$crlf";
     }
 
     # add response headers
-    while ( my ($field, $value) = splice @$headers, 0, 2 ) {
-        push @lines, $field . ': ' . $self->_process_newline( $value );
+    my $headers = $response->{headers};
+    for ( my $i = 0; $i < @$headers; $i += 2 ) {
+        my $field = $headers->[$i];
+        my $value = $self->_process_newline( $headers->[$i+1] );
+        push @lines, "$field: $value$crlf";
     }
 
-    push @lines, q{}; # add an empty line
+    push @lines, $crlf; # add an empty line
 
-    join $self->_crlf, @lines, q{};
+    join q{}, @lines;
+}
+
+sub _process_newline {
+    my $self  = shift;
+    my $value = shift;
+    my $crlf  = $self->_crlf;
+
+    # CR escaping for values, per RFC 822:
+    # > Unfolding is accomplished by regarding CRLF immediately
+    # > followed by a LWSP-char as equivalent to the LWSP-char.
+    $value =~ s/$crlf(\s)/$1/g;
+
+    # All other uses of newlines are invalid input.
+    if ( $value =~ /$crlf|\015|\012/ ) {
+        # shorten very long values in the diagnostic
+        $value = substr($value, 0, 72) . '...' if length $value > 72;
+        croak "Invalid header value contains a newline not followed by whitespace: $value";
+    }
+
+    $value;
 }
 
 sub _finalize {
-    my $self   = shift;
-    my $query  = $self->query;
-    my %header = %{ $self->header };
-    my $nph    = delete $header{nph} || $query->nph;
-
+    my $self     = shift;
+    my $query    = $self->query;
+    my %header   = %{ $self->header };
+    my $nph      = delete $header{nph} || $query->nph;
     my $headers  = [];
     my $response = { headers => $headers };
 
     my ( $attachment, $charset, $cookies, $expires, $p3p, $status, $target, $type )
         = delete @header{qw/attachment charset cookies expires p3p status target type/};
 
-    if ( $nph ) {
-        $response->{protocol} = $query->server_protocol;
-        @{$response}{qw/code message/} = split ' ', $status || '200 OK', 2;
-        push @$headers, 'Server', $query->server_software;
-    }
+    $response->{protocol} = $query->server_protocol if $nph;
+    $response->{status}   = $status || '200 OK' if $nph;
 
+    push @$headers, 'Server', $query->server_software if $nph;
     push @$headers, 'Status', $status if $status;
     push @$headers, 'Window-Target', $target if $target;
 
@@ -52,13 +77,12 @@ sub _finalize {
         push @$headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
-    for my $raw ( ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies ) {
-        my $baked = $self->_bake_cookie( $raw );
-        push @$headers, 'Set-Cookie', $baked if $baked;
-    }
+    my @cookies = ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies;
+       @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
+    push @$headers, map { ('Set-Cookie', $_) } @cookies;
     push @$headers, 'Expires', $self->_date($expires) if $expires;
-    push @$headers, 'Date', $self->_date if $expires or $cookies or $nph;
+    push @$headers, 'Date', $self->_date if $expires or @cookies or $nph;
     push @$headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( $attachment ) {
@@ -86,30 +110,6 @@ sub _bake_cookie {
 sub _date {
     my ( $self, $expires ) = @_;
     CGI::Util::expires( $expires, 'http' );
-}
-
-sub _process_newline {
-    my $self  = shift;
-    my $value = shift;
-    my $crlf  = $self->_crlf;
-
-    # CR escaping for values, per RFC 822:
-    # > Unfolding is accomplished by regarding CRLF immediately
-    # > followed by a LWSP-char as equivalent to the LWSP-char.
-    $value =~ s/$crlf(\s)/$1/g;
-
-    # All other uses of newlines are invalid input.
-    if ( $value =~ /$crlf|\015|\012/ ) {
-        # shorten very long values in the diagnostic
-        $value = substr($value, 0, 72) . '...' if length $value > 72;
-        croak "Invalid header value contains a newline not followed by whitespace: $value";
-    }
-
-    $value;
-}
-
-sub _crlf {
-    $CGI::CRLF;
 }
 
 1;

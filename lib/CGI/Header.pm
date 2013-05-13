@@ -116,6 +116,13 @@ sub as_string {
     $self->query->header( $self->{header} );
 }
 
+sub clone {
+    my $self = shift;
+    my $query = $self->query;
+    my %header = %{ $self->{header} };
+    ref( $self )->new( header => \%header, query => $query );
+}
+
 1;
 
 __END__

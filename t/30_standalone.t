@@ -1,7 +1,6 @@
 use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
-use Data::Dumper;
 use CGI::Cookie;
 use CGI::Header::Standalone;
 use Test::More tests => 2;
@@ -25,8 +24,7 @@ my $header = CGI::Header::Standalone->new(
 
 is_deeply $header->_finalize, {
     protocol => 'HTTP/1.0',
-    code => '304',
-    message => 'Not Modified',
+    status => '304 Not Modified',
     headers => [
       'Server',              'cmdline',
       'Status',              '304 Not Modified',
