@@ -284,6 +284,21 @@ It's identical to:
 
   $header->query->header( $header->header );
 
+=item $header->clone
+
+Returns a copy of this C<CGI::Header> object.
+The C<query> object is not cloned.
+The C<header> props. is copied shallowly.
+It's identical to:
+
+  # shallow copy
+  my %header = %{ $header->header };
+
+  my $clone = CGI::Header->new(
+      query  => $header->query, # shares query object
+      header => \%header
+  );
+
 =back
 
 =head2 PROPERTIES

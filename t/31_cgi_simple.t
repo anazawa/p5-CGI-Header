@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
-use Test::More tests => 1;
+use Test::More tests => 2;
 
 set_fixed_time( 1341637509 );
 
@@ -56,3 +56,5 @@ is_deeply $header->_finalize, {
         'Content-Type', 'text/html; charset=ISO-8859-1',
     ],
 };
+
+is $header->as_string, $header->query->header( $header->header );

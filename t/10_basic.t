@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 7;
+use Test::More tests => 8;
 
 subtest 'normalization' => sub {
     my $class = 'CGI::Header';
@@ -98,4 +98,11 @@ subtest 'CGI::Header#clear' => sub {
 subtest 'CGI::Header#as_string' => sub {
     my $header = CGI::Header->new;
     like $header->as_string, qr{^Content-Type: text/html; charset=ISO-8859-1};
+};
+
+subtest 'CGI::Header#clone' => sub {
+    my $original = CGI::Header->new( header => { type => 'text/plain' } );
+    my $clone = $original->clone;
+    is_deeply $original->header, $clone->header;
+    ok $original->header != $clone->header;
 };

@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add tests for CGI::Header#clone
+
 0.51 (1.00-RC4) May 13th, 2013
 
   - Add CGI::Header::Standalone that doesn't depend on CGI.pm's
