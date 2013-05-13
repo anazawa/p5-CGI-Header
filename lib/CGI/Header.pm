@@ -161,7 +161,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.51.
+This document refers to CGI::Header version 0.52.
 
 =head1 DEPENDENCIES
 
