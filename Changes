@@ -1,5 +1,9 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add CGI::Header::Standalone that doesn't depend on CGI.pm's
+    header() method
+  - Add clone() method to CGI::Header
+
 0.50 (1.00-RC3) Apr 23rd, 2013
 
   - Tests don't depend on Test::Exception (Thanks to CPAN testers)
