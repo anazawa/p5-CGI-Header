@@ -287,11 +287,11 @@ It's identical to:
 =item $header->clone
 
 Returns a copy of this C<CGI::Header> object.
-The C<query> object is not cloned.
-The C<header> props. is copied shallowly.
+The C<query> object is shared. 
+The C<header> hashref is copied shallowly.
 It's identical to:
 
-  # shallow copy
+  # surface copy
   my %header = %{ $header->header };
 
   my $clone = CGI::Header->new(

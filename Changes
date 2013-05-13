@@ -1,6 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
-  - Add tests for CGI::Header#clone
+  - Add tests for CGI::Header#clone. POD explains how CGI::Header copies
+    its instances.
 
 0.51 (1.00-RC4) May 13th, 2013
 
