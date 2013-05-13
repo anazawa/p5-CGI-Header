@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.50';
+our $VERSION = '0.51';
 
 my %Property_Alias = (
     'content-type'  => 'type',
