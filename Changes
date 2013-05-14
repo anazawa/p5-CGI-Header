@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.52 (1.00-RC5) May 14th, 2013
+
   - Add tests for CGI::Header#clone. POD explains how CGI::Header copies
     its instances.
   - CGI::Header::Standalone#as_string removes CRLF from Status-Line properly.

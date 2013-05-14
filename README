@@ -30,7 +30,7 @@ SYNOPSIS
       $header->as_string; # => "Content-Type: text/html\n..."
 
 VERSION
-    This document refers to CGI::Header version 0.51.
+    This document refers to CGI::Header version 0.52.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -126,6 +126,18 @@ DESCRIPTION
         It's identical to:
 
           $header->query->header( $header->header );
+
+    $header->clone
+        Returns a copy of this "CGI::Header" object. The "query" object is
+        shared. The "header" hashref is copied shallowly. It's identical to:
+
+          # surface copy
+          my %header = %{ $original->header };
+
+          my $clone = CGI::Header->new(
+              query  => $original->query, # shares query object
+              header => \%header
+          );
 
   PROPERTIES
     The following methods were named after property names recognized by

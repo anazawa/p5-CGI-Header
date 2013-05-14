@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.51';
+our $VERSION = '0.52';
 
 my %Property_Alias = (
     'content-type'  => 'type',
@@ -292,10 +292,10 @@ The C<header> hashref is copied shallowly.
 It's identical to:
 
   # surface copy
-  my %header = %{ $header->header };
+  my %header = %{ $original->header };
 
   my $clone = CGI::Header->new(
-      query  => $header->query, # shares query object
+      query  => $original->query, # shares query object
       header => \%header
   );
 
