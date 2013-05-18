@@ -30,7 +30,7 @@ SYNOPSIS
       $header->as_string; # => "Content-Type: text/html\n..."
 
 VERSION
-    This document refers to CGI::Header version 0.52.
+    This document refers to CGI::Header version 0.53.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -169,9 +169,12 @@ DESCRIPTION
         Get or set the "charset" property. Represents the character set sent
         to the browser.
 
+    $self = $header->cookies( $cookie )
     $self = $header->cookies([ $cookie1, $cookie2, ... ])
     $cookies = $header->cookies
-        Get or set the "cookies" property.
+        Get or set the "cookies" property. The parameter can be a
+        CGI::Cookie object or an arrayref which consists of CGI::Cookie
+        objects.
 
     $self = $header->expires( $format )
     $format = $header->expires
@@ -217,8 +220,8 @@ DESCRIPTION
           P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
 
     $self = $header->redirect( $url[, $status] );
-        Sets redirect URL with an optional status code and a human-readable
-        message, which defaults to "302 Found". Returns this object itself.
+        Sets redirect URL with an optional HTTP status of the response,
+        which defaults to "302 Found". Returns this object itself.
 
           $header->redirect('http://somewhere.else/in/movie/land');
 
@@ -242,8 +245,7 @@ DESCRIPTION
           $header->type('text/html');
 
   NORMALIZING PROPERTY NAMES
-    This class normalizes property names automatically. Normalized property
-    names are:
+    Normalized property names are:
 
     1. lowercased
           'Content-Length' -> 'content-length'
@@ -267,7 +269,7 @@ DESCRIPTION
               Content_Type => 'text/html',
           }
       );
-      # die "Property '-type' already exists"
+      # die "Property 'type' already exists"
 
 EXAMPLES
   WRITING Blosxom PLUGINS
@@ -290,12 +292,22 @@ EXAMPLES
 
       package Blosxom::Header;
       use parent 'CGI::Header';
+      use Carp qw/croak/;
 
       our $INSTANCE;
+
+      sub new {
+          my $class = shift;
+          croak "Private method 'new' called for $class";
+      }
 
       sub instance {
           my $class = shift;
           $INSTANCE ||= $class->SUPER::new( header => $blosxom::header );
+      }
+
+      sub has_instance {
+          $INSTANCE;
       }
 
     Since Blosxom <http://blosxom.sourceforge.net/> depends on the

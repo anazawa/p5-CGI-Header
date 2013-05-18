@@ -12,6 +12,7 @@ requires 'parent';
 test_requires 'Test::More' => '0.98';
 test_requires 'Test::Pod'  => '1.45';
 test_requires 'Test::MockTime';
+test_requires 'Test::Exception';
 test_requires 'CGI::Simple';
 test_requires 'base';
 
