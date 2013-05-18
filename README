@@ -275,53 +275,64 @@ EXAMPLES
     headers sent by blosxom.cgi:
 
       package content_length;
-      use CGI::Header;
+      use Blosxom::Header;
 
       sub start {
           !$blosxom::static_entries;
       }
 
       sub last {
-          my $h = CGI::Header->new( header => $blosxom::header )->rehash;
+          my $h = Blosxom::Header->instance;
           $h->set( 'Content-Length' => length $blosxom::output );
       }
 
-      1;
+    "Blosxom::Header" is defined as follows:
+
+      package Blosxom::Header;
+      use parent 'CGI::Header';
+
+      our $INSTANCE;
+
+      sub instance {
+          my $class = shift;
+          $INSTANCE ||= $class->SUPER::new( header => $blosxom::header );
+      }
 
     Since Blosxom <http://blosxom.sourceforge.net/> depends on the
     procedural interface of CGI.pm, you don't have to pass $query to "new()"
     in this case.
 
   HANDLING HTTP COOKIES
-    It's up to you to decide how to manage HTTP cookies.
+    It's up to you to decide how to manage HTTP cookies. The following
+    method behaves like Mojo::Message::Response's "cookies" method:
 
       use parent 'CGI::Header';
+      use CGI::Cookie;
 
-      # Add cookie() attribute which defaults a reference to an empty hash.
-      # The keys of the hash are the cookies' names, and their corresponding
-      # values are a plain string, e.g., "$header->cookie->{ID} = 123456"
-      sub cookie {
-          $_[0]->{cookie} ||= {};
-      }
-
-      # The 'cookies' property defaults to an arrayref
       sub cookies {
-          $_[0]->header->{cookies} ||= [];
-      }
-
-      # Override as_string() to create and set CGI::Cookie objects right before
-      # stringifying header props.
-      sub as_string {
           my $self    = shift;
-          my $query   = $self->query;
-          my $cookies = $self->cookies;
+          my $cookies = $self->header->{cookies} ||= [];
 
-          while ( my ($name, $value) = each %{$self->cookie} ) {
-              push @{$cookies}, $query->cookie( $name => $value );
+          return $cookies unless @_;
+
+          if ( ref $_[0] eq 'HASH' ) {
+              push @$cookies, map { CGI::Cookie->new($_) } @_;
+          }
+          else {
+              push @$cookies, CGI::Cookie->new( @_ );
           }
 
-          $self->SUPER::as_string;
+          $self;
       }
+
+    You can use the "cookies" method as follows:
+
+      # get an arrayref which consists of CGI::Cookie objects
+      my $cookies = $header->cookies;
+
+      # set CGI::Cookie objects
+      $header->cookies( ID => 123456 );
+      $header->cookies({ name => 'ID', value => 123456 });
 
   WORKING WITH CGI::Simple
     Since CGI::Simple is "a relatively lightweight drop in replacement for

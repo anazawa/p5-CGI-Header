@@ -475,18 +475,28 @@ The following plugin just adds the Content-Length header
 to CGI response headers sent by blosxom.cgi:
 
   package content_length;
-  use CGI::Header;
+  use Blosxom::Header;
 
   sub start {
       !$blosxom::static_entries;
   }
 
   sub last {
-      my $h = CGI::Header->new( header => $blosxom::header )->rehash;
+      my $h = Blosxom::Header->instance;
       $h->set( 'Content-Length' => length $blosxom::output );
   }
 
-  1;
+C<Blosxom::Header> is defined as follows:
+
+  package Blosxom::Header;
+  use parent 'CGI::Header';
+
+  our $INSTANCE;
+
+  sub instance {
+      my $class = shift;
+      $INSTANCE ||= $class->SUPER::new( header => $blosxom::header );
+  }
 
 Since L<Blosxom|http://blosxom.sourceforge.net/> depends on the procedural
 interface of CGI.pm, you don't have to pass C<$query> to C<new()>
@@ -495,14 +505,11 @@ in this case.
 =head2 HANDLING HTTP COOKIES
 
 It's up to you to decide how to manage HTTP cookies.
+The following method behaves like L<Mojo::Message::Response>'s C<cookies>
+method:
 
   use parent 'CGI::Header';
   use CGI::Cookie;
-
-  # The cookies() method behaves like Mojo::Message::Response#cookies:
-  #   $cookies = $header->cookies;
-  #   $header->cookies( ID => 123456 );
-  #   $header->cookies({ name => 'ID', value => 123456 });
 
   sub cookies {
       my $self    = shift;
@@ -520,6 +527,14 @@ It's up to you to decide how to manage HTTP cookies.
       $self;
   }
 
+You can use the C<cookies> method as follows:
+
+  # get an arrayref which consists of CGI::Cookie objects
+  my $cookies = $header->cookies;
+
+  # set CGI::Cookie objects
+  $header->cookies( ID => 123456 );
+  $header->cookies({ name => 'ID', value => 123456 });
 
 =head2 WORKING WITH CGI::Simple
 
