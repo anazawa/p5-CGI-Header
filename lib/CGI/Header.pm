@@ -497,32 +497,29 @@ in this case.
 It's up to you to decide how to manage HTTP cookies.
 
   use parent 'CGI::Header';
+  use CGI::Cookie;
 
-  # Add cookie() attribute which defaults a reference to an empty hash.
-  # The keys of the hash are the cookies' names, and their corresponding
-  # values are a plain string, e.g., "$header->cookie->{ID} = 123456"
-  sub cookie {
-      $_[0]->{cookie} ||= {};
-  }
+  # The cookies() method behaves like Mojo::Message::Response#cookies:
+  #   $cookies = $header->cookies;
+  #   $header->cookies( ID => 123456 );
+  #   $header->cookies({ name => 'ID', value => 123456 });
 
-  # The 'cookies' property defaults to an arrayref
   sub cookies {
-      $_[0]->header->{cookies} ||= [];
-  }
-
-  # Override as_string() to create and set CGI::Cookie objects right before
-  # stringifying header props.
-  sub as_string {
       my $self    = shift;
-      my $query   = $self->query;
-      my $cookies = $self->cookies;
+      my $cookies = $self->header->{cookies} ||= [];
 
-      while ( my ($name, $value) = each %{$self->cookie} ) {
-          push @{$cookies}, $query->cookie( $name => $value );
+      return $cookies unless @_;
+
+      if ( ref $_[0] eq 'HASH' ) {
+          push @$cookies, map { CGI::Cookie->new($_) } @_;
+      }
+      else {
+          push @$cookies, CGI::Cookie->new( @_ );
       }
 
-      $self->SUPER::as_string;
+      $self;
   }
+
 
 =head2 WORKING WITH CGI::Simple
 

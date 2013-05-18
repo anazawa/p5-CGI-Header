@@ -4,31 +4,28 @@ use Test::More tests => 1;
 
 package CGI::Header::Extended;
 use base 'CGI::Header';
-
-sub cookie {
-    $_[0]->{cookie} ||= {};
-}
+use CGI::Cookie;
 
 sub cookies {
-    $_[0]->header->{cookies} ||= [];
-}
-
-sub as_string {
     my $self    = shift;
-    my $query   = $self->query;
-    my $cookies = $self->cookies;
+    my $cookies = $self->header->{cookies} ||= [];
 
-    while ( my ($name, $value) = each %{$self->cookie} ) {
-        push @{$cookies}, $query->cookie( $name => $value );
+    return $cookies unless @_;
+
+    if ( ref $_[0] eq 'HASH' ) {
+        push @$cookies, map { CGI::Cookie->new($_) } @_;
+    }
+    else {
+        push @$cookies, CGI::Cookie->new( @_ );
     }
 
-    $self->SUPER::as_string;
+    $self;
 }
 
 package main;
 
 my $header = CGI::Header::Extended->new;
 
-$header->cookie->{ID} = 123456;
+$header->cookies( ID => 123456 );
 
 like $header->as_string, qr{Set-Cookie: ID=123456};
