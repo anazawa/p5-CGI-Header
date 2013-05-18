@@ -339,11 +339,15 @@ In this case, the outgoing header will be formatted as:
 Get or set the C<charset> property. Represents the character set sent to
 the browser.
 
+=item $self = $header->cookies( $cookie )
+
 =item $self = $header->cookies([ $cookie1, $cookie2, ... ])
 
 =item $cookies = $header->cookies
 
 Get or set the C<cookies> property.
+The parameter can be a L<CGI::Cookie> object or an arrayref which consists of
+L<CGI::Cookie> objects.
 
 =item $self = $header->expires( $format )
 
@@ -400,8 +404,8 @@ In this case, the outgoing header will be formatted as:
 
 =item $self = $header->redirect( $url[, $status] );
 
-Sets redirect URL with an optional status code and a human-readable
-message, which defaults to C<302 Found>. Returns this object itself.
+Sets redirect URL with an optional HTTP status of the response,
+which defaults to C<302 Found>. Returns this object itself.
 
   $header->redirect('http://somewhere.else/in/movie/land');
 
@@ -434,7 +438,6 @@ content.
 
 =head2 NORMALIZING PROPERTY NAMES
 
-This class normalizes property names automatically.
 Normalized property names are:
 
 =over 4
@@ -465,7 +468,7 @@ If a property name is duplicated, throws an exception:
           Content_Type => 'text/html',
       }
   );
-  # die "Property '-type' already exists"
+  # die "Property 'type' already exists"
 
 =head1 EXAMPLES
 
@@ -490,12 +493,22 @@ C<Blosxom::Header> is defined as follows:
 
   package Blosxom::Header;
   use parent 'CGI::Header';
+  use Carp qw/croak/;
 
   our $INSTANCE;
+
+  sub new {
+      my $class = shift;
+      croak "Private method 'new' called for $class";
+  }
 
   sub instance {
       my $class = shift;
       $INSTANCE ||= $class->SUPER::new( header => $blosxom::header );
+  }
+
+  sub has_instance {
+      $INSTANCE;
   }
 
 Since L<Blosxom|http://blosxom.sourceforge.net/> depends on the procedural

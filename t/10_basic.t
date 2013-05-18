@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use CGI::Header;
 use Test::More tests => 8;
+use Test::Exception;
 
 subtest 'normalization' => sub {
     my $class = 'CGI::Header';
@@ -20,9 +21,19 @@ subtest 'normalization' => sub {
 
 subtest 'CGI::Header#new' => sub {
     my $header = CGI::Header->new;
+
     isa_ok $header, 'CGI::Header';
     isa_ok $header->header, 'HASH';
     isa_ok $header->query, 'CGI';
+
+    throws_ok {
+        CGI::Header->new(
+            header => {
+                -Type        => 'text/plain',
+                Content_Type => 'text/html',
+            }
+        )
+    } qr{^Property 'type' already exists};
 };
 
 subtest 'header fields' => sub {
