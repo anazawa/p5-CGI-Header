@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::MockTime qw/set_fixed_time/;
+use CGI;
 use CGI::Cookie;
 use CGI::Header::Standalone;
 use Test::More tests => 2;
@@ -22,21 +23,17 @@ my $header = CGI::Header::Standalone->new(
     },
 );
 
-is_deeply $header->_finalize, {
-    protocol => 'HTTP/1.0',
-    status => '304 Not Modified',
-    headers => [
-      'Server',              'cmdline',
-      'Status',              '304 Not Modified',
-      'Window-Target',       'ResultsWindow',
-      'P3P',                 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"',
-      'Set-Cookie',          'ID=123456; path=/',
-      'Expires',             'Tue, 10 Jul 2012 05:05:09 GMT',
-      'Date',                'Sat, 07 Jul 2012 05:05:09 GMT',
-      'Content-Disposition', 'attachment; filename="genome.jpg"',
-      'Foo-bar',             'baz',
-      'Content-Type',        'text/plain; charset=utf-8',
-    ],
-};
+is_deeply $header->as_arrayref, [
+    'Server',              'cmdline',
+    'Status',              '304 Not Modified',
+    'Window-Target',       'ResultsWindow',
+    'P3P',                 'policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"',
+    'Set-Cookie',          'ID=123456; path=/',
+    'Expires',             'Tue, 10 Jul 2012 05:05:09 GMT',
+    'Date',                'Sat, 07 Jul 2012 05:05:09 GMT',
+    'Content-Disposition', 'attachment; filename="genome.jpg"',
+    'Foo-bar',             'baz',
+    'Content-Type',        'text/plain; charset=utf-8',
+];
 
 is $header->as_string, $header->query->header( $header->header );

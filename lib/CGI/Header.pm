@@ -545,7 +545,7 @@ You can use the C<cookies> method as follows:
   # get an arrayref which consists of CGI::Cookie objects
   my $cookies = $header->cookies;
 
-  # set CGI::Cookie objects
+  # push a CGI::Cookie object onto the "cookies" property
   $header->cookies( ID => 123456 );
   $header->cookies({ name => 'ID', value => 123456 });
 

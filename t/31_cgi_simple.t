@@ -18,7 +18,7 @@ sub _crlf {
     $_[0]->query->crlf;
 }
 
-sub _finalize {
+sub as_arrayref {
     my $self  = shift;
     my $query = $self->query;
     
@@ -29,7 +29,7 @@ sub _finalize {
         }
     }
 
-    $self->SUPER::_finalize;
+    $self->SUPER::as_arrayref;
 }
 
 sub _bake_cookie {
@@ -48,13 +48,11 @@ my $header = CGI::Simple::Header::Standalone->new;
 
 $header->query->no_cache(1);
 
-is_deeply $header->_finalize, {
-    headers => [
-        'Expires',      'Sat, 07 Jul 2012 05:05:09 GMT',
-        'Date',         'Sat, 07 Jul 2012 05:05:09 GMT',
-        'Pragma',       'no-cache',
-        'Content-Type', 'text/html; charset=ISO-8859-1',
-    ],
-};
+is_deeply $header->as_arrayref, [
+    'Expires',      'Sat, 07 Jul 2012 05:05:09 GMT',
+    'Date',         'Sat, 07 Jul 2012 05:05:09 GMT',
+    'Pragma',       'no-cache',
+    'Content-Type', 'text/html; charset=ISO-8859-1',
+];
 
 is $header->as_string, $header->query->header( $header->header );

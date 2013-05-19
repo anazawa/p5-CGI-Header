@@ -9,21 +9,21 @@ sub _crlf {
 }
 
 sub as_string {
-    my $self     = shift;
-    my $response = $self->_finalize;
-    my $crlf     = $self->_crlf; # CGI.pm should be loaded
+    my $self    = shift;
+    my $query   = $self->query;
+    my $crlf    = $self->_crlf; # CGI.pm should be loaded
+    my $headers = $self->as_arrayref;
 
     my @lines;
 
     # add Status-Line required by NPH scripts
-    if ( exists $response->{protocol} ) {
-        my $protocol = $response->{protocol};
-        my $status = $self->_process_newline( $response->{status} );
+    if ( $self->nph or $query->nph ) {
+        my $protocol = $query->server_protocol;
+        my $status = $self->_process_newline( $self->status || '200 OK' );
         push @lines, "$protocol $status$crlf";
     }
 
     # add response headers
-    my $headers = $response->{headers};
     for ( my $i = 0; $i < @$headers; $i += 2 ) {
         my $field = $headers->[$i];
         my $value = $self->_process_newline( $headers->[$i+1] );
@@ -55,52 +55,49 @@ sub _process_newline {
     $value;
 }
 
-sub _finalize {
-    my $self     = shift;
-    my $query    = $self->query;
-    my %header   = %{ $self->header };
-    my $nph      = delete $header{nph} || $query->nph;
-    my $headers  = [];
-    my $response = { headers => $headers };
+sub as_arrayref {
+    my $self   = shift;
+    my $query  = $self->query;
+    my %header = %{ $self->header };
+    my $nph    = delete $header{nph} || $query->nph;
 
     my ( $attachment, $charset, $cookies, $expires, $p3p, $status, $target, $type )
         = delete @header{qw/attachment charset cookies expires p3p status target type/};
 
-    $response->{protocol} = $query->server_protocol if $nph;
-    $response->{status}   = $status || '200 OK' if $nph;
+    my @headers;
 
-    push @$headers, 'Server', $query->server_software if $nph;
-    push @$headers, 'Status', $status if $status;
-    push @$headers, 'Window-Target', $target if $target;
+    push @headers, 'Server', $query->server_software if $nph;
+    push @headers, 'Status', $status if $status;
+    push @headers, 'Window-Target', $target if $target;
 
     if ( $p3p ) {
         my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
-        push @$headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
+        push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
     my @cookies = ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies;
        @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
-    push @$headers, map { ('Set-Cookie', $_) } @cookies;
-    push @$headers, 'Expires', $self->_date($expires) if $expires;
-    push @$headers, 'Date', $self->_date if $expires or @cookies or $nph;
-    push @$headers, 'Pragma', 'no-cache' if $query->cache;
+    push @headers, map { ('Set-Cookie', $_) } @cookies;
+    push @headers, 'Expires', $self->_date($expires) if $expires;
+    push @headers, 'Date', $self->_date if $expires or @cookies or $nph;
+    push @headers, 'Pragma', 'no-cache' if $query->cache;
 
     if ( $attachment ) {
         my $value = qq{attachment; filename="$attachment"};
-        push @$headers, 'Content-Disposition', $value;
+        push @headers, 'Content-Disposition', $value;
     }
 
-    push @$headers, map { ucfirst $_, $header{$_} } keys %header;
+    push @headers, map { ucfirst $_, $header{$_} } keys %header;
 
     unless ( defined $type and $type eq q{} ) {
         my $value = $type || 'text/html';
         $charset = $query->charset if !defined $charset;
         $value .= "; charset=$charset" if $charset && $value !~ /\bcharset\b/;
-        push @$headers, 'Content-Type', $value;
+        push @headers, 'Content-Type', $value;
     }
 
-    $response;
+    \@headers;
 }
 
 sub _bake_cookie {
@@ -114,3 +111,67 @@ sub _date {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+CGI::Header::Standalone
+
+=head1 SYNOPSIS
+
+  use CGI::Header::Standalone;
+
+=head1 DESCRIPTION
+
+This module inherits from L<CGI::Header>, and also adds the following method
+to the class:
+
+=over 4
+
+=item $headers = $header->as_arrayref
+
+Returns an arrayref which contains key-value pairs of HTTP headers.
+
+  $header->as_arrayref;
+  # => [
+  #     'Content-length' => '3002',
+  #     'Content-Type'   => 'text/plain',
+  # ]
+
+This method helps you write an adapter for L<mod_perl> or a L<PSGI>
+application which wraps your CGI.pm-based application without parsing
+the return value of CGI.pm's C<header> method. See L<"EXAMPLES">.
+
+=back
+
+=head1 EXAMPLES
+
+Using L<HTTP::Headers>:
+
+  use HTTP::Headers;
+  my $h = HTTP::Headers->new( @$headers );
+  my $type = $h->header('Content-Type');
+
+Using L<Plack::Util>:
+
+  use Plack::Util;
+  my $h = Plack::Util::headers( $headers );
+  my $type = $h->get('Content-Type');
+
+Using L<Hash::MultiValue>:
+
+  use Hash::MultiValue;
+  my $h = Hash::MultiValue( @$headers );
+  my $type = $h->{'Content-Type'};
+
+=head1 AUTHOR
+
+Ryo Anazawa (anazawa@cpan.org)
+
+=head1 LICENSE
+
+This module is free software; you can redistibute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+=cut
