@@ -111,7 +111,7 @@ sub redirect {
     $self->status( $status || '302 Found' )->location( $url );
 }
 
-sub as_string {
+sub finalize {
     my $self = shift;
     $self->query->header( $self->{header} );
 }
@@ -278,7 +278,7 @@ Returns the value of the deleted field.
 
 This will remove all header properties.
 
-=item $header->as_string
+=item $header->finalize
 
 It's identical to:
 

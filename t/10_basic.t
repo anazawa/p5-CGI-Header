@@ -106,9 +106,9 @@ subtest 'CGI::Header#clear' => sub {
     is_deeply $h->header, {}, 'should be empty';
 };
 
-subtest 'CGI::Header#as_string' => sub {
+subtest 'CGI::Header#finalize' => sub {
     my $header = CGI::Header->new;
-    like $header->as_string, qr{^Content-Type: text/html; charset=ISO-8859-1};
+    like $header->finalize, qr{^Content-Type: text/html; charset=ISO-8859-1};
 };
 
 subtest 'CGI::Header#clone' => sub {

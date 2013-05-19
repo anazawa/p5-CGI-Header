@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+  - Rename CGI::Header#as_string to "finalize" since CGI.pm's header()
+    method returns an empty string in "mod_perl" environment
+
 0.53 (1.00-RC6) May 19th, 2013
 
   [DOCUMENTATION]

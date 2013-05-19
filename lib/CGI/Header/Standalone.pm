@@ -4,6 +4,8 @@ use warnings;
 use parent 'CGI::Header';
 use Carp qw/croak/;
 
+our $VERSION = '0.01';
+
 sub _crlf {
     $CGI::CRLF;
 }

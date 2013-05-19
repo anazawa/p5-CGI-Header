@@ -28,4 +28,4 @@ my $header = CGI::Header::Extended->new;
 
 $header->cookies( ID => 123456 );
 
-like $header->as_string, qr{Set-Cookie: ID=123456};
+like $header->finalize, qr{Set-Cookie: ID=123456};
