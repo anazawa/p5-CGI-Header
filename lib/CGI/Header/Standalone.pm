@@ -6,11 +6,11 @@ use Carp qw/croak/;
 
 our $VERSION = '0.01';
 
-sub _crlf {
-    $CGI::CRLF;
+sub finalize {
+    $_[0]->as_string;
 }
 
-sub finalize {
+sub as_string {
     my $self    = shift;
     my $query   = $self->query;
     my $crlf    = $self->_crlf; # CGI.pm should be loaded
@@ -55,6 +55,10 @@ sub _process_newline {
     }
 
     $value;
+}
+
+sub _crlf {
+    $CGI::CRLF;
 }
 
 sub as_arrayref {
@@ -118,15 +122,15 @@ __END__
 
 =head1 NAME
 
-CGI::Header::Standalone
+CGI::Header::Standalone - Base class for writing adapters
 
 =head1 SYNOPSIS
 
-  use CGI::Header::Standalone;
+  use parent 'CGI::Header::Standalone';
 
 =head1 DESCRIPTION
 
-This module inherits from L<CGI::Header>, and also adds the following method
+This module inherits from L<CGI::Header>, and also adds the following methods
 to the class:
 
 =over 4
@@ -144,6 +148,10 @@ Returns an arrayref which contains key-value pairs of HTTP headers.
 This method helps you write an adapter for L<mod_perl> or a L<PSGI>
 application which wraps your CGI.pm-based application without parsing
 the return value of CGI.pm's C<header> method. See L<"EXAMPLES">.
+
+=item $header->as_string
+
+Return the header fields as a formatted MIME header.
 
 =back
 
