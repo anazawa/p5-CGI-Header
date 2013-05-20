@@ -30,7 +30,7 @@ SYNOPSIS
       $header->as_string; # => "Content-Type: text/html\n..."
 
 VERSION
-    This document refers to CGI::Header version 0.53.
+    This document refers to CGI::Header version 0.54.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
