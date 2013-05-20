@@ -280,6 +280,25 @@ This will remove all header properties.
 
 =item $header->finalize
 
+Returns the header fields as a formatted MIME header.
+If C<CGI::Header#nph> is true, the Status-Line is inserted to the beginning
+of the response headers.
+
+Valid multi-line header input is accepted when each line is separated
+with a CRLF value (C<\r\n> on most platforms) followed by at least one space.
+For example:
+
+  $header->set( Ingredients => "ham\r\n\seggs\r\n\sbacon" );
+
+Invalid multi-line header input will trigger in an exception.
+When multi-line headers are received, this method will always output them
+back as a single line, according to the folding rules of RFC 2616:
+the newlines will be removed, while white space remains.
+
+In L<mod_perl> environment, the formatted string
+is swallowed by L<Apache2::Response>'s C<send_cgi_header> method silently,
+and so an empty string is returned.
+
 It's identical to:
 
   $header->query->header( $header->header );
