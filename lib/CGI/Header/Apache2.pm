@@ -2,6 +2,7 @@ package CGI::Header::Apache2;
 use strict;
 use warnings;
 use parent 'CGI::Header::Standalone';
+use APR::Table;
 
 sub finalize {
     my $self  = shift;
