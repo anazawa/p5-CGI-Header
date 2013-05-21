@@ -1,8 +1,7 @@
-package CGI::Header::Apache2;
+package CGI::Header::Apache1;
 use strict;
 use warnings;
 use parent 'CGI::Header::Standalone';
-use APR::Table;
 
 sub finalize {
     my $self = shift;
@@ -27,13 +26,12 @@ sub finalize {
         if ( $field eq 'Content-Type' ) {
             $request_rec->content_type( $value );
         }
-        elsif ( $field eq 'Content-length' ) {
-            $request_rec->set_content_length( $value );
-        }
         else {
             $headers_out->add( $field => $value );
         }
     }
+
+    $request_rec->send_http_header;
 
     q{};
 }
