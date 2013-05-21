@@ -54,7 +54,7 @@ CGI::Header::Apache2 - Adapter for Apache 2.0 mod_perl
 
   use CGI::Header::Apache2;
   my $h = CGI::Header::Apache2->new;
-  $h->finalize;
+  print $h->finalize;
 
 =head1 DESCRIPTION
 
