@@ -10,7 +10,7 @@ sub finalize {
     my $self     = shift;
     my $mod_perl = $self->_mod_perl;
 
-    return $self->as_string if $self->nph or !$mod_perl or $self->query->nph;
+    return $self->as_string if !$mod_perl or $self->nph or $self->query->nph;
 
     require APR::Table if $mod_perl == 2;
 
@@ -187,33 +187,28 @@ Returns an arrayref which contains key-value pairs of HTTP headers.
 
 This method helps you write an adapter for L<mod_perl> or a L<PSGI>
 application which wraps your CGI.pm-based application without parsing
-the return value of CGI.pm's C<header> method. See L<"EXAMPLES">.
+the return value of CGI.pm's C<header> method.
 
 =item $header->as_string
 
 Return the header fields as a formatted MIME header.
+If the C<nph> property is set to true, the Status-Line is inserted to
+the beginning of the response headers.
 
 =back
 
-=head1 EXAMPLES
+This module overrides the following method of the superclass:
 
-Using L<HTTP::Headers>:
+=over 4
 
-  use HTTP::Headers;
-  my $h = HTTP::Headers->new( @$headers );
-  my $type = $h->header('Content-Type');
+=item $header->finalize
 
-Using L<Plack::Util>:
+Behaves like CGI.pm's C<header> method.
+In L<mod_perl> environment, unlike CGI.pm's C<header> method,
+this method updates "headers_out" method of C<request_rec> object directly,
+and so you can send headers effectively.
 
-  use Plack::Util;
-  my $h = Plack::Util::headers( $headers );
-  my $type = $h->get('Content-Type');
-
-Using L<Hash::MultiValue>:
-
-  use Hash::MultiValue;
-  my $h = Hash::MultiValue( @$headers );
-  my $type = $h->{'Content-Type'};
+=back
 
 =head1 AUTHOR
 
