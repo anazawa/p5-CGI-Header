@@ -2,12 +2,12 @@ package CGI::Header::Apache2;
 use strict;
 use warnings;
 use parent 'CGI::Header::Standalone';
-use APR::Table;
+#use APR::Table;
 
 sub finalize {
     my $self = shift;
 
-    return $self->as_string if $self->nph or $self->query->nph;
+    return $self->as_string if $self->nph;
 
     my $headers     = $self->as_arrayref;
     my $request_rec = $self->_request_rec;
@@ -19,6 +19,8 @@ sub finalize {
        $headers_out = $request_rec->$headers_out;
 
     $request_rec->status( $status );
+
+    require APR::Table;
 
     for ( my $i = 0; $i < @$headers; $i += 2 ) {
         my $field = $headers->[$i];

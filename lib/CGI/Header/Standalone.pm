@@ -7,7 +7,46 @@ use Carp qw/croak/;
 our $VERSION = '0.01';
 
 sub finalize {
-    $_[0]->as_string;
+    my $self     = shift;
+    my $mod_perl = $self->_mod_perl;
+
+    return $self->as_string if $self->nph or !$mod_perl or $self->query->nph;
+
+    require APR::Table if $mod_perl == 2;
+
+    my $status_line = $self->status || '200 OK';
+    my $headers     = $self->as_arrayref;
+    my $request_rec = $self->_request_rec;
+
+    my $status = $status_line;
+       $status =~ s/\D*$//;
+
+    my $headers_out = $status >= 200 && $status < 300 ? 'headers_out' : 'err_headers_out';  
+       $headers_out = $request_rec->$headers_out;
+
+    $request_rec->status_line( $status_line );
+
+    for ( my $i = 0; $i < @$headers; $i += 2 ) {
+        my $field = $headers->[$i];
+        my $value = $self->_process_newline( $headers->[$i+1] );
+
+        if ( $field eq 'Content-Type' ) {
+            $request_rec->content_type( $value );
+        }
+        else {
+            $headers_out->add( $field => $value );
+        }
+    }
+
+    q{};
+}
+
+sub _mod_perl {
+    $CGI::MOD_PERL;
+}
+
+sub _request_rec {
+    $_[0]->query->r;
 }
 
 sub as_string {
@@ -122,11 +161,12 @@ __END__
 
 =head1 NAME
 
-CGI::Header::Standalone - Base class for writing adapters
+CGI::Header::Standalone - Alternative to CGI::Header
 
 =head1 SYNOPSIS
 
-  use parent 'CGI::Header::Standalone';
+  use CGI::Header::Standalone;
+  my $h = CGI::Header::Standalone->new; # behaves like CGI::Header object
 
 =head1 DESCRIPTION
 
