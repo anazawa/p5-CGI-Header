@@ -38,6 +38,8 @@ sub finalize {
         }
     }
 
+    $request_rec->send_http_header if $mod_perl == 1;
+
     q{};
 }
 
