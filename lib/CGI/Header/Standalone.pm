@@ -4,8 +4,6 @@ use warnings;
 use parent 'CGI::Header';
 use Carp qw/croak/;
 
-our $VERSION = '0.01';
-
 sub finalize {
     my $self     = shift;
     my $mod_perl = $self->_mod_perl;

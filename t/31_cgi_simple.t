@@ -55,4 +55,4 @@ is_deeply $header->as_arrayref, [
     'Content-Type', 'text/html; charset=ISO-8859-1',
 ];
 
-is $header->finalize, $header->query->header( $header->header );
+is $header->as_string, $header->query->header( $header->header );

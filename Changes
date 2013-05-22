@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add CGI::Header::Standalone again as the alternative to CGI::Header
+
 0.54 (1.00-RC7) May 20th, 2013
 
   - Rename CGI::Header#as_string to "finalize" since CGI.pm's header()
