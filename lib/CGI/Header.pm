@@ -159,7 +159,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
   $header->delete('Content-Disposition'); # => 3002
   $header->clear; # => $self
 
-  $header->as_string; # => "Content-Type: text/html\n..."
+  $header->finalize;
 
 =head1 VERSION
 
@@ -282,9 +282,7 @@ This will remove all header properties.
 
 =item $header->finalize
 
-Returns the header fields as a formatted MIME header.
-If C<CGI::Header#nph> is true, the Status-Line is inserted to the beginning
-of the response headers.
+Sends the response headers to the browser.
 
 Valid multi-line header input is accepted when each line is separated
 with a CRLF value (C<\r\n> on most platforms) followed by at least one space.
@@ -297,13 +295,9 @@ When multi-line headers are received, this method will always output them
 back as a single line, according to the folding rules of RFC 2616:
 the newlines will be removed, while white space remains.
 
-In L<mod_perl> environment, the formatted string
-is swallowed by L<Apache2::Response>'s C<send_cgi_header> method silently,
-and so an empty string is returned.
-
 It's identical to:
 
-  print STDOUT $header->query->header( $header->header );
+  print STDOUT $query->header( $header->header );
 
 =item $header->clone
 
