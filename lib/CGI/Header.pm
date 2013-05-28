@@ -6,7 +6,7 @@ use Carp qw/croak/;
 
 our $VERSION = '0.55';
 
-my %Property_Alias = (
+my %PropertyAlias = (
     'content-type'  => 'type',
     'cookie'        => 'cookies',
     'set-cookie'    => 'cookies',
@@ -18,7 +18,7 @@ sub _normalize {
     my $prop = lc shift;
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
-    $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
+    $prop = $PropertyAlias{$prop} if exists $PropertyAlias{$prop};
     $prop;
 }
 
