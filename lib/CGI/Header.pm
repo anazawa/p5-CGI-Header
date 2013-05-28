@@ -113,7 +113,9 @@ sub redirect {
 
 sub finalize {
     my $self = shift;
-    $self->query->header( $self->{header} );
+    my $query = $self->query;
+    my $header = $self->{header};
+    $query->print( $query->header($header) );
 }
 
 sub clone {
@@ -301,7 +303,7 @@ and so an empty string is returned.
 
 It's identical to:
 
-  $header->query->header( $header->header );
+  print STDOUT $header->query->header( $header->header );
 
 =item $header->clone
 
