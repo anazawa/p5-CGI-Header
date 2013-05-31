@@ -3,12 +3,13 @@ use warnings;
 use Test::MockTime qw/set_fixed_time/;
 use CGI;
 use CGI::Cookie;
-use CGI::Header::Standalone;
-use Test::More tests => 2;
+use CGI::Header::Adapter;
+use Test::More tests => 3;
+use Test::Exception;
 
 set_fixed_time( 1341637509 );
 
-my $header = CGI::Header::Standalone->new(
+my $header = CGI::Header::Adapter->new(
     header => {
         '-NPH'           => 1,
         '-Status'        => '304 Not Modified',
@@ -37,3 +38,5 @@ is_deeply $header->as_arrayref, [
 ];
 
 is $header->as_string, $header->query->header( $header->header );
+
+throws_ok { $header->finalize } qr{missing 'finalize' method};

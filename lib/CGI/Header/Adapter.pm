@@ -4,8 +4,13 @@ use warnings;
 use parent 'CGI::Header';
 use Carp qw/croak/;
 
+sub crlf {
+    $CGI::CRLF;
+}
+
 sub finalize {
-    # do nothing. Override in subclass
+    my $self = shift;
+    croak ref $self, " is missing 'finalize' method";
 }
 
 sub as_string {
@@ -53,10 +58,6 @@ sub process_newline {
     }
 
     $value;
-}
-
-sub crlf {
-    $CGI::CRLF;
 }
 
 sub as_arrayref {
@@ -153,9 +154,15 @@ the return value of CGI.pm's C<header> method.
 
 =item $header->as_string
 
-Return the header fields as a formatted MIME header.
+Returns the header fields as a formatted MIME header.
 If the C<nph> property is set to true, the Status-Line is inserted to
 the beginning of the response headers.
+
+=item $header->crlf
+
+Returns the system specific line ending sequence.
+
+=item $header->process_newline
 
 =back
 
@@ -165,7 +172,7 @@ Ryo Anazawa (anazawa@cpan.org)
 
 =head1 LICENSE
 
-This module is free software; you can redistibute it and/or
+This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.
 
 =cut

@@ -5,8 +5,8 @@ use Test::More tests => 2;
 
 set_fixed_time( 1341637509 );
 
-package CGI::Simple::Header::Standalone;
-use parent 'CGI::Header::Standalone';
+package CGI::Simple::Header::Adapter;
+use parent 'CGI::Header::Adapter';
 use CGI::Simple::Util qw//;
 
 sub _build_query {
@@ -14,7 +14,7 @@ sub _build_query {
     CGI::Simple::Standard->loader('_cgi_object');
 }
 
-sub _crlf {
+sub crlf {
     $_[0]->query->crlf;
 }
 
@@ -44,7 +44,7 @@ sub _date {
 
 package main;
 
-my $header = CGI::Simple::Header::Standalone->new;
+my $header = CGI::Simple::Header::Adapter->new;
 
 $header->query->no_cache(1);
 

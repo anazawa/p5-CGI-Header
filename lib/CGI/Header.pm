@@ -114,8 +114,8 @@ sub redirect {
 sub finalize {
     my $self = shift;
     my $query = $self->query;
-    my $headers = $query->header( $self->{header} );
-    $query->print( $headers ) unless $headers eq q{};
+    my $header = $self->{header};
+    $query->print( $query->header($header) );
     return;
 }
 
@@ -668,7 +668,7 @@ Ryo Anazawa (anazawa@cpan.org)
 
 =head1 LICENSE
 
-This module is free software; you can redistibute it and/or
+This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.
 
 =cut

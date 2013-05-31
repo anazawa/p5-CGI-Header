@@ -4,11 +4,12 @@ use warnings;
 use parent 'CGI::Header::Adapter';
 use APR::Table;
 
+sub request_rec {
+    $_[0]->query->r;
+}
+
 sub finalize {
-    my $self = shift;
-
-    return $self->as_string if $self->nph;
-
+    my $self        = shift;
     my $headers     = $self->as_arrayref;
     my $request_rec = $self->request_rec;
 
@@ -35,11 +36,36 @@ sub finalize {
         }
     }
 
-    q{};
-}
-
-sub request_rec {
-    $_[0]->query->r;
+    return;
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+CGI::Header::Apache1 - Adapter for Apache 2 mod_perl 2.x
+
+=head1 SYNOPSIS
+
+  use CGI::Header::Apache2;
+
+=head1
+
+Adapter for Apache2 mod_perl 2.x
+
+=head1 SEE ALSO
+
+L<Plack::Handler::Apache2>
+
+=head1 AUTHOR
+
+Ryo Anazawa (anazawa@cpan.org)
+
+=head1 LICENSE
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+=cut
