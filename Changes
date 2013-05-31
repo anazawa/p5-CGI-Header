@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.56 (1.00-RC9) May 31st, 2013
+
   - finalize() prints to STDOUT using CGI#print
 
   [ROADMAP]
