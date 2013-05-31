@@ -1,9 +1,10 @@
 use strict;
 use warnings;
-use Test::More tests => 1;
+use Test::More tests => 2;
+use Test::Output;
 
 package CGI::Header::Extended;
-use base 'CGI::Header';
+use parent 'CGI::Header';
 use CGI::Cookie;
 
 sub cookies {
@@ -26,6 +27,5 @@ package main;
 
 my $header = CGI::Header::Extended->new;
 
-$header->cookies( ID => 123456 );
-
-like $header->finalize, qr{Set-Cookie: ID=123456};
+is $header->cookies( ID => 123456 ), $header;
+stdout_like { $header->finalize } qr{Set-Cookie: ID=123456};

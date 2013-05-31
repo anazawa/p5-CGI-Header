@@ -3,6 +3,7 @@ use warnings;
 use CGI::Header;
 use Test::More tests => 8;
 use Test::Exception;
+use Test::Output;
 
 subtest 'normalization' => sub {
     my $class = 'CGI::Header';
@@ -108,7 +109,8 @@ subtest 'CGI::Header#clear' => sub {
 
 subtest 'CGI::Header#finalize' => sub {
     my $header = CGI::Header->new;
-    like $header->finalize, qr{^Content-Type: text/html; charset=ISO-8859-1};
+    stdout_like { $header->type('text/plain')->finalize }
+        qr{^Content-Type: text/plain; charset=ISO-8859-1};
 };
 
 subtest 'CGI::Header#clone' => sub {

@@ -6,9 +6,12 @@ use Carp qw/croak/;
 
 sub finalize {
     my $self     = shift;
+    my $query    = $self->query;
     my $mod_perl = $self->_mod_perl;
 
-    return $self->as_string if !$mod_perl or $self->nph or $self->query->nph;
+    if ( !$mod_perl or $self->nph or $query->nph ) {
+        return $query->print( $self->as_string );
+    }
 
     require APR::Table if $mod_perl == 2;
 
@@ -38,7 +41,7 @@ sub finalize {
 
     $request_rec->send_http_header if $mod_perl == 1;
 
-    q{};
+    1;
 }
 
 sub _mod_perl {

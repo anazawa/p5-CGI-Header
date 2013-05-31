@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.55';
+our $VERSION = '0.56';
 
-my %Property_Alias = (
+my %PropertyAlias = (
     'content-type'  => 'type',
     'cookie'        => 'cookies',
     'set-cookie'    => 'cookies',
@@ -18,7 +18,7 @@ sub _normalize {
     my $prop = lc shift;
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
-    $prop = $Property_Alias{$prop} if exists $Property_Alias{$prop};
+    $prop = $PropertyAlias{$prop} if exists $PropertyAlias{$prop};
     $prop;
 }
 
@@ -113,7 +113,10 @@ sub redirect {
 
 sub finalize {
     my $self = shift;
-    $self->query->header( $self->{header} );
+    my $query = $self->query;
+    my $headers = $query->header( $self->{header} );
+    $query->print( $headers ) unless $headers eq q{};
+    return;
 }
 
 sub clone {
@@ -157,11 +160,11 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
   $header->delete('Content-Disposition'); # => 3002
   $header->clear; # => $self
 
-  $header->as_string; # => "Content-Type: text/html\n..."
+  $header->finalize;
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.55.
+This document refers to CGI::Header version 0.56.
 
 =head1 DEPENDENCIES
 
@@ -280,9 +283,7 @@ This will remove all header properties.
 
 =item $header->finalize
 
-Returns the header fields as a formatted MIME header.
-If C<CGI::Header#nph> is true, the Status-Line is inserted to the beginning
-of the response headers.
+Sends the response headers to the browser.
 
 Valid multi-line header input is accepted when each line is separated
 with a CRLF value (C<\r\n> on most platforms) followed by at least one space.
@@ -295,13 +296,9 @@ When multi-line headers are received, this method will always output them
 back as a single line, according to the folding rules of RFC 2616:
 the newlines will be removed, while white space remains.
 
-In L<mod_perl> environment, the formatted string
-is swallowed by L<Apache2::Response>'s C<send_cgi_header> method silently,
-and so an empty string is returned.
-
 It's identical to:
 
-  $header->query->header( $header->header );
+  print STDOUT $query->header( $header->header );
 
 =item $header->clone
 

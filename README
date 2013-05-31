@@ -27,10 +27,10 @@ SYNOPSIS
       $header->delete('Content-Disposition'); # => 3002
       $header->clear; # => $self
 
-      $header->as_string; # => "Content-Type: text/html\n..."
+      $header->finalize;
 
 VERSION
-    This document refers to CGI::Header version 0.55.
+    This document refers to CGI::Header version 0.56.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -123,9 +123,7 @@ DESCRIPTION
         This will remove all header properties.
 
     $header->finalize
-        Returns the header fields as a formatted MIME header. If
-        "CGI::Header#nph" is true, the Status-Line is inserted to the
-        beginning of the response headers.
+        Sends the response headers to the browser.
 
         Valid multi-line header input is accepted when each line is
         separated with a CRLF value ("\r\n" on most platforms) followed by
@@ -138,13 +136,9 @@ DESCRIPTION
         back as a single line, according to the folding rules of RFC 2616:
         the newlines will be removed, while white space remains.
 
-        In mod_perl environment, the formatted string is swallowed by
-        Apache2::Response's "send_cgi_header" method silently, and so an
-        empty string is returned.
-
         It's identical to:
 
-          $header->query->header( $header->header );
+          print STDOUT $query->header( $header->header );
 
     $header->clone
         Returns a copy of this "CGI::Header" object. The "query" object is
