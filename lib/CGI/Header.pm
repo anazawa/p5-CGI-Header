@@ -114,8 +114,9 @@ sub redirect {
 sub finalize {
     my $self = shift;
     my $query = $self->query;
-    my $header = $self->{header};
-    $query->print( $query->header($header) );
+    my $headers = $query->header( $self->{header} );
+    $query->print( $headers ) unless $headers eq q{};
+    return;
 }
 
 sub clone {

@@ -1,9 +1,9 @@
 use strict;
 use warnings;
-use IO::File;
 use CGI::Header;
 use Test::More tests => 8;
 use Test::Exception;
+use Test::Output;
 
 subtest 'normalization' => sub {
     my $class = 'CGI::Header';
@@ -109,10 +109,8 @@ subtest 'CGI::Header#clear' => sub {
 
 subtest 'CGI::Header#finalize' => sub {
     my $header = CGI::Header->new;
-    local *STDOUT;
-    open STDOUT, '>', \my $output or die "$!";
-    ok $header->finalize;
-    like $output, qr{^Content-Type: text/html; charset=ISO-8859-1};
+    stdout_like { $header->type('text/plain')->finalize }
+        qr{^Content-Type: text/plain; charset=ISO-8859-1};
 };
 
 subtest 'CGI::Header#clone' => sub {
