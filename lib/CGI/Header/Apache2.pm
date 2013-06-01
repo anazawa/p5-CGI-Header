@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use parent 'CGI::Header::Adapter';
 use APR::Table;
+use Apache2::RequestRec;
+use Apache2::Response;
 
 sub request_rec {
     $_[0]->query->r;
@@ -45,11 +47,27 @@ __END__
 
 =head1 NAME
 
-CGI::Header::Apache1 - Adapter for Apache 2 mod_perl 2.x
+CGI::Header::Apache2 - Adapter for Apache 2 mod_perl 2.x
 
 =head1 SYNOPSIS
 
+  use Apache2::Const -compile => qw(OK);
+  use CGI;
   use CGI::Header::Apache2;
+
+  sub handler {
+      my $query  = CGI->new;
+      my $header = CGI::Header::Apache2->new( query => $query );
+
+      ...
+
+      # send response headers using mod_perl APIs
+      $header->finalize;
+
+      ...
+
+      return Apache2::Const::OK;
+  }
 
 =head1
 

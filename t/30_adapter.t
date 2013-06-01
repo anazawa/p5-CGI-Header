@@ -39,4 +39,4 @@ is_deeply $header->as_arrayref, [
 
 is $header->as_string, $header->query->header( $header->header );
 
-throws_ok { $header->finalize } qr{missing 'finalize' method};
+throws_ok { $header->finalize } qr{^call to abstract method};

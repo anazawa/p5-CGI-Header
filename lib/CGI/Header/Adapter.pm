@@ -9,8 +9,7 @@ sub crlf {
 }
 
 sub finalize {
-    my $self = shift;
-    croak ref $self, " is missing 'finalize' method";
+    croak 'call to abstract method ', __PACKAGE__, '::finalize';
 }
 
 sub as_string {

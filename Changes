@@ -1,5 +1,8 @@
 Revision history for Perl extension CGI::Header.
 
+  - CGI::Header::Standalone was separated into CGI::Header::Adapter
+    and Apache2. Apache1 is not available at this time.
+
 0.56 (1.00-RC9) May 31st, 2013
 
   - finalize() prints to STDOUT using CGI#print
