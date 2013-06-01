@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.56';
+our $VERSION = '0.57';
 
 my %PropertyAlias = (
     'content-type'  => 'type',
@@ -164,7 +164,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.56.
+This document refers to CGI::Header version 0.57.
 
 =head1 DEPENDENCIES
 

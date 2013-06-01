@@ -75,6 +75,7 @@ Adapter for Apache2 mod_perl 2.x
 
 =head1 SEE ALSO
 
+L<Catalyst::Engine::Apache>, L<HTTP::Engine::Interface::ModPerl>,
 L<Plack::Handler::Apache2>
 
 =head1 AUTHOR
