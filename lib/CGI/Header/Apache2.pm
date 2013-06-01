@@ -6,6 +6,12 @@ use APR::Table;
 use Apache2::RequestRec;
 use Apache2::Response;
 
+my %Handler = (
+    'Content-length' => 'set_content_length',
+    'Content-Type'   => 'content_type',
+    'Status'         => 'status_line',
+);
+
 sub request_rec {
     $_[0]->query->r;
 }
@@ -27,11 +33,8 @@ sub finalize {
         my $field = $headers->[$i];
         my $value = $self->process_newline( $headers->[$i+1] );
 
-        if ( $field eq 'Content-Type' ) {
-            $request_rec->content_type( $value );
-        }
-        elsif ( $field eq 'Content-length' ) {
-            $request_rec->set_content_length( $value );
+        if ( my $handler = $Handler{$field} ) {
+            $request_rec->$handler( $value );
         }
         else {
             $headers_out->add( $field => $value );
