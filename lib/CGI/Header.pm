@@ -24,17 +24,34 @@ sub _normalize {
 
 sub new {
     my $class  = shift;
-    my %args   = ( header => {}, @_ );
-    my $header = $args{header};
+    my $args   = $class->BUILDARGS( @_ );
+    my $self   = bless { %$args }, $class;
+    my $header = $self->{header};
 
-    for my $key ( keys %{$header} ) {
-        my $prop = $class->_normalize( $key );
+    for my $key ( keys %$header ) {
+        my $prop = $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
-    bless \%args, $class;
+    $self->BUILD( $args );
+
+    $self;
+}
+
+sub BUILDARGS {
+    my $class = shift;
+    my @args  = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
+
+    return {
+        header => {},
+        @args,
+    };
+}
+
+sub BUILD {
+    # do nothing. Override in subclass
 }
 
 sub header {
