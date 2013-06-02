@@ -13,60 +13,39 @@ my %PropertyAlias = (
     'window-target' => 'target',
 );
 
-my $normalize = sub {
+sub _normalize {
     my $class = shift;
     my $prop = lc shift;
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
     $prop = $PropertyAlias{$prop} if exists $PropertyAlias{$prop};
     $prop;
-};
-
-sub _normalize {
-    my $class = shift;
-    $class->$normalize( @_ );
 }
 
 sub new {
     my $class = shift;
-    my $args  = $class->BUILDARGS( @_ );
-    my $self  = bless { %$args }, $class;
+    my %args  = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
+    my $self  = bless {}, $class;
 
-    $self->BUILD( $args );
+    while ( my ($method, $value) = each %args ) {
+        $self->$method($value) if $self->can($method);
+    }
 
     $self;
 }
 
-sub BUILDARGS {
-    my $class = shift;
-    my @args  = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
-
-    croak "Odd number of elements passed to 'new'" if @args % 2;
-
-    +{ @args };
-}
-
-sub BUILD {
-    my $self   = shift;
-    my $header = $self->header;
-
-    for my $key ( keys %$header ) {
-        my $prop = $self->$normalize( $key );
-        next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
-    }
-
-    return;
-}
-
 sub header {
-    $_[0]->{header} ||= {};
+    my $self = shift;
+    return $self->{header} ||= {} unless @_;
+    $self->{header} = shift;
+    $self->rehash;
 }
 
 sub query {
     my $self = shift;
-    $self->{query} ||= $self->_build_query;
+    return $self->{query} ||= $self->_build_query unless @_;
+    $self->{query} = shift;
+    $self;
 }
 
 sub _build_query {
@@ -74,27 +53,41 @@ sub _build_query {
     CGI::self_or_default();
 }
 
+sub rehash {
+    my $self   = shift;
+    my $header = $self->header;
+
+    for my $key ( keys %$header ) {
+        my $prop = $self->_normalize( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+    }
+
+    $self;
+}
+
 sub get {
     my ( $self, $key ) = @_;
-    my $prop = $self->$normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
-    my $prop = $self->$normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
-    my $prop = $self->$normalize( $key );
+    my $prop = $self->_normalize( $key );
     exists $self->header->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
-    my $prop = $self->$normalize( $key );
+    my $prop = $self->_normalize( $key );
     delete $self->header->{$prop};
 }
 
