@@ -3,6 +3,7 @@ use 5.008_009;
 use strict;
 use warnings;
 use Carp qw/croak/;
+use Class::ISA;
 
 our $VERSION = '0.57';
 
@@ -23,39 +24,10 @@ sub _normalize {
 }
 
 sub new {
-    my $class = shift;
-    my %args  = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
-    my $self  = bless {}, $class;
-
-    while ( my ($method, $value) = each %args ) {
-        $self->$method($value) if $self->can($method);
-    }
-
-    $self;
-}
-
-sub header {
-    my $self = shift;
-    return $self->{header} ||= {} unless @_;
-    $self->{header} = shift;
-    $self->rehash;
-}
-
-sub query {
-    my $self = shift;
-    return $self->{query} ||= $self->_build_query unless @_;
-    $self->{query} = shift;
-    $self;
-}
-
-sub _build_query {
-    require CGI;
-    CGI::self_or_default();
-}
-
-sub rehash {
-    my $self   = shift;
-    my $header = $self->header;
+    my $class  = shift;
+    my %args   = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
+    my $self   = bless { header => {}, %args }, $class;
+    my $header = $self->{header};
 
     for my $key ( keys %$header ) {
         my $prop = $self->_normalize( $key );
@@ -64,36 +36,52 @@ sub rehash {
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
 
+    $self->BUILD( \%args ) if $self->can('BUILD');
+
     $self;
+}
+
+sub header {
+    $_[0]->{header};
+}
+
+sub query {
+    my $self = shift;
+    $self->{query} ||= $self->_build_query;
+}
+
+sub _build_query {
+    require CGI;
+    CGI::self_or_default();
 }
 
 sub get {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    $self->header->{$prop};
+    $self->{header}->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
     my $prop = $self->_normalize( $key );
-    $self->header->{$prop} = $value;
+    $self->{header}->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    exists $self->header->{$prop};
+    exists $self->{header}->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    delete $self->header->{$prop};
+    delete $self->{header}->{$prop};
 }
 
 sub clear {
     my $self = shift;
-    undef %{ $self->header };
+    undef %{ $self->{header} };
     $self;
 }
 
@@ -112,8 +100,8 @@ BEGIN {
     /) {
         my $body = sub {
             my $self = shift;
-            return $self->header->{$method} unless @_;
-            $self->header->{$method} = shift;
+            return $self->{header}->{$method} unless @_;
+            $self->{header}->{$method} = shift;
             $self;
         };
 
@@ -130,7 +118,7 @@ sub redirect {
 sub finalize {
     my $self   = shift;
     my $query  = $self->query;
-    my $header = $self->header;
+    my $header = $self->{header};
 
     $query->print( $query->header($header) );
 
