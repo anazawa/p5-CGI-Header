@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - CGI::Header::Apache2 handles request_rec->status_line properly
+
 0.57 (1.00-RC10) Jun 1st, 2013
 
   - CGI::Header::Standalone is separated into CGI::Header::Adapter
