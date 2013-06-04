@@ -3,7 +3,6 @@ use 5.008_009;
 use strict;
 use warnings;
 use Carp qw/croak/;
-use Class::ISA;
 
 our $VERSION = '0.57';
 
@@ -25,8 +24,7 @@ sub _normalize {
 
 sub new {
     my $class  = shift;
-    my %args   = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
-    my $self   = bless { header => {}, %args }, $class;
+    my $self   = bless { header => {}, @_ }, $class;
     my $header = $self->{header};
 
     for my $key ( keys %$header ) {
@@ -35,8 +33,6 @@ sub new {
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
     }
-
-    $self->BUILD( \%args ) if $self->can('BUILD');
 
     $self;
 }
@@ -127,7 +123,7 @@ sub finalize {
 
 sub clone {
     my $self = shift;
-    my %header = %{ $self->header };
+    my %header = %{ $self->{header} };
     ref( $self )->new( %$self, header => \%header );
 }
 
