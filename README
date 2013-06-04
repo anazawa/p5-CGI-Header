@@ -30,7 +30,7 @@ SYNOPSIS
       $header->finalize;
 
 VERSION
-    This document refers to CGI::Header version 0.57.
+    This document refers to CGI::Header version 0.58.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
