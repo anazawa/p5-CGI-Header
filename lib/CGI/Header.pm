@@ -13,9 +13,9 @@ my %PropertyAlias = (
     'window-target' => 'target',
 );
 
-sub _normalize {
-    my $class = shift;
-    my $prop = lc shift;
+sub normalize {
+    my ( $class, $key ) = @_;
+    my $prop = lc $key;
     $prop =~ s/^-//;
     $prop =~ tr/_/-/;
     $prop = $PropertyAlias{$prop} if exists $PropertyAlias{$prop};
@@ -28,7 +28,7 @@ sub new {
     my $header = $self->{header};
 
     for my $key ( keys %$header ) {
-        my $prop = $self->_normalize( $key );
+        my $prop = $self->normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
@@ -53,25 +53,25 @@ sub _build_query {
 
 sub get {
     my ( $self, $key ) = @_;
-    my $prop = $self->_normalize( $key );
+    my $prop = $self->normalize( $key );
     $self->{header}->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
-    my $prop = $self->_normalize( $key );
+    my $prop = $self->normalize( $key );
     $self->{header}->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
-    my $prop = $self->_normalize( $key );
+    my $prop = $self->normalize( $key );
     exists $self->{header}->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
-    my $prop = $self->_normalize( $key );
+    my $prop = $self->normalize( $key );
     delete $self->{header}->{$prop};
 }
 
@@ -87,7 +87,6 @@ BEGIN {
         charset
         cookies
         expires
-        location
         nph
         p3p
         status
@@ -104,11 +103,6 @@ BEGIN {
         no strict 'refs';
         *{$method} = $body;
     }
-}
-
-sub redirect {
-    my ( $self, $url, $status ) = @_;
-    $self->status( $status || '302 Found' )->location( $url );
 }
 
 sub finalize {
