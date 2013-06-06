@@ -1,5 +1,12 @@
 Revision history for Perl extension CGI::Header.
 
+  - Remove CGI::Header#location and redirect
+  - CGI::Header#normalize can't be overridden.
+    I don't know how to make 'normalize' overridable at this time :(
+    This issue is the most essential problem of this module,
+    I mean, if you use this module, you have to agree with how this
+    module normalizes property names.
+
 0.58 (1.00-RC11) Jun 5th, 2013
 
   - CGI::Header::Apache2 updates request_rec->status_line properly

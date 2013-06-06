@@ -13,6 +13,7 @@ my %PropertyAlias = (
     'window-target' => 'target',
 );
 
+# NOTE: can't be overridden
 sub normalize {
     my ( $class, $key ) = @_;
     my $prop = lc $key;
@@ -380,14 +381,6 @@ expiration interval. The following forms are all valid for this field:
   # at the indicated time & date
   $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
 
-=item $self = $header->location( $url )
-
-=item $url = $header->location
-
-Get or set the Location header.
-
-  $header->location('http://somewhere.else/in/movie/land');
-
 =item $self = $header->nph( $bool )
 
 =item $bool = $header->nph
@@ -413,13 +406,6 @@ string.
 In this case, the outgoing header will be formatted as:
 
   P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
-
-=item $self = $header->redirect( $url[, $status] );
-
-Sets redirect URL with an optional HTTP status of the response,
-which defaults to C<302 Found>. Returns this object itself.
-
-  $header->redirect('http://somewhere.else/in/movie/land');
 
 =item $self = $header->status( $status )
 
