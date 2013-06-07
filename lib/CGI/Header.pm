@@ -2,31 +2,16 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
+use CGI::Header::Normalizer;
 use Carp qw/croak/;
 
 our $VERSION = '0.58';
 
-my %PropertyAlias = (
-    'content-type'  => 'type',
-    'cookie'        => 'cookies',
-    'set-cookie'    => 'cookies',
-    'window-target' => 'target',
-);
-
-# NOTE: can't be overridden
-sub normalize {
-    my ( $class, $key ) = @_;
-    my $prop = lc $key;
-    $prop =~ s/^-//;
-    $prop =~ tr/_/-/;
-    $prop = $PropertyAlias{$prop} if exists $PropertyAlias{$prop};
-    $prop;
-}
-
 sub new {
     my $class  = shift;
-    my $self   = bless { header => {}, @_ }, $class;
-    my $header = $self->{header};
+    my %args   = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
+    my $self   = bless { %args }, $class;
+    my $header = $self->header;
 
     for my $key ( keys %$header ) {
         my $prop = $self->normalize( $key );
@@ -39,7 +24,7 @@ sub new {
 }
 
 sub header {
-    $_[0]->{header};
+    $_[0]->{header} ||= {};
 }
 
 sub query {
@@ -52,33 +37,65 @@ sub _build_query {
     CGI::self_or_default();
 }
 
+sub handler {
+    $_[0]->{handler} ||= 'header';
+}
+
+sub normalizer {
+    my $self = shift;
+    $self->{normalizer} ||= $self->_build_normalizer;
+}
+
+sub _build_normalizer {
+    my $self = shift;
+
+    my %alias = (
+        'content-type'  => 'type',
+        'cookie'        => 'cookies',
+        'set-cookie'    => 'cookies',
+        'window-target' => 'target',
+    );
+
+    if ( $self->handler eq 'redirect' ) {
+        $alias{uri} = 'location';
+        $alias{url} = 'location';
+    }
+
+    CGI::Header::Normalizer->new( alias => \%alias );
+}
+
+sub normalize {
+    my $self = shift;
+    $self->normalizer->normalize(@_);
+}
+
 sub get {
     my ( $self, $key ) = @_;
     my $prop = $self->normalize( $key );
-    $self->{header}->{$prop};
+    $self->header->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
     my $prop = $self->normalize( $key );
-    $self->{header}->{$prop} = $value;
+    $self->header->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
     my $prop = $self->normalize( $key );
-    exists $self->{header}->{$prop};
+    exists $self->header->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
     my $prop = $self->normalize( $key );
-    delete $self->{header}->{$prop};
+    delete $self->header->{$prop};
 }
 
 sub clear {
     my $self = shift;
-    undef %{ $self->{header} };
+    undef %{ $self->header };
     $self;
 }
 
@@ -96,8 +113,9 @@ BEGIN {
     /) {
         my $body = sub {
             my $self = shift;
-            return $self->{header}->{$method} unless @_;
-            $self->{header}->{$method} = shift;
+            my $prop = $self->normalize( $method );
+            return $self->header->{$method} unless @_;
+            $self->header->{$method} = shift;
             $self;
         };
 
@@ -109,16 +127,17 @@ BEGIN {
 sub finalize {
     my $self   = shift;
     my $query  = $self->query;
-    my $header = $self->{header};
+    my $header = $self->header;
+    my $method = $self->handler;
 
-    $query->print( $query->header($header) );
+    $query->print( $query->$method($header) );
 
     return;
 }
 
 sub clone {
     my $self = shift;
-    my %header = %{ $self->{header} };
+    my %header = %{ $self->header };
     ref( $self )->new( %$self, header => \%header );
 }
 

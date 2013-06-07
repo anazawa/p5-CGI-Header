@@ -206,12 +206,6 @@ DESCRIPTION
           # at the indicated time & date
           $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
 
-    $self = $header->location( $url )
-    $url = $header->location
-        Get or set the Location header.
-
-          $header->location('http://somewhere.else/in/movie/land');
-
     $self = $header->nph( $bool )
     $bool = $header->nph
         Get or set the "nph" property. If set to a true value, will issue
@@ -231,12 +225,6 @@ DESCRIPTION
         In this case, the outgoing header will be formatted as:
 
           P3P: policyref="/w3c/p3p.xml", CP="CAO DSP LAW CURa"
-
-    $self = $header->redirect( $url[, $status] );
-        Sets redirect URL with an optional HTTP status of the response,
-        which defaults to "302 Found". Returns this object itself.
-
-          $header->redirect('http://somewhere.else/in/movie/land');
 
     $self = $header->status( $status )
     $status = $header->status

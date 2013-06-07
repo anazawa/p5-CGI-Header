@@ -1,12 +1,20 @@
 use strict;
 use warnings;
 use CGI::Header;
+use CGI::Header::Normalizer;
 use Test::More tests => 8;
 use Test::Exception;
 use Test::Output;
 
 subtest 'normalization' => sub {
-    my $class = 'CGI::Header';
+    my $normalizer = CGI::Header::Normalizer->new(
+        alias => {
+            'content-type'  => 'type',
+            'cookie'        => 'cookies',
+            'set-cookie'    => 'cookies',
+            'window-target' => 'target',
+        },
+    );
 
     my %data = (
         '-Content_Type'  => 'type',
@@ -16,7 +24,7 @@ subtest 'normalization' => sub {
     );
 
     while ( my ($input, $expected) = each %data ) {
-        is $class->normalize($input), $expected;
+        is $normalizer->normalize($input), $expected;
     }
 };
 
