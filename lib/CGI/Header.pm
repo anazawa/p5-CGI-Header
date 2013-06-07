@@ -2,7 +2,6 @@ package CGI::Header;
 use 5.008_009;
 use strict;
 use warnings;
-use CGI::Header::Normalizer;
 use Carp qw/croak/;
 
 our $VERSION = '0.58';
@@ -14,7 +13,7 @@ sub new {
     my $header = $self->header;
 
     for my $key ( keys %$header ) {
-        my $prop = $self->normalize( $key );
+        my $prop = $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
@@ -41,12 +40,12 @@ sub handler {
     $_[0]->{handler} ||= 'header';
 }
 
-sub normalizer {
+sub _alias {
     my $self = shift;
-    $self->{normalizer} ||= $self->_build_normalizer;
+    $self->{_alias} ||= $self->_build_alias;
 }
 
-sub _build_normalizer {
+sub _build_alias {
     my $self = shift;
 
     my %alias = (
@@ -61,35 +60,40 @@ sub _build_normalizer {
         $alias{url} = 'location';
     }
 
-    CGI::Header::Normalizer->new( alias => \%alias );
+    \%alias;
 }
 
-sub normalize {
-    my $self = shift;
-    $self->normalizer->normalize(@_);
+sub _normalize {
+    my ( $self, $key ) = @_;
+    my $alias = $self->_alias;
+    my $prop = lc $key;
+    $prop =~ s/^-//;
+    $prop =~ tr/_/-/;
+    $prop = $alias->{$prop} if exists $alias->{$prop};
+    $prop;
 }
 
 sub get {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     exists $self->header->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     delete $self->header->{$prop};
 }
 
@@ -105,6 +109,7 @@ BEGIN {
         charset
         cookies
         expires
+        location
         nph
         p3p
         status
@@ -113,7 +118,6 @@ BEGIN {
     /) {
         my $body = sub {
             my $self = shift;
-            my $prop = $self->normalize( $method );
             return $self->header->{$method} unless @_;
             $self->header->{$method} = shift;
             $self;
