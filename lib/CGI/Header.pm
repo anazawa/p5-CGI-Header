@@ -7,19 +7,8 @@ use Carp qw/croak/;
 our $VERSION = '0.58';
 
 sub new {
-    my $class  = shift;
-    my %args   = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
-    my $self   = bless { %args }, $class;
-    my $header = $self->header;
-
-    for my $key ( keys %$header ) {
-        my $prop = $self->_normalize( $key );
-        next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
-    }
-
-    $self;
+    my ( $class, @args ) = @_;
+    ( bless { @args }, $class )->_rehash;
 }
 
 sub header {
@@ -37,7 +26,11 @@ sub _build_query {
 }
 
 sub handler {
-    $_[0]->{handler} ||= 'header';
+    my $self = shift;
+    return $self->{handler} ||= 'header' unless @_;
+    $self->{handler} = shift;
+    $self->_clear_alias;
+    $self->_rehash;
 }
 
 sub _alias {
@@ -63,6 +56,10 @@ sub _build_alias {
     \%alias;
 }
 
+sub _clear_alias {
+    delete $_[0]->{_alias};
+}
+
 sub _normalize {
     my ( $self, $key ) = @_;
     my $alias = $self->_alias;
@@ -71,6 +68,20 @@ sub _normalize {
     $prop =~ tr/_/-/;
     $prop = $alias->{$prop} if exists $alias->{$prop};
     $prop;
+}
+
+sub _rehash {
+    my $self   = shift;
+    my $header = $self->header;
+
+    for my $key ( keys %$header ) {
+        my $prop = $self->_normalize( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+    }
+
+    $self;
 }
 
 sub get {
