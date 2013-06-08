@@ -2,29 +2,22 @@ use strict;
 use warnings;
 use CGI::Header;
 use CGI::Header::Normalizer;
-use Test::More tests => 8;
+use Test::More tests => 9;
 use Test::Exception;
 use Test::Output;
 
 subtest 'normalization' => sub {
-    my $normalizer = CGI::Header::Normalizer->new(
-        alias => {
-            'content-type'  => 'type',
-            'cookie'        => 'cookies',
-            'set-cookie'    => 'cookies',
-            'window-target' => 'target',
-        },
-    );
+    my $header = CGI::Header->new;
 
     my %data = (
         '-Content_Type'  => 'type',
         '-Cookie'        => 'cookies',
-        '-Set_Cookie'    => 'cookies',
-        '-Window_Target' => 'target',
+        #'-Set_Cookie'    => 'cookies',
+        #'-Window_Target' => 'target',
     );
 
     while ( my ($input, $expected) = each %data ) {
-        is $normalizer->normalize($input), $expected;
+        is $header->_normalize($input), $expected;
     }
 };
 
@@ -34,6 +27,7 @@ subtest 'CGI::Header#new' => sub {
     isa_ok $header, 'CGI::Header';
     isa_ok $header->header, 'HASH';
     isa_ok $header->query, 'CGI';
+    is $header->handler, 'header';
 
     throws_ok {
         CGI::Header->new(
@@ -43,6 +37,11 @@ subtest 'CGI::Header#new' => sub {
             }
         )
     } qr{^Property 'type' already exists};
+};
+
+subtest 'CGI::Header#handler' => sub {
+    my $header = CGI::Header->new;
+    is $header->handler('redirect'), $header;
 };
 
 subtest 'header fields' => sub {

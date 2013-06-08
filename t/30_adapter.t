@@ -9,20 +9,22 @@ use Test::Exception;
 
 set_fixed_time( 1341637509 );
 
-my $header = CGI::Header::Adapter->new(
-    header => {
-        '-NPH'           => 1,
-        '-Status'        => '304 Not Modified',
-        '-Content_Type'  => 'text/plain',
-        '-Charset'       => 'utf-8',
-        '-Attachment'    => 'genome.jpg',
-        '-P3P'           => [qw/CAO DSP LAW CURa/],
-        '-Window_Target' => 'ResultsWindow',
-        '-Expires'       => '+3d',
-        '-Foo_Bar'       => 'baz',
-        '-Set_Cookie'    => [ CGI::Cookie->new(ID => 123456) ],
-    },
+# NOTE: $q->redirect( -p3p => \@tags ) doesn't work
+
+my @args = (
+    '-NPH'          => 1,
+    '-Status'       => '304 Not Modified',
+    '-Content_Type' => 'text/plain',
+    '-Charset'      => 'utf-8',
+    '-Attachment'   => 'genome.jpg',
+    '-P3P'          => 'CAO DSP LAW CURa',
+    '-Target'       => 'ResultsWindow',
+    '-Expires'      => '+3d',
+    '-Foo_Bar'      => 'baz',
+    '-Cookie'       => [ CGI::Cookie->new(ID => 123456) ],
 );
+
+my $header = CGI::Header::Adapter->new( header => { @args } );
 
 is_deeply $header->as_arrayref, [
     'Server',              'cmdline',
@@ -37,6 +39,8 @@ is_deeply $header->as_arrayref, [
     'Content-Type',        'text/plain; charset=utf-8',
 ];
 
-is $header->as_string, $header->query->header( $header->header );
+is $header->as_string, $header->query->header( @args );
 
 throws_ok { $header->finalize } qr{^call to abstract method};
+
+is $header->handler('redirect')->as_string, $header->query->redirect( @args );

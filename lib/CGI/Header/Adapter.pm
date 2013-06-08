@@ -23,7 +23,7 @@ sub as_string {
     # add Status-Line required by NPH scripts
     if ( $self->nph or $query->nph ) {
         my $protocol = $query->server_protocol;
-        my $status = $self->process_newline( $self->status || '200 OK' );
+        my $status = $self->process_newline( {@$headers}->{'Status'} || '200 OK' );
         push @lines, "$protocol $status$crlf";
     }
 
@@ -63,12 +63,19 @@ sub as_arrayref {
     my $self   = shift;
     my $query  = $self->query;
     my %header = %{ $self->header };
-    my $nph    = delete $header{nph} || $query->nph;
 
-    my ( $attachment, $charset, $cookies, $expires, $p3p, $status, $target, $type )
-        = delete @header{qw/attachment charset cookies expires p3p status target type/};
+    if ( $self->handler eq 'redirect' ) {
+        $header{location} = $query->self_url if !$header{location};
+        $header{status} = '302 Found' if !defined $header{status};
+        $header{type} = q{} if !exists $header{type};
+    }
+
+    my ( $attachment, $charset, $cookies, $expires, $nph, $p3p, $status, $target, $type )
+        = delete @header{qw/attachment charset cookies expires nph p3p status target type/};
 
     my @headers;
+
+    $nph ||= $query->nph;
 
     push @headers, 'Server', $query->server_software if $nph;
     push @headers, 'Status', $status if $status;

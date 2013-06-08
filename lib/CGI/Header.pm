@@ -7,8 +7,9 @@ use Carp qw/croak/;
 our $VERSION = '0.58';
 
 sub new {
-    my ( $class, @args ) = @_;
-    ( bless { @args }, $class )->_rehash;
+    my $class = shift;
+    my %args = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
+    ( bless { %args }, $class )->rehash;
 }
 
 sub header {
@@ -30,7 +31,7 @@ sub handler {
     return $self->{handler} ||= 'header' unless @_;
     $self->{handler} = shift;
     $self->_clear_alias;
-    $self->_rehash;
+    $self->rehash;
 }
 
 sub _alias {
@@ -42,10 +43,8 @@ sub _build_alias {
     my $self = shift;
 
     my %alias = (
-        'content-type'  => 'type',
-        'cookie'        => 'cookies',
-        'set-cookie'    => 'cookies',
-        'window-target' => 'target',
+        'cookie'       => 'cookies',
+        'content-type' => 'type',
     );
 
     if ( $self->handler eq 'redirect' ) {
@@ -70,7 +69,7 @@ sub _normalize {
     $prop;
 }
 
-sub _rehash {
+sub rehash {
     my $self   = shift;
     my $header = $self->header;
 
@@ -135,8 +134,16 @@ BEGIN {
         };
 
         no strict 'refs';
-        *{$method} = $body;
+        *$method = $body;
     }
+}
+
+sub redirect {
+    my ( $self, $url, $status ) = @_;
+    $self->handler('redirect');
+    $self->location( $url ) if $url;
+    $self->status( $status ) if $status;
+    $self;
 }
 
 sub finalize {
@@ -268,8 +275,12 @@ by the module.
 
 Returns the header hash reference associated with this CGI::Header object.
 This attribute defaults to a reference to an empty hash.
-The hashref will be passed to CGI.pm's C<header> method to generate
-CGI response headers. See C<CGI::Header#as_string>.
+
+=item $self = $header->handler('redirect')
+
+Returns a method name in C<query> object, which is used to C<finalize> header
+props. This attribute defaults to C<header>. The argument can be
+C<header> or C<redirect>.
 
 =back
 
@@ -329,7 +340,8 @@ the newlines will be removed, while white space remains.
 
 It's identical to:
 
-  print STDOUT $query->header( $header->header );
+  my $handler = $header->handler; # => 'header' or 'redirect'
+  print STDOUT $query->$handler( $header->header );
 
 =item $header->clone
 
