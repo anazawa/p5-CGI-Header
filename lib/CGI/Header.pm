@@ -339,7 +339,7 @@ It's identical to:
 
 =back
 
-=head2 PROPERTIES
+=head2 HEADER PROPERTIES
 
 The following methods were named after property names recognized by
 CGI.pm's C<header> method. Most of these methods can both be used to
