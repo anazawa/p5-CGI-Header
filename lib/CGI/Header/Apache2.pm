@@ -15,7 +15,7 @@ sub finalize {
     my $headers     = $self->as_arrayref;
     my $request_rec = $self->request_rec;
 
-    my $status = $self->status || ( $self->handler eq 'redirect' ? '302' : '200' );
+    my $status = {@$headers}->{'Status'} || '200';
        $status =~ s/\D*$//;
 
     my $headers_out = $status >= 200 && $status < 300 ? 'headers_out' : 'err_headers_out';  
@@ -27,11 +27,11 @@ sub finalize {
         my $field = $headers->[$i];
         my $value = $self->process_newline( $headers->[$i+1] );
 
-        if ( $field eq 'Content-legnth' ) {
-            $request_rec->set_content_length( $value );
-        }
-        elsif ( $field eq 'Content-Type' ) {
+        if ( $field eq 'Content-Type' ) {
             $request_rec->content_type( $value );
+        }
+        elsif ( $field eq 'Content-length' ) {
+            $request_rec->set_content_length( $value );
         }
         elsif ( $field eq 'Status' ) {
             $request_rec->status_line( $value );

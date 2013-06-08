@@ -60,15 +60,17 @@ sub process_newline {
 }
 
 sub as_arrayref {
-    my $self   = shift;
-    my $query  = $self->query;
-    my %header = %{ $self->header };
+    my $self  = shift;
+    my $query = $self->query;
 
     if ( $self->handler eq 'redirect' ) {
-        $header{location} = $query->self_url if !$header{location};
-        $header{status} = '302 Found' if !defined $header{status};
-        $header{type} = q{} if !exists $header{type};
+        $self = $self->clone;
+        $self->location( $query->self_url ) if !$self->location;
+        $self->status( '302 Found' ) if !defined $self->status;
+        $self->type( q{} ) if !$self->_has_type;
     }
+
+    my %header = %{ $self->header };
 
     my ( $attachment, $charset, $cookies, $expires, $nph, $p3p, $status, $target, $type )
         = delete @header{qw/attachment charset cookies expires nph p3p status target type/};
@@ -119,6 +121,10 @@ sub _bake_cookie {
 sub _date {
     my ( $self, $expires ) = @_;
     CGI::Util::expires( $expires, 'http' );
+}
+
+sub _has_type {
+    exists $_[0]->header->{type};
 }
 
 1;

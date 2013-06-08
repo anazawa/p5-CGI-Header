@@ -4,7 +4,7 @@ use Test::MockTime qw/set_fixed_time/;
 use CGI;
 use CGI::Cookie;
 use CGI::Header::Adapter;
-use Test::More tests => 3;
+use Test::More tests => 4;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
