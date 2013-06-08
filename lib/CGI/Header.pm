@@ -7,9 +7,18 @@ use Carp qw/croak/;
 our $VERSION = '0.58';
 
 sub new {
-    my $class = shift;
-    my %args = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
-    ( bless { %args }, $class )->rehash;
+    my $class  = shift;
+    my $self   = bless { @_ }, $class;
+    my $header = $self->header;
+
+    for my $key ( keys %$header ) {
+        my $prop = $self->_normalize( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+    }
+
+    $self;
 }
 
 sub header {
@@ -27,11 +36,7 @@ sub _build_query {
 }
 
 sub handler {
-    my $self = shift;
-    return $self->{handler} ||= 'header' unless @_;
-    $self->{handler} = shift;
-    $self->_clear_alias;
-    $self->rehash;
+    $_[0]->{handler} ||= 'header';
 }
 
 sub _alias {
@@ -43,8 +48,8 @@ sub _build_alias {
     my $self = shift;
 
     my %alias = (
-        'cookie'       => 'cookies',
         'content-type' => 'type',
+        'cookie'       => 'cookies',
     );
 
     if ( $self->handler eq 'redirect' ) {
@@ -55,10 +60,6 @@ sub _build_alias {
     \%alias;
 }
 
-sub _clear_alias {
-    delete $_[0]->{_alias};
-}
-
 sub _normalize {
     my ( $self, $key ) = @_;
     my $alias = $self->_alias;
@@ -67,20 +68,6 @@ sub _normalize {
     $prop =~ tr/_/-/;
     $prop = $alias->{$prop} if exists $alias->{$prop};
     $prop;
-}
-
-sub rehash {
-    my $self   = shift;
-    my $header = $self->header;
-
-    for my $key ( keys %$header ) {
-        my $prop = $self->_normalize( $key );
-        next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
-    }
-
-    $self;
 }
 
 sub get {
@@ -138,21 +125,13 @@ BEGIN {
     }
 }
 
-sub redirect {
-    my ( $self, $url, $status ) = @_;
-    $self->handler('redirect');
-    $self->location( $url ) if $url;
-    $self->status( $status ) if $status;
-    $self;
-}
-
 sub finalize {
     my $self   = shift;
     my $query  = $self->query;
-    my $header = $self->header;
+    my $args   = $self->header;
     my $method = $self->handler;
 
-    $query->print( $query->$method($header) );
+    $query->print( $query->$method($args) );
 
     return;
 }
@@ -276,7 +255,7 @@ by the module.
 Returns the header hash reference associated with this CGI::Header object.
 This attribute defaults to a reference to an empty hash.
 
-=item $self = $header->handler('redirect')
+=item $method_name = $header->handler
 
 Returns a method name in C<query> object, which is used to C<finalize> header
 props. This attribute defaults to C<header>. The argument can be
@@ -426,6 +405,14 @@ expiration interval. The following forms are all valid for this field:
 
   # at the indicated time & date
   $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
+
+=item $self = $header->location( $url )
+
+=item $url = $header->location
+
+Get or set the Location header.
+
+  $header->location('http://somewhere.else/in/movie/land');
 
 =item $self = $header->nph( $bool )
 

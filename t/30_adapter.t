@@ -4,7 +4,7 @@ use Test::MockTime qw/set_fixed_time/;
 use CGI;
 use CGI::Cookie;
 use CGI::Header::Adapter;
-use Test::More tests => 4;
+use Test::More tests => 3;
 use Test::Exception;
 
 set_fixed_time( 1341637509 );
@@ -42,5 +42,3 @@ is_deeply $header->as_arrayref, [
 is $header->as_string, $header->query->header( @args );
 
 throws_ok { $header->finalize } qr{^call to abstract method};
-
-is $header->handler('redirect')->as_string, $header->query->redirect( @args );

@@ -1,8 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use CGI::Header::Normalizer;
-use Test::More tests => 9;
+use Test::More tests => 8;
 use Test::Exception;
 use Test::Output;
 
@@ -39,11 +38,6 @@ subtest 'CGI::Header#new' => sub {
     } qr{^Property 'type' already exists};
 };
 
-subtest 'CGI::Header#handler' => sub {
-    my $header = CGI::Header->new;
-    is $header->handler('redirect'), $header;
-};
-
 subtest 'header fields' => sub {
     my $header = CGI::Header->new;
     is $header->set( 'Foo' => 'bar' ), 'bar';
@@ -67,6 +61,9 @@ subtest 'header props.' => sub {
     is $header->expires('+3d'), $header;
     is $header->expires, '+3d';
 
+    is $header->location('http://somewhere.else/in/movie/land'), $header;
+    is $header->location, 'http://somewhere.else/in/movie/land';
+
     is $header->nph(1), $header;
     ok $header->nph;
 
@@ -87,6 +84,7 @@ subtest 'header props.' => sub {
         charset    => 'utf-8',
         cookies    => 'ID=123456; path=/',
         expires    => '+3d',
+        location   => 'http://somewhere.else/in/movie/land',
         nph        => '1',
         p3p        => 'CAO DSP LAW CURa',
         status     => '304 Not Modified',
