@@ -30,7 +30,7 @@ SYNOPSIS
       $header->finalize;
 
 VERSION
-    This document refers to CGI::Header version 0.58.
+    This document refers to CGI::Header version 0.59.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -87,9 +87,7 @@ DESCRIPTION
 
     $hashref = $header->header
         Returns the header hash reference associated with this CGI::Header
-        object. This attribute defaults to a reference to an empty hash. The
-        hashref will be passed to CGI.pm's "header" method to generate CGI
-        response headers. See "CGI::Header#as_string".
+        object. This attribute defaults to a reference to an empty hash.
 
   METHODS
     $value = $header->get( $field )
@@ -152,7 +150,7 @@ DESCRIPTION
               header => \%header
           );
 
-  PROPERTIES
+  HEADER PROPERTIES
     The following methods were named after property names recognized by
     CGI.pm's "header" method. Most of these methods can both be used to read
     and to set the value of a property.
@@ -257,10 +255,8 @@ DESCRIPTION
     CGI.pm's "header" method also accepts aliases of property names. This
     module converts them as follows:
 
-     'content-type'  -> 'type'
-     'cookie'        -> 'cookies'
-     'set-cookie'    -> 'cookies'
-     'window-target' -> 'target'
+     'content-type' -> 'type'
+     'cookie'       -> 'cookies'
 
     If a property name is duplicated, throws an exception:
 

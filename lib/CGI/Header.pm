@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.58';
+our $VERSION = '0.59';
 
 sub new {
     my ( $class, @args ) = @_;
@@ -170,7 +170,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.58.
+This document refers to CGI::Header version 0.59.
 
 =head1 DEPENDENCIES
 
@@ -244,12 +244,6 @@ by the module.
 Returns the header hash reference associated with this CGI::Header object.
 This attribute defaults to a reference to an empty hash.
 
-=item $method_name = $header->handler
-
-Returns a method name in C<query> object, which is used to C<finalize> header
-props. This attribute defaults to C<header>. The argument can be
-C<header> or C<redirect>.
-
 =back
 
 =head2 METHODS
@@ -308,8 +302,7 @@ the newlines will be removed, while white space remains.
 
 It's identical to:
 
-  my $handler = $header->handler; # => 'header' or 'redirect'
-  print STDOUT $query->$handler( $header->header );
+  print STDOUT $query->header( $header->header );
 
 =item $header->clone
 

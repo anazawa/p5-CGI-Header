@@ -115,10 +115,6 @@ sub _date {
     CGI::Util::expires( $expires, 'http' );
 }
 
-sub _has_type {
-    exists $_[0]->header->{type};
-}
-
 1;
 
 __END__
