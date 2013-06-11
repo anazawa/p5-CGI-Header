@@ -7,18 +7,8 @@ use Carp qw/croak/;
 our $VERSION = '0.58';
 
 sub new {
-    my $class  = shift;
-    my $self   = bless { @_ }, $class;
-    my $header = $self->header;
-
-    for my $key ( keys %$header ) {
-        my $prop = $self->_normalize( $key );
-        next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
-    }
-
-    $self;
+    my ( $class, @args ) = @_;
+    ( bless { @args }, $class )->_rehash;
 }
 
 sub header {
@@ -35,29 +25,16 @@ sub _build_query {
     CGI::self_or_default();
 }
 
-sub handler {
-    $_[0]->{handler} ||= 'header';
-}
-
 sub _alias {
     my $self = shift;
     $self->{_alias} ||= $self->_build_alias;
 }
 
 sub _build_alias {
-    my $self = shift;
-
-    my %alias = (
+    +{
         'content-type' => 'type',
         'cookie'       => 'cookies',
-    );
-
-    if ( $self->handler eq 'redirect' ) {
-        $alias{uri} = 'location';
-        $alias{url} = 'location';
-    }
-
-    \%alias;
+    };
 }
 
 sub _normalize {
@@ -68,6 +45,20 @@ sub _normalize {
     $prop =~ tr/_/-/;
     $prop = $alias->{$prop} if exists $alias->{$prop};
     $prop;
+}
+
+sub _rehash {
+    my $self   = shift;
+    my $header = $self->header;
+
+    for my $key ( keys %$header ) {
+        my $prop = $self->_normalize( $key );
+        next if $key eq $prop; # $key is normalized
+        croak "Property '$prop' already exists" if exists $header->{$prop};
+        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+    }
+
+    $self;
 }
 
 sub get {
@@ -106,7 +97,6 @@ BEGIN {
         charset
         cookies
         expires
-        location
         nph
         p3p
         status
@@ -126,12 +116,11 @@ BEGIN {
 }
 
 sub finalize {
-    my $self   = shift;
-    my $query  = $self->query;
-    my $args   = $self->header;
-    my $method = $self->handler;
+    my $self  = shift;
+    my $query = $self->query;
+    my $args  = $self->header;
 
-    $query->print( $query->$method($args) );
+    $query->print( $query->header($args) );
 
     return;
 }
@@ -406,14 +395,6 @@ expiration interval. The following forms are all valid for this field:
   # at the indicated time & date
   $header->expires( 'Thu, 25 Apr 1999 00:40:33 GMT' );
 
-=item $self = $header->location( $url )
-
-=item $url = $header->location
-
-Get or set the Location header.
-
-  $header->location('http://somewhere.else/in/movie/land');
-
 =item $self = $header->nph( $bool )
 
 =item $bool = $header->nph
@@ -486,10 +467,8 @@ Normalized property names are:
 CGI.pm's C<header> method also accepts aliases of property names.
 This module converts them as follows:
 
- 'content-type'  -> 'type'
- 'cookie'        -> 'cookies'
- 'set-cookie'    -> 'cookies'
- 'window-target' -> 'target'
+ 'content-type' -> 'type'
+ 'cookie'       -> 'cookies'
 
 If a property name is duplicated, throws an exception:
 

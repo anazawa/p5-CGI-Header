@@ -26,7 +26,6 @@ subtest 'CGI::Header#new' => sub {
     isa_ok $header, 'CGI::Header';
     isa_ok $header->header, 'HASH';
     isa_ok $header->query, 'CGI';
-    is $header->handler, 'header';
 
     throws_ok {
         CGI::Header->new(
@@ -61,8 +60,8 @@ subtest 'header props.' => sub {
     is $header->expires('+3d'), $header;
     is $header->expires, '+3d';
 
-    is $header->location('http://somewhere.else/in/movie/land'), $header;
-    is $header->location, 'http://somewhere.else/in/movie/land';
+    #is $header->location('http://somewhere.else/in/movie/land'), $header;
+    #is $header->location, 'http://somewhere.else/in/movie/land';
 
     is $header->nph(1), $header;
     ok $header->nph;
@@ -84,7 +83,7 @@ subtest 'header props.' => sub {
         charset    => 'utf-8',
         cookies    => 'ID=123456; path=/',
         expires    => '+3d',
-        location   => 'http://somewhere.else/in/movie/land',
+        #location   => 'http://somewhere.else/in/movie/land',
         nph        => '1',
         p3p        => 'CAO DSP LAW CURa',
         status     => '304 Not Modified',

@@ -60,16 +60,8 @@ sub process_newline {
 }
 
 sub as_arrayref {
-    my $self  = shift;
-    my $query = $self->query;
-
-    if ( $self->handler eq 'redirect' ) {
-        $self = $self->clone;
-        $self->location( $query->self_url ) if !$self->location;
-        $self->status( '302 Found' ) if !defined $self->status;
-        $self->type( q{} ) if !$self->_has_type;
-    }
-
+    my $self   = shift;
+    my $query  = $self->query;
     my %header = %{ $self->header };
 
     my ( $attachment, $charset, $cookies, $expires, $nph, $p3p, $status, $target, $type )

@@ -1,7 +1,6 @@
 Revision history for Perl extension CGI::Header.
 
-  - Remove CGI::Header#redirect
-  - Add CGI::Header#handler
+  - Remove CGI::Header#redirect and location
 
 0.58 (1.00-RC11) Jun 5th, 2013
 
