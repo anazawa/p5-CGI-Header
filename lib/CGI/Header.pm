@@ -7,12 +7,17 @@ use Carp qw/croak/;
 our $VERSION = '0.59';
 
 sub new {
-    my ( $class, @args ) = @_;
-    ( bless { @args }, $class )->_rehash;
+    my ( $class, %args ) = @_;
+    $args{args} = delete $args{header} if !exists $args{args};
+    ( bless { %args }, $class )->_rehash;
 }
 
 sub header {
-    $_[0]->{header} ||= {};
+    $_[0]->args;
+}
+
+sub args {
+    $_[0]->{args} ||= {};
 }
 
 sub query {
@@ -48,14 +53,14 @@ sub _normalize {
 }
 
 sub _rehash {
-    my $self   = shift;
-    my $header = $self->header;
+    my $self = shift;
+    my $args = $self->args;
 
-    for my $key ( keys %$header ) {
+    for my $key ( keys %$args ) {
         my $prop = $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
-        croak "Property '$prop' already exists" if exists $header->{$prop};
-        $header->{$prop} = delete $header->{$key}; # rename $key to $prop
+        croak "Property '$prop' already exists" if exists $args->{$prop};
+        $args->{$prop} = delete $args->{$key}; # rename $key to $prop
     }
 
     $self;
@@ -64,30 +69,30 @@ sub _rehash {
 sub get {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    $self->header->{$prop};
+    $self->args->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
     my $prop = $self->_normalize( $key );
-    $self->header->{$prop} = $value;
+    $self->args->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    exists $self->header->{$prop};
+    exists $self->args->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
     my $prop = $self->_normalize( $key );
-    delete $self->header->{$prop};
+    delete $self->args->{$prop};
 }
 
 sub clear {
     my $self = shift;
-    undef %{ $self->header };
+    undef %{ $self->args };
     $self;
 }
 
@@ -105,8 +110,8 @@ BEGIN {
     /) {
         my $body = sub {
             my $self = shift;
-            return $self->header->{$method} unless @_;
-            $self->header->{$method} = shift;
+            return $self->args->{$method} unless @_;
+            $self->args->{$method} = shift;
             $self;
         };
 
@@ -117,8 +122,8 @@ BEGIN {
 
 sub finalize {
     my $self  = shift;
+    my $args  = $self->args;
     my $query = $self->query;
-    my $args  = $self->header;
 
     $query->print( $query->header($args) );
 
@@ -127,8 +132,8 @@ sub finalize {
 
 sub clone {
     my $self = shift;
-    my %header = %{ $self->header };
-    ref( $self )->new( %$self, header => \%header );
+    my %args = %{ $self->args };
+    ref( $self )->new( %$self, args => \%args );
 }
 
 1;
