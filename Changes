@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+  - Add Blosxom::Header, MyApp::Header and CGI::Redirect to examples/
+
 0.60 (1.00-RC13) Jun 16th, 2013
 
   - Add examples/
