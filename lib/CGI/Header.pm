@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp qw/croak/;
 
-our $VERSION = '0.60';
+our $VERSION = '0.61';
 
 sub new {
     my ( $class, @args ) = @_;
@@ -170,7 +170,7 @@ CGI::Header - Handle CGI.pm-compatible HTTP header properties
 
 =head1 VERSION
 
-This document refers to CGI::Header version 0.60.
+This document refers to CGI::Header version 0.61.
 
 =head1 DEPENDENCIES
 
