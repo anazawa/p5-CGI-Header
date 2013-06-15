@@ -17,6 +17,8 @@ test_requires 'Test::Output';
 test_requires 'CGI::Simple';
 test_requires 'base';
 
+no_index directory => 'examples';
+
 tests 't/*.t xt/*.t';
 
 WriteAll;
