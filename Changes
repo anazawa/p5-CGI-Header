@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.60 (1.00-RC13) Jun 16th, 2013
+
   - Add examples/
   - mv lib/CGI/Header/Apache2.pm examples/lib/CGI/Header/Apache2.pm
   - CGI::Header::Apache2 isn't provided by this distribution.
