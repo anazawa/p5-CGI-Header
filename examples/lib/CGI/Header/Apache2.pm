@@ -72,7 +72,7 @@ CGI::Header::Apache2 - Adapter for Apache 2 mod_perl 2.x
       return Apache2::Const::OK;
   }
 
-=head1
+=head1 DESCRIPTION
 
 Adapter for Apache2 mod_perl 2.x
 
