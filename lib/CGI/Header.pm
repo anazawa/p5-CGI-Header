@@ -38,7 +38,7 @@ sub _build_alias {
     };
 }
 
-sub normalize {
+sub _normalize {
     my ( $self, $key ) = @_;
     my $alias = $self->_alias;
     my $prop = lc $key;
@@ -53,7 +53,7 @@ sub _rehash {
     my $header = $self->header;
 
     for my $key ( keys %$header ) {
-        my $prop = $self->normalize( $key );
+        my $prop = $self->_normalize( $key );
         next if $key eq $prop; # $key is normalized
         croak "Property '$prop' already exists" if exists $header->{$prop};
         $header->{$prop} = delete $header->{$key}; # rename $key to $prop
@@ -64,25 +64,25 @@ sub _rehash {
 
 sub get {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop};
 }
 
 sub set {
     my ( $self, $key, $value ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     $self->header->{$prop} = $value;
 }
 
 sub exists {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     exists $self->header->{$prop};
 }
 
 sub delete {
     my ( $self, $key ) = @_;
-    my $prop = $self->normalize( $key );
+    my $prop = $self->_normalize( $key );
     delete $self->header->{$prop};
 }
 
