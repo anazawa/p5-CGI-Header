@@ -16,7 +16,7 @@ subtest 'normalization' => sub {
     );
 
     while ( my ($input, $expected) = each %data ) {
-        is $header->_normalize($input), $expected;
+        is $header->normalize($input), $expected;
     }
 };
 

@@ -17,7 +17,7 @@ my %data = (
 );
 
 while ( my ($input, $expected) = each %data ) {
-    is $redirect->_normalize($input), $expected;
+    is $redirect->normalize($input), $expected;
 }
 
 is $redirect->location('http://somewhere.else/in/movie/land'), $redirect;
