@@ -7,10 +7,10 @@ sub merge {
     my ( $self, @args ) = @_;
 
     if ( @args == 1 ) {
-        my %header = %{ $args[0] };
+        my %other = %{ $args[0] };
         my $header = $self->header;
-        ref( $self )->new( header => \%header ); # rehash %header
-        %$header = ( %$header, %header );
+        ref( $self )->new( header => \%other ); # rehash %other
+        %$header = ( %$header, %other );
     }
     else {
         while ( my ($key, $value) = splice @args, 0, 2 ) {
