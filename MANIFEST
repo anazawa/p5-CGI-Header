@@ -3,6 +3,7 @@ Changes
 examples/lib/Blosxom/Header.pm
 examples/lib/CGI/Application/Header.pm
 examples/lib/CGI/Header/Apache2.pm
+examples/lib/CGI/Header/Extended.pm
 examples/lib/CGI/Redirect.pm
 examples/lib/CGI/Redirect/Adapter.pm
 examples/lib/CGI/Simple/Header.pm
@@ -10,6 +11,7 @@ examples/lib/CGI/Simple/Header/Adapter.pm
 examples/lib/MyApp/Header.pm
 examples/t/blosxom_header.t
 examples/t/cgi_application_header.t
+examples/t/cgi_header_extended.t
 examples/t/cgi_redirect.t
 examples/t/cgi_redirect_adapter.t
 examples/t/cgi_simple_header.t
