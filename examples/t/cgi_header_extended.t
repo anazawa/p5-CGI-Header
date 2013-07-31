@@ -1,31 +1,10 @@
 use strict;
 use warnings;
-use Test::More tests => 5;
+use Test::More tests => 4;
 
 BEGIN {
     use_ok 'CGI::Header::Extended';
 }
-
-subtest '#merge' => sub {
-    my $header = CGI::Header::Extended->new(
-        header => {
-            foo => 'bar',
-        },
-    );
-    is $header->merge( bar => 'baz' ), $header;
-    is_deeply $header->header, { foo => 'bar', bar => 'baz' };
-};
-
-subtest '#replace' => sub {
-    my $header = CGI::Header::Extended->new(
-        header => {
-            foo => 'bar',
-            bar => 'baz',
-        },
-    );
-    is $header->replace( baz => 'qux' ), $header;
-    is_deeply $header->header, { baz => 'qux' };
-};
 
 subtest '#get' => sub {
     my $header = CGI::Header::Extended->new(
@@ -35,6 +14,12 @@ subtest '#get' => sub {
         },
     );
     is_deeply [ $header->get(qw/foo bar/) ], [qw/bar baz/];
+};
+
+subtest '#set' => sub {
+    my $header = CGI::Header::Extended->new;
+    is_deeply [ $header->set(foo => 'bar', bar => 'baz') ], [qw/bar baz/];
+    is_deeply $header->header, { foo => 'bar', bar => 'baz' };
 };
 
 subtest '#delete' => sub {
