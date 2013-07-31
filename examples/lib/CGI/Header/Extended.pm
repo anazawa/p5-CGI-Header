@@ -3,6 +3,18 @@ use strict;
 use warnings;
 use parent 'CGI::Header';
 
+sub get {
+    my ( $self, @keys ) = @_;
+    my @values = map { $self->SUPER::get($_) } @keys;
+    wantarray ? @values : $values[-1];
+}
+
+sub delete {
+    my ( $self, @keys ) = @_;
+    my @values = map { $self->SUPER::delete($_) } @keys;
+    wantarray ? @values : $values[-1];
+}
+
 sub merge {
     my ( $self, @args ) = @_;
 
@@ -13,7 +25,7 @@ sub merge {
     }
     else {
         while ( my ($key, $value) = splice @args, 0, 2 ) {
-            $self->set( $key => $value );
+            $self->set( $key => $value ); # overwrite
         }
     }
 
