@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 8;
+use Test::More tests => 9;
 use Test::Exception;
 use Test::Output;
 
@@ -38,11 +38,25 @@ subtest 'CGI::Header#new' => sub {
 };
 
 subtest 'header fields' => sub {
-    my $header = CGI::Header->new;
+    my $header = CGI::Header->new( header => { foo => 'bar' } );
     is $header->set( 'Foo' => 'bar' ), 'bar';
     is $header->get('Foo'), 'bar';
     ok $header->exists('Foo');
     is $header->delete('Foo'), 'bar';
+};
+
+subtest '#set' => sub {
+    my $header = CGI::Header->new;
+
+    throws_ok { $header->set('Foo') } qr{^Odd number of arguments passed};
+
+    my @got = $header->set(
+        Foo => 'bar',
+        Bar => 'baz',
+    );
+
+    is_deeply \@got, [qw/bar baz/];
+    is_deeply $header->header, { foo => 'bar', bar => 'baz' };
 };
 
 subtest 'header props.' => sub {

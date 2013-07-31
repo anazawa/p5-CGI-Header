@@ -72,7 +72,7 @@ sub set {
     my ( $self, @pairs ) = @_;
     my $header = $self->header;
 
-    croak "Odd number of elements passed to 'set'" if @pairs % 2;
+    croak 'Odd number of arguments passed to set()' if @pairs % 2;
 
     my @values;
     while ( my ($key, $value) = splice @pairs, 0, 2 ) {
@@ -80,7 +80,7 @@ sub set {
         push @values, $header->{$prop} = $value;
     }
 
-    @values == 1 ? $values[0] : @values;
+    wantarray ? @values : $values[0];
 }
 
 sub exists {
@@ -100,6 +100,8 @@ sub clear {
     undef %{ $self->header };
     $self;
 }
+
+# See also Moose::Meta::Method::Accessor::Native::Hash
 
 BEGIN {
     for my $method (qw/
