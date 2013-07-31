@@ -63,15 +63,24 @@ sub _rehash {
 }
 
 sub get {
-    my ( $self, $key ) = @_;
-    my $prop = $self->_normalize( $key );
-    $self->header->{$prop};
+    my ( $self, @keys ) = @_;
+    my @props = map { $self->_normalize($_) } @keys;
+    @{ $self->header }{ @props };
 }
 
 sub set {
-    my ( $self, $key, $value ) = @_;
-    my $prop = $self->_normalize( $key );
-    $self->header->{$prop} = $value;
+    my ( $self, @pairs ) = @_;
+    my $header = $self->header;
+
+    croak "Odd number of elements passed to 'set'" if @pairs % 2;
+
+    my @values;
+    while ( my ($key, $value) = splice @pairs, 0, 2 ) {
+        my $prop = $self->_normalize( $key );
+        push @values, $header->{$prop} = $value;
+    }
+
+    @values == 1 ? $values[0] : @values;
 }
 
 sub exists {
@@ -81,9 +90,9 @@ sub exists {
 }
 
 sub delete {
-    my ( $self, $key ) = @_;
-    my $prop = $self->_normalize( $key );
-    delete $self->header->{$prop};
+    my ( $self, @keys ) = @_;
+    my @props = map { $self->_normalize($_) } @keys;
+    delete @{ $self->header }{ @props };
 }
 
 sub clear {
