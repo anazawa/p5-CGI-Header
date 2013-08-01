@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use CGI::Header;
-use Test::More tests => 9;
+use Test::More tests => 11; 
 use Test::Exception;
 use Test::Output;
 
