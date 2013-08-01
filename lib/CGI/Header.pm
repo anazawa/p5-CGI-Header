@@ -80,7 +80,7 @@ sub set {
         push @values, $header->{$prop} = $value;
     }
 
-    wantarray ? @values : $values[0];
+    wantarray ? @values : $values[-1];
 }
 
 sub exists {
@@ -264,7 +264,11 @@ This attribute defaults to a reference to an empty hash.
 
 =item $value = $header->get( $field )
 
+=item ( $v1, $v2, ... ) = $header->get( $f1, $f2, ... )
+
 =item $value = $header->set( $field => $value )
+
+=item ( $v1, $v2, ... ) = $header->set( $f1 => $v1, $f2 => $v2, ... )
 
 Get or set the value of the header field.
 The header field name (C<$field>) is not case sensitive.
@@ -288,8 +292,11 @@ Returns a Boolean value telling whether the specified field exists.
 
 =item $value = $header->delete( $field )
 
-Deletes the specified field form CGI response headers.
-Returns the value of the deleted field.
+=item @values = $header->delete( $f1, $f2, ... )
+
+Deletes the specified fields form CGI response headers.
+In list context it returns the values of the deleted fields.
+In scalar context it returns the value for the last field specified.
 
   my $value = $header->delete('Content-Disposition'); # => 'inline'
 
