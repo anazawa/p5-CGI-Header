@@ -30,7 +30,7 @@ SYNOPSIS
       $header->finalize;
 
 VERSION
-    This document refers to CGI::Header version 0.62.
+    This document refers to CGI::Header version 0.63.
 
 DEPENDENCIES
     This module is compatible with CGI.pm 3.51 or higher.
@@ -91,7 +91,9 @@ DESCRIPTION
 
   METHODS
     $value = $header->get( $field )
+    ( $v1, $v2, ... ) = $header->get( $f1, $f2, ... )
     $value = $header->set( $field => $value )
+    ( $v1, $v2, ... ) = $header->set( $f1 => $v1, $f2 => $v2, ... )
         Get or set the value of the header field. The header field name
         ($field) is not case sensitive.
 
@@ -112,8 +114,10 @@ DESCRIPTION
           }
 
     $value = $header->delete( $field )
-        Deletes the specified field form CGI response headers. Returns the
-        value of the deleted field.
+    @values = $header->delete( $f1, $f2, ... )
+        Deletes the specified fields form CGI response headers. In list
+        context it returns the values of the deleted fields. In scalar
+        context it returns the value for the last field specified.
 
           my $value = $header->delete('Content-Disposition'); # => 'inline'
 

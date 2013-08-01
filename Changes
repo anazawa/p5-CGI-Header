@@ -1,5 +1,7 @@
 Revision history for Perl extension CGI::Header.
 
+0.63 (1.00-RC16) Aug 1st, 2013
+
   - Merge CGI::Header::Extended into CGI::Header
 
 0.62 (1.00-RC15) Jul 31st, 2013
