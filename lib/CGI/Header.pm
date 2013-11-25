@@ -390,6 +390,8 @@ Get or set the C<cookies> property.
 The parameter can be a L<CGI::Cookie> object or an arrayref which consists of
 L<CGI::Cookie> objects.
 
+C<cookie> is an alias.
+
 =item $self = $header->expires( $format )
 
 =item $format = $header->expires
@@ -459,6 +461,8 @@ Get or set the C<type> property. Represents the media type of the message
 content.
 
   $header->type('text/html');
+
+C<content_type> is an alias.
 
 =back
 
@@ -550,7 +554,7 @@ method:
 
   sub cookies {
       my $self    = shift;
-      my $cookies = $self->header->{cookies} ||= [];
+      my $cookies = $self->get('cookies') ||= $self->set( cookies => [] );
 
       return $cookies unless @_;
 

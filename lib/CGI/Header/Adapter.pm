@@ -60,12 +60,12 @@ sub process_newline {
 }
 
 sub as_arrayref {
-    my $self   = shift;
-    my $clone  = $self->clone;
-    my $query  = $clone->query;
+    my $self  = shift;
+    my $clone = $self->clone;
+    my $query = $clone->query;
 
     my ( $attachment, $charset, $cookies, $expires, $nph, $p3p, $status, $target, $type )
-        = $clone->delete(qw/attachment charset cookies expires nph p3p status target type /);
+        = $clone->delete(qw/attachment charset cookies expires nph p3p status target type/);
 
     my @headers;
 
