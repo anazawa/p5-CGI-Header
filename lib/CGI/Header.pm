@@ -107,6 +107,8 @@ BEGIN {
     for my $method (qw/
         attachment
         charset
+        content_type
+        cookie
         cookies
         expires
         nph
@@ -117,8 +119,8 @@ BEGIN {
     /) {
         my $body = sub {
             my $self = shift;
-            return $self->header->{$method} unless @_;
-            $self->header->{$method} = shift;
+            return $self->get( $method ) unless @_;
+            $self->set( $method => shift );
             $self;
         };
 
