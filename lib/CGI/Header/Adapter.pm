@@ -61,11 +61,11 @@ sub process_newline {
 
 sub as_arrayref {
     my $self   = shift;
-    my $query  = $self->query;
-    my %header = %{ $self->header };
+    my $clone  = $self->clone;
+    my $query  = $clone->query;
 
     my ( $attachment, $charset, $cookies, $expires, $nph, $p3p, $status, $target, $type )
-        = delete @header{qw/attachment charset cookies expires nph p3p status target type/};
+        = $clone->delete(qw/attachment charset cookies expires nph p3p status target type /);
 
     my @headers;
 
@@ -76,11 +76,11 @@ sub as_arrayref {
     push @headers, 'Window-Target', $target if $target;
 
     if ( $p3p ) {
-        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @{$p3p} : $p3p;
+        my $tags = ref $p3p eq 'ARRAY' ? join ' ', @$p3p : $p3p;
         push @headers, 'P3P', qq{policyref="/w3c/p3p.xml", CP="$tags"};
     }
 
-    my @cookies = ref $cookies eq 'ARRAY' ? @{$cookies} : $cookies;
+    my @cookies = ref $cookies eq 'ARRAY' ? @$cookies : $cookies;
        @cookies = map { $self->_bake_cookie($_) || () } @cookies;
 
     push @headers, map { ('Set-Cookie', $_) } @cookies;
@@ -93,7 +93,9 @@ sub as_arrayref {
         push @headers, 'Content-Disposition', $value;
     }
 
-    push @headers, map { ucfirst $_, $header{$_} } keys %header;
+    while ( my ($key, $value) = each %{$clone->header} ) {
+        push @headers, ucfirst $key, $value;
+    }
 
     unless ( defined $type and $type eq q{} ) {
         my $value = $type || 'text/html';
